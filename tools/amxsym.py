@@ -35,6 +35,8 @@ NATIVES = ROOT / "decomp" / "pawn" / "natives.inc"
 
 # Body of an empty function (the retail build compiled the debug output out of its functions).
 _EMPTY = {OP[n] for n in ("PROC", "BREAK", "ZERO_PRI", "RETN", "RET")}
+# Not counted in the size of a function when deciding whether it is trivial.
+_FRAME = _EMPTY | {OP[n] for n in ("STACK", "HEAP")}
 # Opcodes whose operands are globals but are missing from amx.DATA_OPERANDS.
 _GLOBAL_OPERANDS = {OP[n] for n in ("PUSH", "PUSH2", "PUSH3", "PUSH4", "PUSH5", "PUSH_P", "CONST", "ZERO",
                                     "ZERO_P", "LOAD_BOTH")} | DATA_OPERANDS
@@ -136,6 +138,12 @@ class Program:
         self.groups: dict[str, list[Function]] = defaultdict(list)
         for f in self.functions.values():
             self.groups[f.fingerprint].append(f)
+        self.order: dict[tuple[str, int], tuple[Function | None, Function | None]] = {}
+        for script in decompilers:
+            ordered = sorted((f for f in self.functions.values() if f.script == script), key=lambda f: f.start)
+            for k, f in enumerate(ordered):
+                self.order[(script, f.start)] = (ordered[k - 1] if k else None,
+                                                  ordered[k + 1] if k + 1 < len(ordered) else None)
 
     # ---- matching
     def normalise(self, f: Function, callee: dict[int, str]) -> tuple[list, list[int]]:
@@ -169,12 +177,14 @@ class Program:
 
     @staticmethod
     def constant(dec, i: Instruction, n: int, glob) -> object:
+        """A constant as the decompiler saw it used: global, string literal (by content) or number.
+        Never guessed from the data: a number may look like a string in one script only."""
         value = i.args[n]
         usage = dec.usage.get((i.addr, n))
         if usage == "address":
             return glob(value)
-        if usage != "number" and value > 0:
-            text = dec.amx.string_at(value)
+        if usage == "string":
+            text = dec.amx.string_at(value, strict=False)
             if text is not None:
                 return ("s", text)
         return value
@@ -195,15 +205,38 @@ class Program:
             f.fingerprint = fingerprints[key]
 
     def group_of(self, script: str, start: int) -> list[Function]:
-        """Every copy of a function. Empty functions all look alike, so they are not matched."""
         f = self.functions.get((script, start))
-        if f is None:
-            return []
-        return [f] if self.is_empty(f) else self.groups[f.fingerprint]
+        return self.members(f) if f is not None else []
+
+    def members(self, f: Function) -> list[Function]:
+        """Every copy of a function. Empty functions all look alike, so they are not matched; a
+        trivial one (`return g_x;`) only where a neighbour matches too (same place in the .inc)."""
+        if self.is_empty(f):
+            return [f]
+        group = self.groups[f.fingerprint]
+        if not self.is_trivial(f):
+            return group
+        return [m for m in group if m is f or self.same_place(f, m)]
+
+    def same_place(self, a: Function, b: Function) -> bool:
+        matches = []
+        for side in (0, 1):
+            na, nb = self.order[(a.script, a.start)][side], self.order[(b.script, b.start)][side]
+            same = na is not None and nb is not None and na.fingerprint == nb.fingerprint
+            if same and not self.is_trivial(na):
+                return True
+            matches.append(same)
+        return all(matches)
 
     @staticmethod
     def is_empty(f: Function) -> bool:
         return all(i.op in _EMPTY for i in f.insns)
+
+    @staticmethod
+    def is_trivial(f: Function) -> bool:
+        """A few instructions, no call, no native: shared by unrelated functions of every script."""
+        body = [i for i in f.insns if i.op not in _FRAME]
+        return len(body) <= 6 and not any(i.op in (OP["CALL"], OP["SYSREQ_N"], OP["SYSREQ_C"]) for i in body)
 
     def debug_stubs(self, script: str) -> dict[int, str]:
         """Empty functions: the debug output compiled out of the retail build. Those that receive a
@@ -264,13 +297,10 @@ class Program:
                 x = parent[x]
             return x
 
-        for members in self.groups.values():
-            if len(members) < 2:
-                continue
-            first = members[0]
-            for other in members[1:]:
-                for a, b in zip(first.globals, other.globals):
-                    ra, rb = find((first.script, a)), find((other.script, b))
+        for f in self.functions.values():
+            for other in self.members(f):
+                for a, b in zip(f.globals, other.globals):
+                    ra, rb = find((f.script, a)), find((other.script, b))
                     if ra != rb:
                         parent[ra] = rb
         return {x: find(x) for x in list(parent)}
@@ -285,6 +315,10 @@ class Program:
             if f.log_name and not f.public:
                 result[f.script].functions[f.start] = FunctionSymbol(f.log_name[1], include=includes.get(
                     (f.script, f.start)))
+                # An implementation for a state ("[file::update<Top>]") names the stub everybody calls.
+                stub = self.decompilers[f.script].state_impl.get(f.start)
+                if stub is not None:
+                    result[f.script].functions.setdefault(stub[0], FunctionSymbol(f.log_name[1]))
 
         global_names: dict[tuple[str, int], str] = {}
         classes = self.global_classes()
@@ -325,8 +359,9 @@ class Program:
             for start, name in self.debug_stubs(script).items():
                 symbol = result[script].functions.get(start)
                 if symbol is None or not symbol.name:
+                    params = [Parameter("format", "s")] if name.startswith("debugPrint") else []
                     result[script].functions[start] = FunctionSymbol(
-                        name, None, True, symbol.include if symbol else None, origin="auto")
+                        name, params, True, symbol.include if symbol else None, origin="auto")
         return result, warnings
 
     @staticmethod

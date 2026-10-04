@@ -275,7 +275,7 @@ def find_native_tables(code_bin: bytes, amx_register: int) -> dict[str, int]:
 # --------------------------------------------------------------------------------------------
 # Disassembly listing
 
-_LOG_TAG = re.compile(r"^\[([\w.]+)::(\w+)\]")
+_LOG_TAG = re.compile(r"^\[([\w.]+)::(\w+)(?:<\w+>)?\]")   # update<Dialog>: implementation for a state
 _LOG_FUNCTION = re.compile(r"^\[([a-z]\w*[A-Z]\w*)\]")   # "[btnsupActivateButton] ...": camelCase, no file
 
 

@@ -84,3 +84,99 @@ mode_title:0x5c28 btnsupCheckButtonTouch(button[], x, y, sound)
 mode_title:0x5cc0 btnsupActivateButton(button[], sound)
 mode_title:0x5d64 btnsupCheckButtonTouchEnd(button[])
 mode_title:0x5e18 isFullVersion()                                               # premium version bought
+
+# ---- small helpers found in most scripts ----
+camera_internet:0x0ce4 actorNeverIdle(actor)                                   # idle distance 0: always updated
+camera_scope:0x0278 degToRad(degrees)
+camera_scope:0x08d4 vecSetAll(Float:vector[3], Float:value)
+camera_internet:0x02ac vecRotateY(Float:dest[3], const Float:source[3], Float:angle)
+player_label:0x02e4 vecDistanceSq(const Float:a[3], const Float:b[3])
+explosion:0x00ec vecDistance(const Float:a[3], const Float:b[3])
+explosion_damage:0x005c isFloatZero(Float:value)                              # +0.0 or -0.0
+bubble2d:0x0074 randomFloat(Float:max)
+bubble2d:0x00ac randomRange(Float:min, Float:max)
+bubble2d:0x0914 packRGBA(r, g, b, a)
+camera_scope:0x2b80 findPlayer()                                               # actor named "player"
+hud:0x1054 spawnActor(const properties[], const Float:position[3])             # logs explosions for the replays
+explosion_damage:0x09e0 actorSetPropVectorCopy(const name[], const Float:value[3], actor)
+mode_lobby:0x0234 nextRandomSeed()                                             # "random.seed"
+mode_battle_record:0x8da8 setSaving(bool:saving)                               # no sleep mode while saving
+
+# ---- game_state.inc: players and teams, in the engine globals "player.<node>.*", "team.<nn>.*" ----
+game_state:0x442c getPlayerTeam(node)
+game_state:0x4400 getMyTeam()
+game_state:0x44ec getPlayerSub(node)
+game_state:0x34ec getPlayerName(node, name[])
+game_state:0x3fec getTeamPlayerCount(team)
+mode_internet_menu:0x7778 isNodeReady(node)                                    # "network.<node>.ready"
+
+# ---- player cards (battle record): "save.multi.card<nnn>.*", sorted through "save.multi.cardsort" ----
+explosion_damage:0x0e4c cardSortGet(index)
+explosion_damage:0x0ef0 cardSortSet(index, card)
+explosion_damage:0x11b0 cardSortSwap(a, b)
+explosion_damage:0x1288 compareCardGlobals(const format[], cardA, cardB)      # 1, -1 or 0
+explosion_damage:0x1480 compareCards(cardA, cardB)                             # favourites, then most recent first
+explosion_damage:0x13f8 cardSortCompare(a, b)
+explosion_damage:0x0fd4 cardSortQuick(first, last)                             # quicksort
+game_state:0x0b20 findCardSlot(id, bool:byPid)                                 # card of a player, or the slot to reuse
+
+# ---- particles attached to an actor: [0] actor, [1] particle, [2..4] offset ----
+netplay_dummy_sub:0x3158 attachParticle(particle[], const effect[], const Float:offset[3], flags, actor)
+netplay_dummy_sub:0x30c4 attachedParticleExists(particle[])
+netplay_dummy_sub:0x30ec attachedParticleIsActive(particle[])
+netplay_dummy_sub:0x3318 attachedParticleUpdate(particle[], bool:followPitch)
+netplay_dummy_sub:0x349c attachedParticleStop(particle[])
+netplay_dummy_sub:0x34f4 attachedParticlePlay(particle[])
+
+# ---- netplay_dummy and the units ----
+netplay_dummy:0x2830 delayFrames(frames)                                       # true while waiting (or replaying)
+netplay_dummy:0x1af0 registerInViews(node, bool:camera, bool:label)            # player_label, camera, world_map
+
+# ---- dialog_common.inc / rest.inc: the confirmation window of the menus ----
+mode_battle_record:0x76e0 dialogInit()
+mode_battle_record:0x7960 dialogSetVisible(bool:visible)
+mode_battle_record:0x79a4 dialogOpenSelect(selection)                          # OK / Back
+mode_battle_record:0x7a60 dialogCloseSelect()
+mode_battle_record:0x7ac4 dialogOpenConfirm()                                  # OK only
+mode_battle_record:0x7b50 dialogCloseConfirm()
+mode_battle_record:0x7b9c dialogUpdateButtons()
+mode_battle_record:0x7d00 dialogSelectKeys()
+mode_battle_record:0x8128 dialogSelectTouch(x, y)
+mode_battle_record:0x8304 dialogConfirmKeys()
+mode_battle_record:0x8428 dialogConfirmTouch(x, y)
+mode_battle_record:0x84cc dialogSetMessage(const textId[])
+mode_battle_record:0x850c dialogSetOkText(const textId[])
+mode_battle_record:0x854c dialogIsVisible()
+mode_battle_record:0x8560 dialogOkReleased()
+mode_battle_record:0x8584 dialogResetOk()
+mode_battle_record:0x85cc dialogBackReleased()
+mode_battle_record:0x85f0 dialogClose()
+mode_battle_record:0x8664 dialogTouch(x, y)
+mode_battle_record:0x8710 dialogKeys()
+mode_battle_record:0x7698 fadeIn()
+mode_battle_record:0x76b4 fadeOutWithAdvice()
+mode_battle_record:0x8c10 loadSubColours(colours[])                            # "sub_color_set" pattern_00..30
+
+# ---- globals (the game's convention, seen in its logs: gCurrentSubStatus) ----
+mode_battle_record:g_5470 gDialogActor
+mode_battle_record:g_5b2c gDialogConfirmIn
+mode_battle_record:g_5b30 gDialogConfirmOut
+mode_battle_record:g_5b34 gDialogSelectIn
+mode_battle_record:g_5b38 gDialogSelectOut
+mode_battle_record:g_5b3c gDialogSelection
+mode_battle_record:g_5b40 gDialogPreviousSelection
+mode_battle_record:g_5b44 gDialogOkSound
+mode_battle_record:g_5b48 gDialogKeyRepeat
+mode_battle_record:g_5b4c gDialogInputDelay
+mode_battle_record:g_5b50 gDialogVisible
+mode_battle_record:g_5b54 gDialogKind                                          # 1 confirm, 2 select
+mode_title:g_3548 gButtonActive                                                # btnsup: a button is being pressed
+mode_title:g_12e0 gConsoleMenuIndex                                           # menus declared so far this frame
+mode_title:g_1364 gConsoleOpenMenu
+mode_title:g_1368 gConsoleOpen
+mode_title:g_1324 gConsoleItem                                                 # per menu: item being declared
+mode_title:g_12e4 gConsoleCursor                                               # per menu: selected item
+mode_title:g_3184 gULCDSettings
+mode_title:g_32a4 gTouchPosition
+mode_title:g_32ac gTouchLastPosition
+mode_title:g_32a0 gTouching

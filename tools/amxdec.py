@@ -24,7 +24,7 @@ import sys
 from dataclasses import dataclass, field
 from pathlib import Path
 
-from amx import BRANCHES, OP, AmxFile, Instruction
+from amx import BRANCHES, CONSTANTS, OP, AmxFile, Instruction
 from amxsym import NATIVES, Parameter, Program, ScriptSymbols, read_natives
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -605,12 +605,16 @@ class BlockInterpreter:
                 k = n - len(sig.kinds)
                 typed.append(self.by_reference(arg, extra[k] if k < len(extra) else None))
             else:
+                if type(arg) is Lit:
+                    self.fn.ctx.note_usage(arg, "string")   # parameter of unknown kind: provisional
                 typed.append(arg)
         return typed
 
     def typed_arg(self, arg: Expr, kind: str | None) -> Expr:
         value = arg.value if isinstance(arg, HeapCell) and arg.value is not None else arg
         if kind is None:
+            if type(value) is Lit:
+                self.fn.ctx.note_usage(value, "string")   # parameter of unknown kind: provisional
             return value
         if isinstance(value, Ternary) and kind in ("s", "f", "i"):   # cond ? "ON" : "OFF"
             return Ternary(value.cond, self.typed_arg(value.then, kind), self.typed_arg(value.other, kind))
@@ -625,7 +629,10 @@ class BlockInterpreter:
             if type(value) is Const and value.value > 0:
                 text = self.fn.ctx.amx.string_at(value.value, strict=False)
                 if text is not None:
-                    return Lit(value.value, text=text, origin=value.origin)
+                    value = Lit(value.value, text=text, origin=value.origin)
+            if type(value) is Lit:
+                self.fn.ctx.note_usage(value, "string")
+                return value
             return self.reference(value, True) if type(value) is Const else value
         if kind in ("S", "a", "r"):
             return self.reference(value, kind != "r")
@@ -1442,11 +1449,12 @@ class ScriptDecompiler:
         self.enums = enums or {}                         # tag -> value -> name (decomp/pawn/natives.inc)
         self.symbols = ScriptSymbols()                    # names (tools/amxsym.py)
         self.param_kinds: dict[int, dict[int, str]] = {}  # function -> parameter index -> kind
-        self.usage: dict[tuple[int, int], str] = {}      # constant origin -> "address" | "number"
+        self.usage: dict[tuple[int, int], str] = {}      # constant origin -> "address" | "string" | "number"
         self.array_globals: set[int] = set()             # globals used as arrays
         self.goto_targets: dict[int, set[int]] = {}
         self.globals_used: set[int] = set()
         self.find_states()
+        self.name_states()
 
     # ---- Pawn states
     def find_states(self) -> None:
@@ -1481,8 +1489,37 @@ class ScriptDecompiler:
         first = next((i.addr for i in self.insns if i.op == OP["PROC"]), None)
         return first is not None and addr >= first
 
+    def name_states(self) -> None:
+        """State names from the log strings: "[file::function<Name>]" in an implementation, and
+        "... state Name" printed just before a state change."""
+        self.state_names: dict[tuple[int, int], str] = {}
+        tag = re.compile(r"^\[[\w.]+::\w+<(\w+)>\]")
+        change = re.compile(r"\bstate (\w+)\s*$")
+        for start, end, insns in self.functions():
+            if start in self.state_impl:
+                stub, value = self.state_impl[start]
+                for i in insns:
+                    m = tag.match(self.amx.string_at(i.args[0]) or "") if i.op in CONSTANTS and i.args else None
+                    if m and value is not None:
+                        self.state_names.setdefault((self.dispatchers[stub][0], value), m[1])
+        for k, i in enumerate(self.insns):
+            if i.op in (OP["STOR_PRI"], OP["STOR_P_PRI"]) and i.args[0] in self.state_vars and k:
+                value_insn = self.insns[k - 1]
+                if value_insn.op not in (OP["CONST_PRI"], OP["CONST_P_PRI"]):
+                    continue
+                value = value_insn.args[0]
+            elif i.op == OP["CONST"] and i.args[0] in self.state_vars:
+                value = i.args[1]
+            else:
+                continue
+            for j in reversed(self.insns[max(0, k - 10):k]):
+                text = self.amx.string_at(j.args[0]) if j.op in CONSTANTS and j.args else None
+                if text and (m := change.search(text)):
+                    self.state_names.setdefault((i.args[0], value), m[1])
+                    break
+
     def state_name(self, variable: int, value: int) -> str:
-        return f"state{value}"
+        return self.state_names.get((variable, value), f"state{value}")
 
     # ---- names
     def function_label(self, addr: int) -> str:
@@ -1515,6 +1552,10 @@ class ScriptDecompiler:
 
     def param_declaration(self, function: int, index: int) -> str:
         label, kind = self.param_label(function, index), self.param_kind(function, index)
+        symbol = self.symbols.functions.get(function)
+        tag = symbol.params[index].tag if symbol and symbol.params and index < len(symbol.params) else None
+        if tag and tag != "Float" and kind in (None, "i"):
+            return f"{tag}:{label}"   # bool:, enumerations of natives.inc
         return {"s": f"const {label}[]", "S": f"{label}[]", "a": f"{label}[]", "f": f"Float:{label}",
                 "r": f"&{label}"}.get(kind or "", label)
 
@@ -1675,21 +1716,25 @@ def load_scripts(paths: list[Path]) -> tuple[dict[str, ScriptDecompiler], list[s
     for dec in decompilers.values():
         dec.find_operators()
         dec.analyse()
-    program = Program(decompilers)
-    symbols, warnings = program.resolve()
-    for name, dec in decompilers.items():
-        dec.symbols = symbols[name]
-    # What one copy of a function shows about its parameters holds for every copy.
-    for members in program.groups.values():
-        merged: dict[int, str] = {}
-        for f in members:
-            for index, kind in decompilers[f.script].param_kinds.get(f.start, {}).items():
-                if PARAM_RANK[kind] > PARAM_RANK.get(merged.get(index, ""), 0):
-                    merged[index] = kind
-        for f in members:
-            decompilers[f.script].param_kinds[f.start] = dict(merged)
+    # Twice: the names (e.g. debugPrint taking a format string) refine how constants are used,
+    # which refines the matching of the functions across scripts.
+    for _ in range(2):
+        program = Program(decompilers)
+        symbols, warnings = program.resolve()
+        for name, dec in decompilers.items():
+            dec.symbols = symbols[name]
+        # What one copy of a function shows about its parameters holds for every copy.
+        for f in program.functions.values():
+            members = program.members(f)
+            merged: dict[int, str] = {}
+            for m in members:
+                for index, kind in decompilers[m.script].param_kinds.get(m.start, {}).items():
+                    if PARAM_RANK[kind] > PARAM_RANK.get(merged.get(index, ""), 0):
+                        merged[index] = kind
+            decompilers[f.script].param_kinds[f.start] = merged
+        for dec in decompilers.values():
+            dec.analyse(1)
     for dec in decompilers.values():
-        dec.analyse(1)
         dec.name_string_arrays()
     return decompilers, warnings
 
