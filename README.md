@@ -20,6 +20,9 @@ Projet de rétro-ingénierie de **Steel Diver: Sub Wars** (Nintendo / Vitei, 3DS
 - **Scripts Pawn décompilés** : les 123 scripts qui portent la logique du jeu (modes, acteurs, interface) sont
   décompilés en pseudo-Pawn lisible dans `decomp/scripts/` ([docs/scripts-pawn.md](docs/scripts-pawn.md)).
 
+- **Données du jeu lisibles** : le format BXML (niveaux, stats, textes) est décodé ; `make data` convertit les 490
+  fichiers en XML. Formats documentés dans [docs/formats.md](docs/formats.md).
+
 Détails : [docs/analyse-initiale.md](docs/analyse-initiale.md) · Plan : [docs/roadmap.md](docs/roadmap.md)
 
 ## Arborescence
@@ -49,7 +52,7 @@ cp <ton dump>.cia cia/
 make                # extraction -> ELF -> analyse Ghidra -> pseudo-code C++ -> scripts Pawn décompilés
 ```
 
-Étapes individuelles : `make extract`, `make elf`, `make analyze`, `make export`, `make scripts`.
+Étapes individuelles : `make extract`, `make elf`, `make analyze`, `make export`, `make scripts`, `make data`.
 Pour explorer dans l'interface : lancer Ghidra et ouvrir `ghidra/project/SteelDiver.gpr`.
 
 ## Licence

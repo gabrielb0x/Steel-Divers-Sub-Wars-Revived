@@ -2,15 +2,16 @@
 PY := .venv/bin/python
 STAMPS := build/stamps
 
-.PHONY: all extract elf analyze export scripts
+.PHONY: all extract elf analyze export scripts data
 
-all: export scripts
+all: export scripts data
 
 extract: extracted/manifest.json
 elf: extracted/nsub.elf
 analyze: $(STAMPS)/analyzed
 export: $(STAMPS)/exported
 scripts: $(STAMPS)/scripts
+data: $(STAMPS)/data
 
 extracted/manifest.json:
 	$(PY) tools/extract_cia.py
@@ -31,4 +32,9 @@ $(STAMPS)/scripts: $(STAMPS)/exported tools/amx.py tools/amxdec.py tools/native_
 	$(PY) tools/native_types.py
 	$(PY) tools/amx.py
 	$(PY) tools/amxdec.py
+	@mkdir -p $(@D) && touch $@
+
+# Game data: BXML -> XML (extracted/xml/).
+$(STAMPS)/data: extracted/manifest.json tools/bxml.py
+	$(PY) tools/bxml.py
 	@mkdir -p $(@D) && touch $@

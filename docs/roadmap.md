@@ -23,7 +23,8 @@ Fait :
    `main.cpp`, `sys/system.cpp`, `game/world.cpp`, `game/actor.cpp` et `amx/*` (les natives appelées par les scripts).
 3. **Scripts Pawn** : nommer les variables globales et les fonctions sans log (par recoupement entre scripts),
    écrire les prototypes Pawn des natives.
-4. **Formats maison** : documenter et écrire des lecteurs pour `bxml`, `hmap`, `edge` et les textures `.bin`.
+4. **Formats maison** : BXML décodé (`tools/bxml.py`, XML lisible) ; `hmap`/`edge` documentés
+   ([formats.md](formats.md)) ; reste la partie secondaire des `.edge` et un écrivain XML → BXML.
 
 ## Volet 2 — Portage PC (`port/`)
 

@@ -21,6 +21,7 @@ make elf        tools/code2elf.py     -> extracted/nsub.elf
 make analyze    ghidra/analyze.sh     -> ghidra/project/ (import + romfs map symbols + auto-analysis)
 make export     ghidra/export.sh      -> decomp/raw/ (pseudo-code per original object file + functions.csv)
 make scripts    tools/native_types.py, tools/amx.py, tools/amxdec.py -> decomp/scripts/ (Pawn asm + pseudo-Pawn)
+make data       tools/bxml.py -> extracted/xml/ (BXML: levels, stats, texts; name hash = zlib CRC-32)
 ```
 
 The Ghidra database is disposable (analyze.sh recreates it, keeping one backup in `ghidra/project.bak/`).
