@@ -63,6 +63,16 @@ se jouent en P2P via Pia. Aucune bibliothèque NEX de classement ou de stockage 
    (1 à 8 joueurs, mode 1000), attributs (continent, type de salon, niveau, somme de version).
 4. **NAT** : Pia fait déjà du NAT traversal ; prévoir un relais pour les NAT stricts si besoin.
 
+## Volet 4 — Mods (sur 3DS et émulateur)
+
+Le plan détaillé est dans [mods.md](mods.md) : on publie des patchs (dossier Luma3DS / Azahar), jamais un CIA modifié.
+
+1. **Outillage** : données (fait : `tools/bxml.py`) ; scripts Pawn (assembleur AMX ou pseudo-Pawn recompilable) ;
+   construction du dossier de mod et d'un patch IPS/BPS du code.
+2. **Jeu en ligne** : patch de `JobCTRLogin` pour viser notre serveur (volet 3), somme de version propre au mod.
+3. **Menu de debug** des développeurs, encore présent dans les scripts : le réactiver.
+4. **60 fps** : affichage interpolé entre deux pas de simulation, d'abord dans le portage PC.
+
 ## Décisions à prendre
 
 - **Version du jeu** : le dump est la v0 de lancement. Le jeu a reçu des mises à jour (1.1 en mars 2014,

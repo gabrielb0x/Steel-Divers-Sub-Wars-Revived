@@ -44,6 +44,25 @@ l'équipage (`worlds/crew_stats`), textes localisés (`text/*.bxml`, 1 367 entr�
 polices, textures, et `bxml/buildinfo` (révision du build : **31308**). Dans les niveaux, les nœuds préfixés `_`
 (`<_actor …>`) sont désactivés.
 
+### Niveaux (`worlds/*.bxml`)
+
+Lus par `World::load` / `World::readXML` (`decomp/src/game/world.cpp`) quand un script appelle
+`worldLoad("nom", masque)`. Racine `<world>` (attribut `no_idle` : aucun acteur n'est mis en veille loin de la
+caméra), puis trois passes sur ses enfants :
+
+| Élément | Effet |
+|---|---|
+| `<include file="worlds/x"/>` | lit un autre niveau d'abord (récursif) : décors communs, préchargements |
+| `<actor …/>` | prend un acteur libre (255 au plus) ; tous les attributs deviennent ses propriétés (`name`, `script`, `model`, `collshape`, valeurs lues par le script…). `level="1 4"` : n'existe que dans ces niveaux (`World::setLevel`) |
+| `<dust color min_alpha max_alpha [min_size max_size]/>` | particules en suspension dans l'eau |
+| `<instance model position radius count rand_seed max_angle/>` | copies d'un modèle dispersées au hasard (rochers, algues…) |
+| `<model file [mem]/>`, `<particle file/>` | modèle ou effet chargé à l'avance |
+| `<light [type="point" position] \| [direction] diffuse ambient specular [env] [name]/>` | lumière ajoutée à la scène de chaque renderer actif ; par défaut diffuse et spéculaire blanches, ambiante `0x323232` |
+| `<fog color density min_depth max_depth [index] [curve] [level]/>` | brouillard ; `curve` = `none`, `linear` (défaut), `exponent`, `exponent_square` |
+
+Tout élément peut porter `map_mask` : il n'est lu que si `map_mask` vaut 0 ou partage un bit avec le masque passé à
+`worldLoad` (variantes d'une même carte). Les éléments inconnus sont ignorés.
+
 ### Collision : `.hmap` (`hmaps/`, 57 fichiers)
 
 `CollShapeHeightMap::load` : malgré le nom, un maillage de triangles indexé par un quadtree construit au chargement.

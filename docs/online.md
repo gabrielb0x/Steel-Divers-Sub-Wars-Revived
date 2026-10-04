@@ -17,6 +17,9 @@ Séquence :
 
 1. `nn::friends::CTR::detail::Login` (service `frd:u`) : connexion au serveur d'amis puis authentification NASC,
    qui renvoie l'adresse du serveur NEX et un jeton ; le principal ID du joueur est lu avec `GetMyPrincipalId`.
+   `nn::nex::JobCTRLogin` lit ce résultat avec `GetGameAuthenticationData` (IP, port, jeton) et le mot de passe du
+   compte avec `GetMyPassword`, puis appelle `RendezVous::Login`. C'est l'endroit à patcher pour envoyer le jeu sur
+   notre serveur sans toucher à la console ([mods.md](mods.md)).
 2. `nn::nex::NgsFacade::Login(…, 0xD7C00, "fb9537fe", 60000)` : serveur d'authentification NEX (TicketGranting) puis
    connexion sécurisée (SecureConnection).
 3. Création de `MatchmakeExtensionClient` puis `Inet_InitializePiaInet` (Pia sur NEX via `nn::pia::inet::NexFacade`).
@@ -47,6 +50,10 @@ Attributs fixés par le script `connect.inc::joinSession` (native `inetSetAttrib
 
 Conséquence : seuls des jeux de la même version se rencontrent. Le portage PC devra annoncer la même somme que les
 consoles avec lesquelles il veut jouer.
+
+Les identifiants réseau viennent de `bxml/settings.bxml` (`System::init`) : `UniqueId` 3452 (Japon), 3453 (Amérique),
+3454 (Europe) — les Title ID `000D7C00`, `000D7D00`, `000D7E00` — et un `NetworkId` commun, 3452, utilisé pour le jeu
+local : toutes les régions jouent ensemble, et l'ID de serveur NEX `0x000D7C00` est le même pour toutes.
 
 ## Pendant et après une partie
 

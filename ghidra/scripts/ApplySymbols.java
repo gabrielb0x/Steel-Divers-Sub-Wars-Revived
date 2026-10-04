@@ -6,6 +6,8 @@
 //   0x00254000 operator_new : void * f(u32 size)
 //   0x00103758 System::getRunningTimeInSeconds : float f(void)
 // The prototype's own function name is ignored; methods take an explicit `this`.
+// Global variables:                    data <address> <qualified name> [: <C type>]
+//   data 0x0038e2b4 g_world : World *
 // Usage: -postScript ApplySymbols.java <types.h> <symbols.txt>
 //@category SteelDiver
 
@@ -23,12 +25,16 @@ import ghidra.app.services.DataTypeManagerService;
 import ghidra.app.util.cparser.C.CParser;
 import ghidra.app.util.cparser.C.CParserUtils;
 import ghidra.program.model.address.Address;
+import ghidra.program.model.data.DataType;
+import ghidra.program.model.data.DataTypeManager;
 import ghidra.program.model.data.FunctionDefinitionDataType;
 import ghidra.program.model.listing.Function;
 import ghidra.program.model.symbol.Namespace;
 import ghidra.program.model.symbol.SourceType;
 import ghidra.program.model.symbol.SymbolTable;
 import ghidra.program.model.symbol.SymbolUtilities;
+import ghidra.util.data.DataTypeParser;
+import ghidra.util.data.DataTypeParser.AllowedDataTypes;
 
 public class ApplySymbols extends GhidraScript {
 
@@ -71,6 +77,10 @@ public class ApplySymbols extends GhidraScript {
 	}
 
 	private void apply(String line) throws Exception {
+		if (line.startsWith("data ")) {
+			applyData(line.substring(5).strip());
+			return;
+		}
 		int colon = line.indexOf(" : ");
 		String prototype = colon >= 0 ? line.substring(colon + 3).strip() : null;
 		String[] head = (colon >= 0 ? line.substring(0, colon) : line).strip().split("\\s+");
@@ -91,13 +101,7 @@ public class ApplySymbols extends GhidraScript {
 		}
 
 		List<String> parts = ImportSymbolMap.splitQualifiedName(head[1]);
-		SymbolTable symbols = currentProgram.getSymbolTable();
-		Namespace ns = currentProgram.getGlobalNamespace();
-		for (String part : parts.subList(0, parts.size() - 1)) {
-			part = SymbolUtilities.replaceInvalidChars(part, true);
-			Namespace child = symbols.getNamespace(part, ns);
-			ns = child != null ? child : symbols.createNameSpace(ns, part, SourceType.USER_DEFINED);
-		}
+		Namespace ns = namespace(parts);
 		f.setParentNamespace(ns);
 		f.setName(SymbolUtilities.replaceInvalidChars(parts.get(parts.size() - 1), true), SourceType.USER_DEFINED);
 
@@ -110,5 +114,36 @@ public class ApplySymbols extends GhidraScript {
 				throw new IllegalStateException(cmd.getStatusMsg());
 			}
 		}
+	}
+
+	private void applyData(String line) throws Exception {
+		int colon = line.indexOf(" : ");
+		String type = colon >= 0 ? line.substring(colon + 3).strip() : null;
+		String[] head = (colon >= 0 ? line.substring(0, colon) : line).strip().split("\\s+");
+		if (head.length != 2) {
+			throw new IllegalArgumentException("expected 'data <address> <name> [: <C type>]'");
+		}
+		Address addr = toAddr(Long.decode(head[0]));
+		List<String> parts = ImportSymbolMap.splitQualifiedName(head[1]);
+		String name = SymbolUtilities.replaceInvalidChars(parts.get(parts.size() - 1), true);
+		createLabel(addr, name, namespace(parts), true, SourceType.USER_DEFINED);
+		if (type != null) {
+			DataTypeManager dtm = currentProgram.getDataTypeManager();
+			DataType dt = new DataTypeParser(dtm, dtm, null, AllowedDataTypes.ALL).parse(type);
+			clearListing(addr, addr.add(dt.getLength() - 1));
+			createData(addr, dt);
+		}
+	}
+
+	/** Namespace of a qualified name (all parts but the last), created when missing. */
+	private Namespace namespace(List<String> parts) throws Exception {
+		SymbolTable symbols = currentProgram.getSymbolTable();
+		Namespace ns = currentProgram.getGlobalNamespace();
+		for (String part : parts.subList(0, parts.size() - 1)) {
+			part = SymbolUtilities.replaceInvalidChars(part, true);
+			Namespace child = symbols.getNamespace(part, ns);
+			ns = child != null ? child : symbols.createNameSpace(ns, part, SourceType.USER_DEFINED);
+		}
+		return ns;
 	}
 }

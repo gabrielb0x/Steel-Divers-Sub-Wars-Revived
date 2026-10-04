@@ -13,6 +13,9 @@
 0x00254044 strncpy : char * f(char * dst, char * src, u32 n)
 0x00249edc __aeabi_memclr : void f(void * dst, u32 n)
 0x0023c598 wcslen : u32 f(u16 * s)
+# armcc C library random generator: additive generator of 55 words seeded by a congruential one.
+0x0024d79c srand : void f(u32 seed)
+0x0023f4fc rand : int f(void)
 
 # --- Game / SDK helpers absent from the map ---
 # Allocates through the global allocator: (*g_allocator)->Allocate(size, 4).
@@ -76,6 +79,34 @@
 # World::getActor: actors[id] if 0 < id < actorCount, else NULL.
 0x002455a0 World::getActor : Actor * f(World * self, int actor_id)
 
+# --- World (world.o; layout in types.h) ---
+0x00103084 World::postScriptUpdate : void f(World * self, f32 * camera_pos)
+0x00103354 World::update : void f(World * self, f32 * camera_pos)
+0x0010cde8 World::updateReplay : void f(World * self)
+0x0011703c World::checkExplosion : void f(World * self, int frame, int create)
+0x00218da0 World::findActor : Actor * f(World * self, char * name)
+# Constant 1/30: the engine's fixed time step.
+0x0021a824 World::getDeltaTimeSeconds : f32 f(void)
+0x00243074 World::invalidateActor : void f(World * self, int actor_id)
+0x002435fc World::getGameTimeSeconds : f32 f(void)
+0x0024dc5c World::setActorCollisionStateDirty : void f(World * self, int actor_id)
+0x002e51e8 World::findActors : int f(World * self, int * found, f32 * center, f32 radius, int max, u32 mask)
+0x002e528c World::killActors : void f(World * self)
+0x002e5430 World::findActorUID : Actor * f(World * self, int uid)
+0x002e5498 World::getMapActors : int f(World * self, int * found, int max)
+0x002e5620 World::resetGameTime : void f(void)
+0x002e5638 World::suspendCaching : void f(World * self)
+0x002e5650 World::findActorsSorted : int f(World * self, int * found, f32 * center, f32 radius, int max, u32 mask)
+0x002e578c World::findClosestActor : Actor * f(World * self, f32 * position, u32 mask)
+0x002e5d4c World::getReplayFramesRemaining : int f(World * self)
+0x002e5d70 World::load : void f(World * self, char * name, u32 map_mask)
+0x002e5e6c World::readXML : void f(World * self, void * node, u32 map_mask)
+0x002e6cf4 World::clipLine : void f(World * self, f32 * from, f32 * direction, f32 length, u32 mask)
+0x002e6db4 World::getLevel : int f(World * self)
+0x002e6ef4 World::setLevel : void f(World * self, int level)
+0x002e6f04 World::getActors : int f(World * self, int * found, int max, u32 mask)
+0x002e6fc8 World::showGroup : void f(World * self, u32 groups, int show)
+
 # --- Actors (actor.o; Actor layout in types.h) ---
 0x0010cc20 Actor : Actor * f(Actor * self)
 0x0012463c Actor::init : void f(Actor * self)
@@ -89,3 +120,58 @@
 0x002e3048 Actor::getLastReadProperties : void f(Actor * self, char * dest)
 0x001031b4 World::init : void f(World * self)
 0x002e6dc4 World::newActor : Actor * f(World * self)
+0x001061f4 AMXLoader::cleanupAll : void f(void)
+0x0010622c AMXLoader::resetStock : void f(void)
+0x0010624c AMXLoader::runAll : void f(void)
+0x00117ad8 AMXLoader::preExecute : void f(AMXLoader * self)
+0x00124630 AMXLoader::setUserObj : void f(AMXLoader * self, u8 has_actor, Actor * actor)
+0x001249d0 AMXLoader::setRendererMask : void f(AMXLoader * self, u32 mask)
+0x001db160 AMXLoader::getUID : int f(AMXLoader * self)
+0x002355e4 AMXLoader::getName : void f(AMXLoader * self, char * dest)
+0x0024a178 ScriptAMXLoader::run : void f(AMXLoader * self)
+# uid < 1000: the script of that actor, otherwise the loader that called sysSetUID(uid).
+0x00252bc8 AMXLoader::uidToAmx : AMXLoader * f(int uid)
+0x002f4d14 AMXLoader::notifyObservers : void f(AMXLoader * self, char * event, cell * args, u32 count)
+0x002f4e2c AMXLoader::registerObserver : void f(AMXLoader * self, AMXLoader * observer)
+
+# --- Global variables (data <address> <name> : <C type>) ---
+data 0x0038e2b4 g_world : World *
+data 0x0038e2b0 g_worldTime : f32
+data 0x0038dd48 AMXLoader::s_executing : u16
+data 0x0038dd4c AMXLoader::s_publicNameCount : int
+data 0x0038dd50 AMXLoader::s_first : AMXLoader *
+data 0x0038dd54 AMXLoader::s_main : AMXLoader *
+data 0x0038dd58 AMXLoader::s_count : int
+data 0x003b4b64 AMXLoader::s_publicNames : void *[4096]
+
+# --- System (system.o) ---
+0x0024de04 System::isPaused : int f(void)
+0x001043e4 System::setPaused : void f(u8 paused)
+0x0010d1dc System::getGameFrameNum : u32 f(void)
+0x00219144 System::getUniqueId : u32 f(void)
+0x0021bb44 System::getNetworkId : u32 f(void)
+0x0021bb34 System::getVersionChecksum : u32 f(void)
+0x002ece2c System::getVersionText : char * f(void)
+0x002436d0 System::random : u32 f(u32 max)
+0x0021a8b0 System::enableSleep : void f(int enable)
+data 0x0038eb98 System::s_homeButtonEnabled : u8
+data 0x0038eb99 System::s_sleepEnabled : u8
+data 0x0038eb9a System::s_saving : u8
+data 0x0038eb9e System::s_paused : u8
+data 0x0038eba8 System::s_uniqueId : u32
+data 0x0038ebac System::s_networkId : u32
+data 0x0038ebb0 System::s_frame : u32
+data 0x0038ebe0 System::s_revision : char *
+data 0x0038ebe8 System::s_startTick : s64
+data 0x0038ebf0 System::s_initTick : s64
+
+# --- Actor life cycle (actor.o) ---
+0x0010c7fc Actor::update : void f(Actor * self)
+0x0010c790 Actor::updatePaused : void f(Actor * self)
+0x0010cb44 Actor::calcIdle : int f(Actor * self, f32 * camera_pos)
+0x0010c6f4 Actor::calcVisible : void f(Actor * self)
+0x001e0b28 Actor::kill : void f(Actor * self)
+0x002432a4 Actor::setScript : void f(Actor * self, char * name)
+0x002e24ac Actor::setStasisScript : void f(Actor * self, char * name)
+0x0023b88c Actor::readProperties : int f(Actor * self, char * name)
+0x0024dc88 Actor::updateMatrix : void f(Actor * self)

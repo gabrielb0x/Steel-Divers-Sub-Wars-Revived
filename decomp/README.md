@@ -41,7 +41,17 @@ fonction (par ex. un `printf` de debug vidé qui apparaît comme `Renderer::getA
 
 ## `src/` — code nettoyé (versionné)
 
-Le C++ réécrit à la main à partir du pseudo-code, avec la même arborescence que `raw/source/`. Conventions :
+Le C++ réécrit à la main à partir du pseudo-code, avec la même arborescence que `raw/source/` :
+
+| Fichier | Contenu |
+|---|---|
+| `main.cpp` | démarrage, boucle principale à 30 fps, enchaînement des modes |
+| `amx/amxloader.cpp` | chargeurs de scripts : liste, exécution image par image, messages, appels différés, observateurs |
+| `game/world.cpp` | monde : pool de 256 acteurs, chargement des niveaux, tampon de replay de 7 s |
+| `game/actor.cpp` | cycle de vie d'un acteur : propriétés, script et ses fonctions publiques, mort |
+| `sys/system.cpp` | démarrage, tas mémoire, temps, boutons HOME et marche/arrêt |
+
+Conventions :
 
 - garder le nom d'origine des classes, méthodes et fichiers (ceux du map et des chaînes `__FILE__`) ;
 - indiquer l'adresse d'origine au-dessus de chaque fonction (`// 0x00101118`) ;

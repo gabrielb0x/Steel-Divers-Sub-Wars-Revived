@@ -24,6 +24,11 @@ Projet de rétro-ingénierie de **Steel Diver: Sub Wars** (Nintendo / Vitei, 3DS
   convertit les 490 fichiers en XML, et `tools/bxml.py --to-bxml` les reconvertit (identiques à l'octet près si on
   n'y touche pas). Formats documentés dans [docs/formats.md](docs/formats.md).
 
+- **Moteur en cours de nettoyage** (`decomp/src/`) : boucle principale, chargeur de scripts, monde (pool d'acteurs,
+  format des niveaux, replays), système, cycle de vie des acteurs.
+- **Mods** : ce qu'on peut déjà modifier et comment distribuer un mod sans distribuer le jeu :
+  [docs/mods.md](docs/mods.md).
+
 Détails : [docs/analyse-initiale.md](docs/analyse-initiale.md) · Plan : [docs/roadmap.md](docs/roadmap.md)
 
 ## Arborescence
