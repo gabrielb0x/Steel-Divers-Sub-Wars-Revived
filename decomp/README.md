@@ -14,6 +14,11 @@ raw/functions.csv                                      adresse, taille (map / Gh
 
 Chaque fonction est précédée de son adresse et de sa taille dans le map.
 
+## `scripts/` — scripts Pawn décompilés (générés, non versionnés)
+
+`make scripts` désassemble (`scripts/asm/*.asm`) et décompile (`scripts/*.p`) les 123 scripts `romfs:/amx/*.amx`.
+Voir [../docs/scripts-pawn.md](../docs/scripts-pawn.md).
+
 ## Améliorer le pseudo-code
 
 La base Ghidra est jetable (`make analyze` la recrée). Tout ce qu'on comprend va dans deux fichiers versionnés,

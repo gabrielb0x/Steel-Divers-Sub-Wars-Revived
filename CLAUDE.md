@@ -20,6 +20,7 @@ make extract    tools/extract_cia.py  -> extracted/{code.bin,exefs,ncch,romfs,ma
 make elf        tools/code2elf.py     -> extracted/nsub.elf
 make analyze    ghidra/analyze.sh     -> ghidra/project/ (import + romfs map symbols + auto-analysis)
 make export     ghidra/export.sh      -> decomp/raw/ (pseudo-code per original object file + functions.csv)
+make scripts    tools/native_types.py, tools/amx.py, tools/amxdec.py -> decomp/scripts/ (Pawn asm + pseudo-Pawn)
 ```
 
 The Ghidra database is disposable (analyze.sh recreates it, keeping one backup in `ghidra/project.bak/`).
@@ -37,7 +38,10 @@ Ghidra scripts are Java (`ghidra/scripts/`), compiled by Ghidra 12.1.4; check th
 - Segments: .text 0x00100000, .rodata 0x00352000, .data 0x00386000, .bss 0x003B4AE4. All code is ARM (no Thumb in
   the map), hard-float VFP ABI (floats in s0..). armcc places string literals inside .text, right after the
   functions using them.
-- Game logic is largely Pawn (AMX file version 10, compact encoding) in `romfs:/amx/`; natives are in `source/amx/`.
+- Game logic is largely Pawn (AMX file version 10 = Pawn 3.3, compact encoding, no packed opcodes) in
+  `romfs:/amx/`. 647 natives in 15 packed (unaligned) AMX_NATIVE_INFO tables, found via amx_Register call sites.
+  HALT 12 is `sleep` (yield one frame). Pawn 3.3 sources for reference: build/ref/compuphase-pawn @ 6d82fa4.
+- armlink eliminated unused virtuals (vtable slots set to 0) and folded identical functions.
 - Online: NEX 3.7 (auth, matchmaking, NAT traversal) + Pia P2P. Pretendo's server (Go, AGPL-3.0) is cloned for
   reference in `build/ref/pretendo-sdsw`.
 

@@ -15,7 +15,10 @@ Projet de rétro-ingénierie de **Steel Diver: Sub Wars** (Nintendo / Vitei, 3DS
 - **Table des symboles du linker trouvée dans le RomFS** (`romfs:/map`) : 9431 fonctions avec leur vrai nom, leur
   taille et leur fichier objet d'origine (84,7 % du code). Elle est appliquée automatiquement dans Ghidra.
 - 44 chemins de fichiers sources originaux retrouvés (`source/net/session.cpp`, `source/amx/amxactor.cpp`, …).
-- Pseudo-code exporté par fichier objet d'origine dans `decomp/raw/` (généré localement).
+- Pseudo-code C++ exporté par fichier objet d'origine dans `decomp/raw/` (généré localement), avec les classes
+  `World`, `AMXLoader` et les 647 natives Pawn typées.
+- **Scripts Pawn décompilés** : les 123 scripts qui portent la logique du jeu (modes, acteurs, interface) sont
+  décompilés en pseudo-Pawn lisible dans `decomp/scripts/` ([docs/scripts-pawn.md](docs/scripts-pawn.md)).
 
 Détails : [docs/analyse-initiale.md](docs/analyse-initiale.md) · Plan : [docs/roadmap.md](docs/roadmap.md)
 
@@ -24,12 +27,12 @@ Détails : [docs/analyse-initiale.md](docs/analyse-initiale.md) · Plan : [docs/
 ```
 cia/               ton dump .cia (ignoré par git)
 extracted/         sortie de l'extraction : code.bin, nsub.elf, exefs/, romfs/ (ignoré)
-tools/             scripts Python : extraction CIA, conversion code.bin -> ELF
+tools/             scripts Python : extraction CIA, code.bin -> ELF, désassembleur/décompilateur Pawn (amx*.py)
 ghidra/scripts/    scripts Ghidra : symboles du map, SVC, pointeurs de code, export du pseudo-code
 ghidra/symbols.txt noms et prototypes ajoutés à la main (versionnés, réappliqués à chaque analyse/export)
 ghidra/types.h     types C reconstitués (idem)
 ghidra/project/    base Ghidra, jetable : `make analyze` la recrée (ignorée)
-decomp/            pseudo-code source (raw/ = sortie Ghidra brute, src/ = code nettoyé à la main)
+decomp/            pseudo-code source : raw/ (C++ Ghidra), scripts/ (Pawn décompilé), src/ (nettoyé à la main)
 port/              portage PC
 server/            serveur online
 docs/              notes de rétro-ingénierie
@@ -43,10 +46,10 @@ extrait dans un chemin **sans accents** (par ex. `~/tools/`, le chargement de Gh
 ```sh
 ./setup.sh          # venv Python + détection de Ghidra (écrit local.env)
 cp <ton dump>.cia cia/
-make                # extraction -> ELF -> analyse Ghidra -> export du pseudo-code
+make                # extraction -> ELF -> analyse Ghidra -> pseudo-code C++ -> scripts Pawn décompilés
 ```
 
-Étapes individuelles : `make extract`, `make elf`, `make analyze`, `make export`.
+Étapes individuelles : `make extract`, `make elf`, `make analyze`, `make export`, `make scripts`.
 Pour explorer dans l'interface : lancer Ghidra et ouvrir `ghidra/project/SteelDiver.gpr`.
 
 ## Licence

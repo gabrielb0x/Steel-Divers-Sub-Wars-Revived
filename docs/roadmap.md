@@ -12,13 +12,17 @@ Fait :
 - [x] Connaissances versionnées (`ghidra/symbols.txt`, `ghidra/types.h`) réappliquées à chaque export ; premières
       entrées : runtime C (`memcpy`, `strlen`, `__aeabi_uidiv`…), `operator new`, prototypes de la séquence de démarrage
 - [x] Premier fichier nettoyé : `decomp/src/main.cpp` (démarrage, système de « modes », boucle à 30 fps, rendu stéréo)
+- [x] Scripts Pawn : désassembleur + décompilateur (`tools/amx.py`, `tools/amxdec.py`), 123 scripts en pseudo-Pawn ;
+      647 natives retrouvées et typées dans Ghidra, types de paramètres déduits du C++ (`tools/native_types.py`)
+- [x] Classes `World` et `AMXLoader` (vtable) typées ; faux « no-return » de Ghidra corrigés (378 → 41)
 
 À faire :
 1. **Types** : reconstituer les classes du jeu (`Actor`, `World`, `Session`, `Connection`, `Model`…) dans Ghidra à
    partir des constructeurs et des vtables, puis réexporter : le pseudo-code devient beaucoup plus lisible.
 2. **Nettoyage** module par module dans `decomp/src/`, avec la même arborescence que `source/`, en commençant par
    `main.cpp`, `sys/system.cpp`, `game/world.cpp`, `game/actor.cpp` et `amx/*` (les natives appelées par les scripts).
-3. **Scripts Pawn** : désassembleur puis décompilateur AMX (`tools/amx/`) pour obtenir du pseudo-Pawn des 123 scripts.
+3. **Scripts Pawn** : nommer les variables globales et les fonctions sans log (par recoupement entre scripts),
+   écrire les prototypes Pawn des natives.
 4. **Formats maison** : documenter et écrire des lecteurs pour `bxml`, `hmap`, `edge` et les textures `.bin`.
 
 ## Volet 2 — Portage PC (`port/`)

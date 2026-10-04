@@ -8,6 +8,7 @@ cia/
 extracted/
 # Decompiler output and Ghidra database are derived from the game binary
 decomp/raw/
+decomp/scripts/
 ghidra/project/
 ghidra/project.bak/
 

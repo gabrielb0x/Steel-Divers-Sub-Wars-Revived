@@ -15,6 +15,7 @@ mkdir -p "$ROOT/decomp/raw" "$ROOT/build/logs"
 	-process nsub.elf -noanalysis -readOnly \
 	-scriptPath "$ROOT/ghidra/scripts" \
 	-postScript ApplySymbols.java "$ROOT/ghidra/types.h" "$ROOT/ghidra/symbols.txt" \
+	-postScript TypeAmxNatives.java \
 	-postScript ExportPseudoSource.java "$ROOT/decomp/raw" "$ROOT/extracted/romfs/map" \
 	-log "$ROOT/build/logs/ghidra-export.log" \
 	-scriptlog "$ROOT/build/logs/ghidra-export-scripts.log"

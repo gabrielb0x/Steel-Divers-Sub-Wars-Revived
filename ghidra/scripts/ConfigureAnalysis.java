@@ -19,7 +19,9 @@ public class ConfigureAnalysis extends GhidraScript {
 			// would get an EVP_PKEY_CTX* or ssize_t signature.
 			"Apply Data Archives", "false",
 			"Create Address Tables", "true",
-			"Non-Returning Functions - Discovered", "true");
+			// Guesses wrong on conditional returns (moveq pc, lr): strlen, AMXLoader::getActor ... were
+			// flagged non-returning, truncating every caller. Known ones (abort ...) are still handled.
+			"Non-Returning Functions - Discovered", "false");
 		for (Map.Entry<String, String> e : options.entrySet()) {
 			try {
 				setAnalysisOption(currentProgram, e.getKey(), e.getValue());

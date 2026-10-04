@@ -26,5 +26,6 @@ mkdir -p "$ROOT/ghidra/project" "$ROOT/build/logs"
 	-postScript LabelSvcWrappers.java \
 	-postScript ScanCodePointers.java \
 	-postScript ApplySymbols.java "$ROOT/ghidra/types.h" "$ROOT/ghidra/symbols.txt" \
+	-postScript TypeAmxNatives.java \
 	-log "$ROOT/build/logs/ghidra-analyze.log" \
 	-scriptlog "$ROOT/build/logs/ghidra-scripts.log"
