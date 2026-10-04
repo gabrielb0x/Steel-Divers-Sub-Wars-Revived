@@ -212,6 +212,110 @@ def expand(compact: bytes, memsize: int) -> bytes:
     return bytes(out)
 
 
+def compress(image: bytes) -> bytes:
+    """Compact encoding, the inverse of expand(), byte for byte as the Pawn 3.3 compiler wrote the game's
+    files: the fewest 7-bit groups that sign-extend back to the cell, except that a cell needing all five
+    groups gets its top group unsigned (cell >> 28)."""
+    out = bytearray()
+    for (value,) in struct.iter_unpack("<i", image):
+        groups = []
+        v = value
+        while True:
+            groups.append(v & 0x7F)
+            v >>= 7
+            if (v == 0 and not groups[-1] & 0x40) or (v == -1 and groups[-1] & 0x40):
+                break
+        if len(groups) == 5:
+            groups[4] = (value & 0xFFFFFFFF) >> 28
+        groups.reverse()
+        out += bytes(g | 0x80 for g in groups[:-1]) + bytes([groups[-1]])
+    return bytes(out)
+
+
+class AmxPatcher:
+    """Edits a script in place: string literals of the data segment and instruction operands, then
+    writes the file back (compact encoding included). Addresses are those of the disassembly
+    (decomp/scripts/asm/*.asm): code addresses for instructions, data addresses for literals."""
+
+    def __init__(self, raw: bytes) -> None:
+        fields = struct.unpack_from("<iHBBhhiiii", raw, 0)
+        self.size, magic, version, _, self.flags, _, self.cod, self.dat, self.hea, _ = fields
+        if magic != AMX_MAGIC or version != 10:
+            raise ValueError("not a Pawn 3.3 AMX file")
+        self.prefix = bytearray(raw[:self.cod])
+        image = raw[self.cod:self.size]
+        if self.flags & FLAG_COMPACT:
+            image = expand(image, self.hea - self.cod)
+        self.image = bytearray(image)
+
+    @property
+    def data_base(self) -> int:
+        return self.dat - self.cod
+
+    def _cell(self, offset: int) -> int:
+        return struct.unpack_from("<i", self.image, offset)[0]
+
+    def _string(self, addr: int) -> tuple[str, bool, int] | None:
+        """(text, packed, cells) of the literal at a data address, or None."""
+        base = self.data_base + addr
+        cells = []
+        while base + 4 * len(cells) + 4 <= len(self.image) and len(cells) < 256:
+            c = self._cell(base + 4 * len(cells)) & 0xFFFFFFFF
+            cells.append(c)
+            if c == 0 or c & 0xFF == 0:
+                break
+        if not cells or cells[0] == 0:
+            return None
+        if all(c < 0x100 for c in cells) and cells[-1] == 0:
+            return bytes(cells[:-1]).decode("latin-1"), False, len(cells)
+        if cells[0] > 0xFFFFFF:
+            text = b"".join(struct.pack(">I", c) for c in cells).split(b"\0")[0]
+            return text.decode("latin-1"), True, len(cells)
+        return None
+
+    def find_string(self, text: str) -> list[int]:
+        found = []
+        for addr in range(0, len(self.image) - self.data_base, 4):
+            if addr >= 4 and self._string(addr - 4) and self._string(addr - 4)[0].endswith(text) \
+                    and self._string(addr - 4)[0] != text:
+                continue                                          # tail of a longer literal
+            s = self._string(addr)
+            if s and s[0] == text:
+                found.append(addr)
+        return found
+
+    def replace_string(self, addr: int, old: str, new: str) -> None:
+        current = self._string(addr)
+        if current is None or current[0] != old:
+            raise ValueError(f"no literal {old!r} at data address {addr:#x}")
+        _, packed, cells = current
+        if packed:
+            raw = new.encode("latin-1") + b"\0"
+            raw += bytes(-len(raw) % 4)
+            values = [struct.unpack(">I", raw[i:i + 4])[0] for i in range(0, len(raw), 4)]
+        else:
+            values = list(new.encode("latin-1")) + [0]
+        if len(values) > cells:
+            raise ValueError(f"{new!r} is longer than {old!r}")
+        values += [0] * (cells - len(values))
+        for n, v in enumerate(values):
+            struct.pack_into("<I", self.image, self.data_base + addr + 4 * n, v)
+
+    def set_operand(self, cip: int, index: int, value: int, expect: int | None = None) -> None:
+        op = self._cell(cip) & 0xFFFF
+        if op >= len(OPCODES) or index >= NPARAMS[OPCODES[op]]:
+            raise ValueError(f"no operand {index} at code address {cip:#x}")
+        offset = cip + 4 + 4 * index
+        if expect is not None and self._cell(offset) != expect:
+            raise ValueError(f"operand {index} at {cip:#x} is {self._cell(offset):#x}, not {expect:#x}")
+        struct.pack_into("<i", self.image, offset, value)
+
+    def write(self) -> bytes:
+        image = compress(bytes(self.image)) if self.flags & FLAG_COMPACT else bytes(self.image)
+        struct.pack_into("<i", self.prefix, 0, len(self.prefix) + len(image))
+        return bytes(self.prefix) + image
+
+
 # --------------------------------------------------------------------------------------------
 # Native functions implemented by the game (code.bin)
 

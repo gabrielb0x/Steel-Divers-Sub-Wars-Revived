@@ -18,9 +18,16 @@ mod.toml:
   languages = ["EU_French"]         # optional: only these files
 
   [[bxml]]                          # any BXML file, edited as the XML of `make data`
-  file = "worlds/scope00_online_stage01.bxml"
+  file = "worlds/scope00_online_stage01.bxml"     # or files = "bxml/pscope_ply??_stats.bxml" (glob)
   select = "actor[@name='mode_settings']"   # ElementTree path from the root element
   set = { timeLimit = "2400.0" }    # values written as in the XML (2400.0 is a f32, 60 a s32)
+
+  [[amx]]                           # a Pawn script (amx/*.amx), addresses of decomp/scripts/asm/*.asm
+  file = "amx/periscope_move.amx"
+  at = 0x5D4C                       # a string literal of the data segment (or every one: no "at")
+  string = "player.muteki"
+  replace = "mode.ready"            # not longer than the original
+  # or an instruction operand: address = 0x130D0, operand = 0, value = 1, expect = 0
 
   [[code]]                          # code patch, at a virtual address of code.bin
   address = 0x0010C7FC
@@ -37,8 +44,13 @@ mod.toml:
   [identity]                        # optional: a player identity for an online server, generated once
   scope = "${server}:${port}"       # per scope and kept in ~/.config/sub-wars-open-sourced/identites.json;
                                     # gives ${pid}, ${password} and ${token}
+  token_flags = ["triche"]          # optional, top level: told to the online server in the token
 
-Usage:  tools/mod.py build <name> [--set key=value ...] [--install] [--cxi]     tools/mod.py list
+Any entry may have if = "${param}": it is applied only when the parameter is yes (oui, 1, true...).
+
+Usage:  tools/mod.py build <name> [<name>...] [--set key=value ...] [--install] [--cxi]
+        tools/mod.py list
+Several mods are built together into build/mods/<name>+<name>/ (Azahar loads a single mod folder).
 
 --cxi also writes build/azahar/SteelDiverSubWars_<name>[_<server>].cxi, the game with the code patch already
 applied, to open in Azahar next to the original (RomFS changes stay in the mod folder only).
@@ -59,6 +71,7 @@ import xml.etree.ElementTree as ET
 from pathlib import Path
 
 import azahar
+from amx import AmxPatcher
 from bxml import Bxml, escape_string, from_xml
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -88,6 +101,51 @@ def edit_bxml(files: dict[str, ET.Element], file: str, select: str, values: dict
         for name, value in values.items():
             node.set(name, str(value))
     return len(nodes)
+
+
+YES = {"1", "oui", "o", "yes", "y", "true", "vrai", "on"}
+NO = {"0", "non", "n", "no", "false", "faux", "off"}
+
+
+def enabled(entry: dict, params: dict[str, str]) -> bool:
+    if "if" not in entry:
+        return True
+    value = fill(entry["if"], params).strip().lower()
+    if value not in YES | NO:
+        raise ModError(f"{entry['if']} = {value!r}: expected oui/non")
+    return value in YES
+
+
+def bxml_files(entry: dict) -> list[str]:
+    if "files" in entry:
+        found = sorted(str(p.relative_to(ROMFS)) for p in ROMFS.glob(entry["files"]))
+        if not found:
+            raise ModError(f"{entry['files']}: no file in extracted/romfs (run make extract)")
+        return found
+    return [entry["file"]]
+
+
+def edit_amx(scripts: dict[str, AmxPatcher], entry: dict) -> None:
+    file = entry["file"]
+    if file not in scripts:
+        path = ROMFS / file
+        if not path.exists():
+            raise ModError(f"{file}: not in extracted/romfs (run make extract)")
+        scripts[file] = AmxPatcher(path.read_bytes())
+    script = scripts[file]
+    try:
+        if "string" in entry:
+            places = [entry["at"]] if "at" in entry else script.find_string(entry["string"])
+            if not places:
+                raise ModError(f"{file}: no literal {entry['string']!r}")
+            if "count" in entry and len(places) != entry["count"]:
+                raise ModError(f"{file}: {len(places)} literal(s) {entry['string']!r}, expected {entry['count']}")
+            for addr in places:
+                script.replace_string(addr, entry["string"], entry["replace"])
+        else:
+            script.set_operand(entry["address"], entry.get("operand", 0), entry["value"], entry.get("expect"))
+    except ValueError as e:
+        raise ModError(f"{file}: {e} (not the EUR v0 scripts?)") from e
 
 
 def apply_texts(files: dict[str, ET.Element], entry: dict) -> int:
@@ -176,7 +234,7 @@ def user_key(pid: int, password: str) -> str:
     return data.hex()
 
 
-def identity(scope: str) -> dict[str, str]:
+def identity(scope: str, flags: list[str] | None = None) -> dict[str, str]:
     known = json.loads(IDENTITY_FILE.read_text(encoding="utf-8")) if IDENTITY_FILE.exists() else {}
     if scope not in known:
         alphabet = string.ascii_letters + string.digits
@@ -187,14 +245,20 @@ def identity(scope: str) -> dict[str, str]:
         os.chmod(IDENTITY_FILE, 0o600)
         print(f"[+] new player identity for {scope}: pid {known[scope]['pid']} (kept in {IDENTITY_FILE})")
     pid, password = known[scope]["pid"], known[scope]["password"]
-    return {"pid": str(pid), "password": password, "token": "sdsw1:" + user_key(pid, password)}
+    token = "sdsw1:" + user_key(pid, password) + (":" + ",".join(sorted(flags)) if flags else "")
+    return {"pid": str(pid), "password": password, "token": token}
 
 
-def recipe_params(mod: dict, overrides: dict[str, str]) -> dict[str, str]:
-    specs = mod.get("params", {})
+def recipe_params(mods: list[dict], overrides: dict[str, str]) -> dict[str, str]:
+    specs: dict[str, dict] = {}
+    for mod in mods:
+        for key, spec in mod.get("params", {}).items():
+            if key in specs and specs[key] != spec:
+                raise ModError(f"parameter {key} is declared differently by two of these mods")
+            specs[key] = spec
     unknown = set(overrides) - set(specs)
     if unknown:
-        raise ModError(f"unknown parameter(s) {', '.join(sorted(unknown))}; this mod takes: {', '.join(specs) or 'none'}")
+        raise ModError(f"unknown parameter(s) {', '.join(sorted(unknown))}; these mods take: {', '.join(specs) or 'none'}")
     params = {}
     for key, spec in specs.items():
         value = str(overrides.get(key, spec.get("default", "")))
@@ -203,40 +267,70 @@ def recipe_params(mod: dict, overrides: dict[str, str]) -> dict[str, str]:
         if len(value) > spec.get("max_length", 1 << 30):
             raise ModError(f"{key}: at most {spec['max_length']} characters")
         params[key] = value
-    if "identity" in mod:
-        params.update(identity(fill(mod["identity"]["scope"], params)))
+    flags = sorted({f for mod in mods for f in mod.get("token_flags", [])})
+    scopes = {fill(mod["identity"]["scope"], params) for mod in mods if "identity" in mod}
+    if len(scopes) > 1:
+        raise ModError("two identities requested")
+    if scopes:
+        params.update(identity(scopes.pop(), flags))
     return params
+
+
+def load_recipe(name: str) -> dict:
+    recipe = MODS / name / "mod.toml"
+    if not recipe.exists():
+        raise ModError(f"no recipe {recipe}")
+    return tomllib.loads(recipe.read_text(encoding="utf-8"))
 
 
 # ---- build ----------------------------------------------------------------------------------
 
-def build(name: str, out_root: Path, overrides: dict[str, str] | None = None) -> Path:
-    recipe = MODS / name / "mod.toml"
-    if not recipe.exists():
-        raise ModError(f"no recipe {recipe}")
-    mod = tomllib.loads(recipe.read_text(encoding="utf-8"))
-    params = recipe_params(mod, overrides or {})
-    out = out_root / name / azahar.TITLE_ID
+def build(names: list[str], out_root: Path, overrides: dict[str, str] | None = None) -> Path:
+    mods = [load_recipe(name) for name in names]
+    params = recipe_params(mods, overrides or {})
+    label = "+".join(names)
+    out = out_root / label / azahar.TITLE_ID
     if out.exists():
         shutil.rmtree(out)
 
     files: dict[str, ET.Element] = {}
-    for entry in mod.get("text", []):
-        apply_texts(files, entry)
-    for entry in mod.get("bxml", []):
-        edit_bxml(files, entry["file"], entry.get("select", "."), entry.get("set", {}))
+    scripts: dict[str, AmxPatcher] = {}
+    code: list[dict] = []
+    for mod in mods:
+        for entry in mod.get("text", []):
+            if enabled(entry, params):
+                apply_texts(files, entry)
+        for entry in mod.get("bxml", []):
+            if enabled(entry, params):
+                for file in bxml_files(entry):
+                    edit_bxml(files, file, entry.get("select", "."),
+                              {k: fill(str(v), params) for k, v in entry.get("set", {}).items()})
+        for entry in mod.get("amx", []):
+            if enabled(entry, params):
+                edit_amx(scripts, entry)
+        code += [entry for entry in mod.get("code", []) if enabled(entry, params)]
     for file, root in files.items():
         dest = out / "romfs" / file
         dest.parent.mkdir(parents=True, exist_ok=True)
         dest.write_bytes(from_xml(ET.tostring(root, encoding="unicode")))
+    for file, script in scripts.items():
+        dest = out / "romfs" / file
+        dest.parent.mkdir(parents=True, exist_ok=True)
+        dest.write_bytes(script.write())
 
-    if mod.get("code"):
+    if code:
+        patches = code_patches(code, params)
+        ranges = sorted((o, o + len(d)) for o, d in patches.items())
+        for (_, end), (start, _) in zip(ranges, ranges[1:]):
+            if start < end:
+                raise ModError(f"two code patches overlap at {start + CODE_BASE:#x}")
         dest = out / "exefs" / "code.ips"
         dest.parent.mkdir(parents=True, exist_ok=True)
-        dest.write_bytes(ips(code_patches(mod["code"], params)))
-    print(f"[+] {mod.get('name', name)}: {len(files)} file(s), {len(mod.get('code', []))} code patch(es) -> {out}")
+        dest.write_bytes(ips(patches))
+    title = " + ".join(mod.get("name", name) for mod, name in zip(mods, names))
+    print(f"[+] {title}: {len(files) + len(scripts)} file(s), {len(code)} code patch(es) -> {out}")
     build.params = params
-    return out_root / name
+    return out_root / label
 
 
 def write_cxi(name: str, built: Path, params: dict[str, str]) -> Path:
@@ -261,8 +355,8 @@ def write_cxi(name: str, built: Path, params: dict[str, str]) -> Path:
 def main() -> None:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     sub = ap.add_subparsers(dest="command", required=True)
-    p = sub.add_parser("build", help="build mods/<name> into build/mods/<name>")
-    p.add_argument("name")
+    p = sub.add_parser("build", help="build mods/<name> (several: together) into build/mods/")
+    p.add_argument("names", nargs="+", metavar="name")
     p.add_argument("--set", action="append", default=[], metavar="KEY=VALUE", help="a parameter of the recipe")
     p.add_argument("--install", action="store_true", help="then install it into Azahar")
     p.add_argument("--cxi", action="store_true", help="also write the game with this code patch applied")
@@ -280,9 +374,9 @@ def main() -> None:
     except ValueError:
         sys.exit("[!] --set expects KEY=VALUE")
     try:
-        built = build(args.name, args.out, overrides)
+        built = build(args.names, args.out, overrides)
         if args.cxi:
-            print(f"[+] {write_cxi(args.name, built, build.params)}: Azahar > File > Load File")
+            print(f"[+] {write_cxi('+'.join(args.names), built, build.params)}: Azahar > File > Load File")
     except (ModError, KeyError, tomllib.TOMLDecodeError) as e:
         sys.exit(f"[!] {e}")
     if args.install:

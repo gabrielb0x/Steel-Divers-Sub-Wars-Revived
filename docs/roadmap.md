@@ -58,7 +58,8 @@ se jouent en P2P via Pia. Aucune bibliothèque NEX de classement ou de stockage 
 1. ~~**Rétro-ingénierie du client**~~ : PRUDP v1, Kerberos, RMC, structures NEX 3.7, détection de NAT de Pia,
    notifications ([online.md](online.md)).
 2. ~~**Serveur autonome**~~ (Python, sans dépendance) : TicketGranting, SecureConnection, NATTraversal, MatchMaking,
-   MatchMakingExt, MatchmakeExtension, serveurs « nncs » ; deux royaumes séparés, émulateur et PC.
+   MatchMakingExt, MatchmakeExtension, serveurs « nncs » ; deux royaumes séparés, émulateur et PC ; options
+   `max_players` (plus de bots) et `cheats` (tricheurs acceptés, séparés ou refusés).
 3. ~~**Validation avec le jeu**~~ : deux Azahar avec le mod `en-ligne` se connectent, se trouvent et jouent une
    bataille ensemble.
 4. **À suivre** : essais entre machines distantes derrière de vrais NAT (le serveur n'a qu'une adresse IP, voir
@@ -71,8 +72,10 @@ Le plan détaillé est dans [mods.md](mods.md) : on publie des recettes (`mods/`
 
 1. ~~**Outillage**~~ : jeu installable dans Azahar (`tools/azahar.py`), mods en recettes construites et installées
    par `tools/mod.py` (textes, BXML, patchs de code IPS) ; reste les scripts Pawn (assembleur AMX).
-2. **Scripts Pawn** : modifier le bytecode (assembleur AMX, puis pseudo-Pawn recompilable), base des mods de
-   gameplay. Le menu de debug des développeurs en dépend (sa logique et son affichage ont été retirés).
+2. **Scripts Pawn** : ~~patchs ciblés~~ (chaînes et opérandes, réencodage compact identique à l'octet près :
+   `tools/amx.py`, recettes `[[amx]]`, mod `triche`) ; reste un assembleur AMX complet, puis du pseudo-Pawn
+   recompilable, base des mods de gameplay. Le menu de debug des développeurs en dépend (sa logique et son
+   affichage ont été retirés).
 3. ~~**Jeu en ligne**~~ : mod `en-ligne` (patch des fonctions *friends* utilisées par `JobCTRLogin`, serveurs de
    détection de NAT redirigés, identité par joueur). Reste : une somme de version propre aux mods de gameplay.
 4. **60 fps** : affichage interpolé entre deux pas de simulation, d'abord dans le portage PC.

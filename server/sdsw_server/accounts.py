@@ -4,6 +4,10 @@ The online mod gives every player a random principal id and password, generated 
 the mod, and puts the derived Kerberos key in the authentication token ("sdsw1:<32 hex digits>"). The
 server cannot know the password otherwise: the console used to get it from Nintendo's account servers.
 A known id must always come back with the same key.
+
+The token may end with ":<flag>,<flag>": what the player's build changes in the game ("triche" for the
+cheat mod), so that the server can refuse it or keep those players apart. The build declares it
+honestly; a modified game can always lie.
 """
 
 from __future__ import annotations
@@ -23,16 +27,18 @@ class AccountError(Exception):
     pass
 
 
-def key_from_token(token: str) -> bytes:
+def parse_token(token: str) -> tuple[bytes, frozenset[str]]:
+    """"sdsw1:<key>[:<flags>]" -> (Kerberos key, flags)."""
     if not token.startswith(TOKEN_PREFIX):
         raise AccountError(f"unknown token format {token[:16]!r}")
+    key_hex, _, flags = token[len(TOKEN_PREFIX):].strip().partition(":")
     try:
-        key = bytes.fromhex(token[len(TOKEN_PREFIX):].strip())
+        key = bytes.fromhex(key_hex)
     except ValueError as e:
         raise AccountError("token is not hexadecimal") from e
     if len(key) != 16:
         raise AccountError("token key must be 16 bytes")
-    return key
+    return key, frozenset(f for f in flags.split(",") if f)
 
 
 class Accounts:
@@ -57,22 +63,21 @@ class Accounts:
         row = self.db.execute("SELECT key FROM accounts WHERE pid = ?", (pid,)).fetchone()
         return row[0] if row else None
 
-    def login(self, pid: int, token: str) -> tuple[bytes, bool]:
-        """Returns (Kerberos key, newly registered)."""
+    def login(self, pid: int, key: bytes) -> bool:
+        """Checks or registers the key of an account; True when newly registered."""
         if pid in RESERVED_PIDS:
             raise AccountError(f"reserved principal id {pid}")
-        key = key_from_token(token)
         known = self.key(pid)
         now = time.time()
         if known is None:
             self.db.execute("INSERT INTO accounts VALUES (?, ?, ?, ?)", (pid, key, now, now))
             self.db.commit()
-            return key, True
+            return True
         if known != key:
             raise AccountError(f"principal id {pid} is registered with another key")
         self.db.execute("UPDATE accounts SET last_login = ? WHERE pid = ?", (now, pid))
         self.db.commit()
-        return key, False
+        return False
 
     def count(self) -> int:
         return self.db.execute("SELECT COUNT(*) FROM accounts").fetchone()[0]

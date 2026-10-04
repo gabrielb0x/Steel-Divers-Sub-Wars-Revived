@@ -99,6 +99,69 @@ class Formats(unittest.TestCase):
         self.assertEqual((q.supported_functions, q.conn_sig, q.max_substream_id), (3, b"s" * 16, 0))
 
 
+def run_realm(test, max_players=8, cheats="separes"):
+    """Starts a realm on free ports, runs test(realm, port) inside the event loop."""
+    async def main():
+        with tempfile.TemporaryDirectory() as tmp:
+            config = RealmConfig(name="test", listen="127.0.0.1", public_address="127.0.0.1",
+                                 auth_port=free_udp_port(), secure_port=free_udp_port(), data_dir=Path(tmp),
+                                 max_players=max_players, cheats=cheats)
+            realm = Realm(config, NatCheckService())
+            await realm.start()
+            try:
+                return await test(realm, config.auth_port)
+            finally:
+                testclient.close_clients()
+                realm.close()
+    return asyncio.run(main())
+
+
+async def matchmade(port: int, pid: int, flags: str = ""):
+    secure, _ = await testclient.login("127.0.0.1", port, pid, "password", flags)
+    return await testclient.matchmake(secure, 3)
+
+
+class Options(unittest.TestCase):
+    """serveur.toml options: max_players (more AI subs) and the cheat policy."""
+
+    def test_max_players(self):
+        async def test(realm, port):
+            sessions = [await matchmade(port, 0x10000000 + n) for n in range(3)]
+            return [s.id for s in sessions], sessions[0].max_participants
+        ids, maximum = run_realm(test, max_players=2)
+        self.assertEqual(ids[0], ids[1])
+        self.assertNotEqual(ids[1], ids[2])
+        self.assertEqual(maximum, 2)
+
+    def test_cheaters_kept_apart(self):
+        async def test(realm, port):
+            fair = await matchmade(port, 0x10000001)
+            cheater = await matchmade(port, 0x10000002, "triche")
+            other = await matchmade(port, 0x10000003, "triche")
+            return fair.id, cheater.id, other.id
+        fair, cheater, other = run_realm(test, cheats="separes")
+        self.assertNotEqual(fair, cheater)
+        self.assertEqual(cheater, other)
+
+    def test_cheaters_allowed(self):
+        async def test(realm, port):
+            return (await matchmade(port, 0x10000001)).id, (await matchmade(port, 0x10000002, "triche")).id
+        fair, cheater = run_realm(test, cheats="autorises")
+        self.assertEqual(fair, cheater)
+
+    def test_cheaters_refused(self):
+        async def test(realm, port):
+            with self.assertRaises(testclient.ClientError):
+                await matchmade(port, 0x10000002, "triche")
+            return (await matchmade(port, 0x10000001)).id
+        self.assertTrue(run_realm(test, cheats="refuses"))
+
+    def test_bad_option(self):
+        with self.assertRaises(ValueError):
+            RealmConfig(name="x", listen="", public_address="", auth_port=1, secure_port=2, data_dir=Path("."),
+                        max_players=9)
+
+
 class Session(unittest.TestCase):
     """Three simulated consoles log in, matchmake into one session and leave it."""
 
@@ -111,10 +174,14 @@ class Session(unittest.TestCase):
                                      auth_port=free_udp_port(), secure_port=free_udp_port(), data_dir=Path(tmp))
                 realm = Realm(config, NatCheckService())
                 await realm.start()
-                result = await testclient.scenario("127.0.0.1", config.auth_port, 3)
-                self.assertEqual(len(realm.matchmaker.sessions), 1)
-                self.assertEqual(realm.accounts.count(), 3)
-                return result
+                try:
+                    result = await testclient.scenario("127.0.0.1", config.auth_port, 3)
+                    self.assertEqual(len(realm.matchmaker.sessions), 1)
+                    self.assertEqual(realm.accounts.count(), 3)
+                    return result
+                finally:
+                    testclient.close_clients()
+                    realm.close()
 
         self.assertEqual(asyncio.run(scenario()), 0)
 

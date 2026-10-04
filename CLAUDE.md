@@ -25,7 +25,8 @@ make export     ghidra/export.sh      -> decomp/raw/ (pseudo-code per original o
 make scripts    tools/native_types.py, tools/amx.py, tools/amxdec.py (+ amxsym.py) -> decomp/scripts/ (Pawn asm + pseudo-Pawn)
 make data       tools/bxml.py -> extracted/xml/ (BXML: levels, stats, texts; name hash = zlib CRC-32)
 make azahar     tools/azahar.py prepare -> build/azahar/ (CIA without the encrypted manual, which Azahar rejects; CXI)
-tools/mod.py build <name> [--install]   mods/<name>/mod.toml -> build/mods/<name>/ -> Azahar load/mods/00040000000D7E00/
+tools/mod.py build <name>... [--install] [--cxi]   mods/<name>/mod.toml -> build/mods/<a+b>/ -> Azahar load/mods/00040000000D7E00/
+cd server && python3 -m sdsw_server        online server (realms "emulateur" and "pc", serveur.toml); tests: python3 -m unittest discover -s tests -t .
 ```
 
 The Ghidra database is disposable (analyze.sh recreates it, keeping one backup in `ghidra/project.bak/`).
@@ -49,7 +50,12 @@ Ghidra scripts are Java (`ghidra/scripts/`), compiled by Ghidra 12.1.4; check th
   `romfs:/amx/`. 647 natives in 15 packed (unaligned) AMX_NATIVE_INFO tables, found via amx_Register call sites.
   HALT 12 is `sleep` (yield one frame). Pawn 3.3 sources for reference: build/ref/compuphase-pawn @ 6d82fa4.
 - armlink eliminated unused virtuals (vtable slots set to 0) and folded identical functions.
-- Online: NEX 3.7 (auth, matchmaking, NAT traversal) + Pia P2P. Pretendo's server (Go, AGPL-3.0) is cloned for
-  reference in `build/ref/pretendo-sdsw`.
+- Online: NEX 3.7 (auth, matchmaking, NAT traversal) + Pia P2P, fully documented in `docs/online.md` and checked
+  with the real game: PRUDP v1, RC4 "CD&ML" before the Kerberos session key, aggregate ACKs (MULTI_ACK, substream 1).
+  Azahar's frd:u lacks game authentication, hence the `en-ligne` mod. Pretendo's server (Go, AGPL-3.0) is cloned for
+  reference in `build/ref/pretendo-sdsw`; Azahar sources (GPL, reference only) in `build/ref/azahar` (sparse).
+- Testing in Azahar: portable profiles in `~/.var/app/org.azahar_emu.Azahar/sdsw-test/<p>/user/`
+  (`flatpak run --cwd=<p>`), shown in Xephyr. The machine has 7 GB of RAM: OpenGL under Xephyr can reach 5 GB per
+  instance (two got OOM-killed) and the software renderer runs at 3 %: one instance at a time.
 
 See `docs/analyse-initiale.md` and `docs/roadmap.md`.

@@ -159,10 +159,21 @@ class PRUDPClient(asyncio.DatagramProtocol):
         return await asyncio.wait_for(fut, 5.0)
 
 
+CLIENTS: list[PRUDPClient] = []
+
+
 async def open_client(host: str, port: int) -> PRUDPClient:
     loop = asyncio.get_running_loop()
     _, client = await loop.create_datagram_endpoint(PRUDPClient, remote_addr=(host, port))
+    CLIENTS.append(client)
     return client
+
+
+def close_clients() -> None:
+    while CLIENTS:
+        client = CLIENTS.pop()
+        if client.transport:
+            client.transport.close()
 
 
 def authentication_info(token: str) -> StreamOut:
@@ -178,13 +189,13 @@ def authentication_info(token: str) -> StreamOut:
     return s
 
 
-async def login(host: str, port: int, pid: int, password: str) -> tuple[PRUDPClient, int]:
+async def login(host: str, port: int, pid: int, password: str, flags: str = "") -> tuple[PRUDPClient, int]:
     key = derive_user_key(pid, password)
     auth = await open_client(host, port)
     await auth.connect()
     params = StreamOut()
     params.string(str(pid))
-    params.write(authentication_info(TOKEN_PREFIX + key.hex()).get())
+    params.write(authentication_info(TOKEN_PREFIX + key.hex() + (f":{flags}" if flags else "")).get())
     s = await auth.call(10, 2, params)
     result, pid_out = s.u32(), s.pid()
     kerberos_decrypt(key, s.buffer())                         # ValidateKey

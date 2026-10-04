@@ -154,7 +154,20 @@ param2, texte, param3) :
 | 109000 | le salon est supprimé (param1) | le jeu le note |
 | 110000 | l'hôte change (param1 = gid) | la migration d'hôte de Pia l'attend |
 
-## 6. La bataille
+## 6. Le salon et la bataille
 
 Entièrement en P2P (Pia : sessions, horloge, flux fiables et non fiables, migration d'hôte) entre les sockets de
 Pia des consoles. Le serveur n'intervient plus, sauf pour `CloseParticipation` et les départs.
+
+Ce que décide le jeu lui-même (scripts `mode_lobby` et `mode_periscope`) :
+
+* **Compte à rebours** : 120 s (`0x1D4C0` ms dans `mode_lobby`), lancé seulement quand chaque équipe a au moins
+  un joueur (`checkCountdownStart`, `g_504c = 1`) ; à 5 s de la fin l'hôte ferme le salon
+  (`doNetSetParticipation(0)` → `CloseParticipation`). Seul, on attend indéfiniment.
+* **Bots** : au début de la bataille, le premier joueur de chaque équipe crée `4 − joueurs de l'équipe`
+  sous-marins pilotés par l'ordinateur (`@setNpc`, acteurs `surface_sub_npc_blue/red`, au plus 3). Une équipe
+  sans joueur n'a pas de bots. Le mode de debug `player.debugmulti` (`gDebugSingleInMulti`, jamais activé)
+  les supprime.
+* **Invincibilité** : le drapeau `player.muteki` (mode test des développeurs) annule les dégâts reçus
+  (`pscope_player`), le décompte des torpilles et la perte d'air (`periscope_move`). Les dégâts sont appliqués
+  par la console qui les subit : la triche marche aussi en ligne, d'où l'option `cheats` du serveur.

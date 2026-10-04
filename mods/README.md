@@ -51,6 +51,13 @@ file = "worlds/scope00_online_stage01.bxml"
 select = "actor[@name='mode_settings']"   # chemin ElementTree depuis la racine
 set = { timeLimit = "2400.0" }            # valeurs écrites comme dans le XML : 2400.0 est un f32, 60 un s32
 
+[[amx]]                                   # un script Pawn ; adresses de decomp/scripts/asm/<script>.asm
+file = "amx/periscope_move.amx"
+at = 0x5D4C                               # une chaîne du segment de données (sans « at » : toutes)
+string = "player.muteki"
+replace = "mode.ready"                    # pas plus longue que l'originale
+# ou un opérande d'instruction : address = 0x130D0, operand = 0, value = 1, expect = 0
+
 [[code]]                                  # patch du code, à une adresse de code.bin (exemple de syntaxe)
 address = 0x0021A82C
 bytes = "8988883c"                        # ou : arm = "mov r0, #1" (assembleur keystone),
@@ -69,6 +76,13 @@ scope = "${server}:${port}"               # donne ${pid}, ${password} et ${token
 Une identité est créée une fois par serveur et gardée dans `~/.config/sub-wars-open-sourced/identites.json` :
 reconstruire le mod garde le même compte.
 
+Autres possibilités : `files = "bxml/pscope_ply??_stats.bxml"` (motif) au lieu de `file` dans `[[bxml]]` ;
+`if = "${option}"` sur n'importe quelle entrée (appliquée seulement si l'option vaut `oui`) ;
+`token_flags = ["triche"]` en tête de recette (annoncé au serveur en ligne dans le jeton).
+
+**Plusieurs mods ensemble** : `tools/mod.py build en-ligne triche …` les construit dans un seul dossier
+(`build/mods/en-ligne+triche/`), puisqu'Azahar n'en charge qu'un.
+
 Les adresses et les noms viennent de la décompilation (`decomp/`, `ghidra/symbols.txt`) ; les formats sont décrits
 dans [../docs/formats.md](../docs/formats.md). Les modifications de scripts Pawn viendront avec un assembleur AMX.
 
@@ -77,7 +91,22 @@ dans [../docs/formats.md](../docs/formats.md). Les modifications de scripts Pawn
 | Mod | Effet |
 |---|---|
 | `en-ligne` | jeu en ligne sur un serveur [Sub Wars Open Sourced](../server/README.md) |
+| `triche` | invincible, torpilles et air infinis, rechargement rapide, masqueur gratuit, moteur gonflé |
 | `texte-titre` | exemple : « Version gratuite » devient « Version moddée » sur l'écran titre |
+
+## Tricher
+
+```sh
+.venv/bin/python tools/mod.py build triche --install                                  # hors ligne
+.venv/bin/python tools/mod.py build en-ligne triche --set server=192.0.2.10 --install   # en ligne
+.venv/bin/python tools/mod.py build triche --set moteur=non --set rechargement=non --install
+```
+
+Options (toutes à `oui` par défaut) : `invincible`, `torpilles`, `air`, `rechargement`, `masqueur`, `moteur`.
+L'invincibilité, les torpilles et l'air infinis reprennent le drapeau `player.muteki` du mode test des
+développeurs ; le reste modifie les caractéristiques des 23 sous-marins. Vérifié dans une mission solo :
+torpilles qui ne diminuent pas, coque intacte sous les bombes. En ligne, le serveur sait que vous trichez et,
+selon sa configuration, ne vous fait jouer qu'avec d'autres tricheurs.
 
 ## Jouer en ligne
 

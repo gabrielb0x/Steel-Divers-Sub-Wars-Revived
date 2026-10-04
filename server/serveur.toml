@@ -7,14 +7,25 @@ listen = "0.0.0.0"              # adresse d'écoute
 public_address = "127.0.0.1"    # adresse (IP ou nom) par laquelle les joueurs joignent cette machine
 nat_check = true                # détection du NAT de Pia : UDP 10025 et 10125 (ports fixés par le jeu)
 
+# Options de partie, par royaume :
+#   max_players  joueurs humains par partie, de 2 à 8. Le jeu complète toujours chaque équipe à 4 sous-marins
+#                avec des bots (sous-marins pilotés par la console hôte) : moins d'humains, plus de bots.
+#                2 = toujours un contre un, plus 3 bots de chaque côté.
+#   cheats       joueurs dont le mod contient la triche (mods/triche) :
+#                "autorises" (ils jouent avec tout le monde), "separes" (seulement entre eux) ou "refuses".
+
 [[realm]]
 name = "emulateur"              # joueurs sur émulateur (mods/en-ligne)
 auth_port = 61000               # serveur d'authentification (UDP)
 secure_port = 61001             # serveur sécurisé (UDP)
 data_dir = "data/emulateur"     # comptes (sqlite), relatif à ce fichier
+max_players = 8
+cheats = "separes"
 
 [[realm]]
 name = "pc"                     # joueurs du portage PC
 auth_port = 61010
 secure_port = 61011
 data_dir = "data/pc"
+max_players = 8
+cheats = "separes"

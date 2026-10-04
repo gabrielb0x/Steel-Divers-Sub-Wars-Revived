@@ -16,15 +16,17 @@ Login, as the game performs it (JobCTRLogin, JobBackEndServicesLogin, JobTicketM
 from __future__ import annotations
 
 import asyncio
+import ipaddress
 import logging
 import os
+import socket
 import struct
 import time
 from dataclasses import dataclass
 from pathlib import Path
 
 from . import rmc
-from .accounts import AccountError, Accounts
+from .accounts import AccountError, Accounts, parse_token
 from .crypto import KerberosError, kerberos_decrypt, kerberos_encrypt
 from .ddl import (AuthenticationInfo, MatchmakeSession, NotificationEvent, RVConnectionData,
                   SearchCriteria)
@@ -36,6 +38,9 @@ from .streams import StationURL, StreamIn, StreamOut, datetime_now
 ACCESS_KEY = "fb9537fe"             # gameServerLogin -> NgsFacade::Login(..., 0xD7C00, L"fb9537fe", 60000)
 SECURE_PID = 2                       # principal id of the secure server in its station URL
 TICKET_LIFETIME = 3600
+
+CHEAT_FLAG = "triche"                # token flag of builds with the cheat mod (mods/triche)
+CHEAT_POLICIES = ("autorises", "separes", "refuses")
 
 # Protocol ids
 NAT_TRAVERSAL, TICKET_GRANTING, SECURE_CONNECTION, NOTIFICATION = 3, 10, 11, 14
@@ -51,6 +56,14 @@ class RealmConfig:
     secure_port: int
     data_dir: Path
     build_name: str = "Sub Wars Open Sourced server"
+    max_players: int = 8              # human players per match; the game fills each team up to 4 with AI subs
+    cheats: str = "separes"           # players whose build declares the cheat mod: autorises/separes/refuses
+
+    def __post_init__(self) -> None:
+        if not 2 <= self.max_players <= 8:
+            raise ValueError(f"realm {self.name}: max_players must be between 2 and 8")
+        if self.cheats not in CHEAT_POLICIES:
+            raise ValueError(f"realm {self.name}: cheats must be one of {', '.join(CHEAT_POLICIES)}")
 
 
 class Realm:
@@ -60,9 +73,10 @@ class Realm:
         self.log = logging.getLogger(config.name)
         self.accounts = Accounts(config.data_dir / "accounts.sqlite3")
         self.ticket_key = self.accounts.secret("ticket key")
+        self.flags: dict[int, frozenset[str]] = {}     # pid -> flags of its build (token), set at login
         self.auth = AuthServer(self)
         self.secure = SecureServer(self)
-        self.matchmaker = Matchmaker(self.notify)
+        self.matchmaker = Matchmaker(self.notify, config.max_players)
 
     async def start(self) -> None:
         loop = asyncio.get_running_loop()
@@ -72,11 +86,41 @@ class Realm:
         self.log.info("realm %s: authentication UDP %d, secure UDP %d, public address %s, %d account(s)",
                       self.config.name, self.config.auth_port, self.config.secure_port,
                       self.config.public_address, self.accounts.count())
+        self.log.info("realm %s: up to %d human players per match (AI subs fill the teams), cheats %s",
+                      self.config.name, self.config.max_players, self.config.cheats)
+
+    def close(self) -> None:
+        self.auth.close()
+        self.secure.close()
+        self.accounts.db.close()
+
+    def pool(self, pid: int) -> str:
+        """Matchmaking pool: with cheats "separes", players with the cheat mod only meet each other."""
+        if self.config.cheats == "separes" and CHEAT_FLAG in self.flags.get(pid, ()):
+            return CHEAT_FLAG
+        return ""
 
     # -- tickets -------------------------------------------------------------------------------
 
-    def secure_url(self) -> StationURL:
-        return StationURL("prudps", {"address": self.config.public_address, "port": str(self.config.secure_port),
+    def secure_address(self, client: tuple[str, int]) -> str:
+        """Address of the secure server for this client: the public address, except for clients on the
+        server's own network (or machine), which get the local address that routes to them, so they do
+        not depend on the router sending them back their own public address (hairpinning)."""
+        try:
+            ip = ipaddress.ip_address(client[0])
+        except ValueError:
+            return self.config.public_address
+        if not (ip.is_private or ip.is_loopback) or ip.is_global:
+            return self.config.public_address
+        with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as s:
+            try:
+                s.connect(client)
+                return s.getsockname()[0]
+            except OSError:
+                return self.config.public_address
+
+    def secure_url(self, client: tuple[str, int]) -> StationURL:
+        return StationURL("prudps", {"address": self.secure_address(client), "port": str(self.config.secure_port),
                                      "CID": "1", "PID": str(SECURE_PID), "sid": "1", "stream": "10",
                                      "type": "2"})
 
@@ -132,18 +176,24 @@ class AuthServer(PRUDPServer):
         except ValueError:
             raise RMCError(rmc.RV_INVALID_USERNAME, username)
         try:
-            key, new = self.realm.accounts.login(pid, token)
+            key, flags = parse_token(token)
+            new = self.realm.accounts.login(pid, key)
         except AccountError as e:
             self.log.warning("%s: login refused for %s: %s", conn, username, e)
             raise RMCError(rmc.RV_INVALID_PASSWORD, str(e))
+        if CHEAT_FLAG in flags and self.realm.config.cheats == "refuses":
+            self.log.warning("%s: pid %d refused, its build has the cheat mod", conn, pid)
+            raise RMCError(rmc.RV_ACCOUNT_DISABLED, "cheats refused")
         conn.pid = pid
         conn.data["user_key"] = key
-        self.log.info("%s: %s pid %d", conn, "new player" if new else "login", pid)
+        self.realm.flags[pid] = flags
+        self.log.info("%s: %s pid %d%s", conn, "new player" if new else "login", pid,
+                      f" (build: {', '.join(sorted(flags))})" if flags else "")
         out = StreamOut()
         out.result(rmc.SUCCESS)
         out.pid(pid)
         out.buffer(self.realm.make_ticket(pid, key, SECURE_PID))
-        out.structure(RVConnectionData(self.realm.secure_url(), current_time=datetime_now()))
+        out.structure(RVConnectionData(self.realm.secure_url(conn.addr), current_time=datetime_now()))
         out.string(self.realm.config.build_name)
         return out
 
@@ -379,7 +429,8 @@ class SecureServer(PRUDPServer):
             raise RMCError(rmc.CORE_INVALID_ARGUMENT, f"gathering class {name}")
         proposal = MatchmakeSession.decode(data)
         self.log.debug("%s: auto matchmake, criteria %s, proposal %s", conn, criteria, proposal)
-        session = self.realm.matchmaker.auto_matchmake(conn.pid, criteria, proposal, message)
+        session = self.realm.matchmaker.auto_matchmake(conn.pid, criteria, proposal, message,
+                                                       self.realm.pool(conn.pid))
         out = StreamOut()
         out.anydata(MatchmakeSession.CLASS_NAME, session)
         return out

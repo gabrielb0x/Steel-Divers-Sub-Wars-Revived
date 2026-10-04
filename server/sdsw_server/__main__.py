@@ -36,7 +36,8 @@ def load_config(path: Path, only: list[str] | None) -> tuple[dict, list[RealmCon
         realms.append(RealmConfig(name=entry["name"], listen=listen,
                                   public_address=entry.get("public_address", public),
                                   auth_port=int(entry["auth_port"]), secure_port=int(entry["secure_port"]),
-                                  data_dir=data_dir))
+                                  data_dir=data_dir, max_players=int(entry.get("max_players", 8)),
+                                  cheats=str(entry.get("cheats", "separes"))))
     return server, realms
 
 
@@ -59,7 +60,10 @@ def main() -> None:
                         format="%(asctime)s %(name)-18s %(message)s", datefmt="%H:%M:%S")
     if args.verbose < 2:
         logging.getLogger("prudp").setLevel(logging.INFO)
-    server, realms = load_config(args.config, args.realm)
+    try:
+        server, realms = load_config(args.config, args.realm)
+    except (ValueError, KeyError, tomllib.TOMLDecodeError) as e:
+        sys.exit(f"bad configuration {args.config}: {e}")
     if not realms:
         sys.exit("no realm to start")
     try:

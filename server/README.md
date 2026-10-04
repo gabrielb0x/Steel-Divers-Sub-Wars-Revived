@@ -32,6 +32,21 @@ par le jeu). Le portage PC exécutera le même code réseau que le jeu (NEX et P
 le port qu'il vise change. Pour faire jouer tout le monde ensemble, il suffirait de lui donner le port du royaume
 `emulateur`.
 
+## Bots et triche
+
+Chaque royaume a deux options de partie dans `serveur.toml` :
+
+* **`max_players`** (2 à 8) : nombre de joueurs humains par partie. Les bots existent déjà dans le jeu : la
+  console hôte complète chaque équipe à 4 sous-marins avec des sous-marins pilotés par l'ordinateur
+  (`mode_periscope` › `@setNpc`, 4 − joueurs de l'équipe). Limiter les humains donne donc plus de bots :
+  `max_players = 2` fait toujours du un contre un, avec 3 bots de chaque côté. Le serveur ne peut pas jouer
+  lui-même un bot (la bataille se joue entre les consoles), et le jeu exige au moins un joueur dans chaque
+  équipe pour lancer le compte à rebours : il faut être au moins deux.
+* **`cheats`** : que faire des joueurs dont le mod contient [la triche](../mods/triche/mod.toml) (leur jeton
+  le déclare) : `"separes"` (par défaut : ils ne rencontrent que d'autres tricheurs), `"autorises"` (ils jouent
+  avec tout le monde) ou `"refuses"` (connexion refusée). La triche elle-même est dans le jeu, pas dans le
+  serveur ; un jeu modifié autrement peut toujours mentir, comme dans tout jeu en P2P.
+
 ## Héberger un serveur public
 
 1. Dans `serveur.toml`, mettre dans `public_address` l'adresse IP publique (ou le nom) de la machine : c'est

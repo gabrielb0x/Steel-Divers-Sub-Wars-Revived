@@ -37,6 +37,7 @@ class Session:
     info: MatchmakeSession
     participants: list[int] = field(default_factory=list)
     created: float = field(default_factory=time.monotonic)
+    pool: str = ""                                  # players of different pools never meet
 
     @property
     def gid(self) -> int:
@@ -47,7 +48,11 @@ class Session:
 
 
 class Matchmaker:
-    def __init__(self, notify) -> None:
+    """max_players caps the human players of a session: the host's game then fills each team up to four
+    subs with computer-controlled ones (mode_periscope @setNpc: 4 - players of the team)."""
+
+    def __init__(self, notify, max_players: int = 8) -> None:
+        self.max_players = max_players
         self.sessions: dict[int, Session] = {}
         self.by_pid: dict[int, int] = {}            # pid -> gid
         self.blocklists: dict[int, set[int]] = {}
@@ -56,9 +61,9 @@ class Matchmaker:
 
     # -- search ----------------------------------------------------------------------------------
 
-    def _matches(self, session: Session, c: SearchCriteria, pid: int) -> bool:
+    def _matches(self, session: Session, c: SearchCriteria, pid: int, pool: str) -> bool:
         info = session.info
-        if not info.open_participation or session.full() or pid in session.participants:
+        if session.pool != pool or not info.open_participation or session.full() or pid in session.participants:
             return False
         if c.vacant_only and len(session.participants) + max(c.vacant_participants, 1) > info.max_participants:
             return False
@@ -81,10 +86,10 @@ class Matchmaker:
         return True
 
     def auto_matchmake(self, pid: int, criteria: list[SearchCriteria], proposal: MatchmakeSession,
-                       message: str) -> MatchmakeSession:
+                       message: str, pool: str = "") -> MatchmakeSession:
         self.leave(pid, "")
         for c in criteria:
-            found = [s for s in self.sessions.values() if self._matches(s, c, pid)]
+            found = [s for s in self.sessions.values() if self._matches(s, c, pid, pool)]
             if found:
                 session = max(found, key=lambda s: (len(s.participants), -s.created))
                 self._join(session, pid, message)
@@ -95,11 +100,12 @@ class Matchmaker:
         info.id = next(self._gids)
         info.owner_pid = info.host_pid = pid
         info.participation_count = 1
-        session = Session(info, [pid])
+        info.max_participants = min(info.max_participants or 8, self.max_players)
+        session = Session(info, [pid], pool=pool)
         self.sessions[info.id] = session
         self.by_pid[pid] = info.id
-        log.info("pid %d creates session %d (game mode %d, attributes %s)", pid, info.id, info.game_mode,
-                 info.attributes)
+        log.info("pid %d creates session %d (game mode %d, attributes %s, %d players max%s)", pid, info.id,
+                 info.game_mode, info.attributes, info.max_participants, f", pool {pool}" if pool else "")
         return info
 
     def _join(self, session: Session, pid: int, message: str) -> None:

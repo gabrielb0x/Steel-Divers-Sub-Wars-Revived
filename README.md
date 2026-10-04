@@ -36,7 +36,11 @@ Projet de rétro-ingénierie de **Steel Diver: Sub Wars** (Nintendo / Vitei, 3DS
 ```sh
 cd server && python3 -m sdsw_server                        # le serveur (royaumes « emulateur » et « pc »)
 .venv/bin/python tools/mod.py build en-ligne --set server=<adresse> --install    # chaque joueur
+.venv/bin/python tools/mod.py build en-ligne triche --set server=<adresse> --install   # avec la triche
 ```
+
+  Le serveur règle le nombre de joueurs humains par partie (le jeu complète les équipes avec des bots) et
+  décide quoi faire des tricheurs ([server/README.md](server/README.md)).
 
 Détails : [docs/analyse-initiale.md](docs/analyse-initiale.md) · Plan : [docs/roadmap.md](docs/roadmap.md)
 

@@ -292,6 +292,12 @@ class PRUDPServer(asyncio.DatagramProtocol):
         self.transport = transport
         self._task = asyncio.get_running_loop().create_task(self._maintenance())
 
+    def close(self) -> None:
+        if self._task:
+            self._task.cancel()
+        if self.transport:
+            self.transport.close()
+
     def send_raw(self, data: bytes, addr) -> None:
         if self.transport is not None:
             self.transport.sendto(data, addr)

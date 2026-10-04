@@ -1,0 +1,99 @@
+# Mod « triche » : les tricheries que les développeurs utilisaient pour tester, sur votre sous-marin.
+#
+#   tools/mod.py build triche --install                           # hors ligne
+#   tools/mod.py build en-ligne triche --set server=... --install # en ligne, avec le mod en-ligne
+#
+# Toutes sont actives par défaut ; --set <option>=non en retire une. En ligne, le jeton du mod dit au
+# serveur que la triche est installée : selon sa configuration (cheats dans server/serveur.toml), vous ne
+# jouez qu'avec d'autres tricheurs, avec tout le monde, ou pas du tout.
+#
+# D'où viennent-elles :
+# * « player.muteki » (muteki : invincible) est le drapeau du mode test des développeurs (mode_test) :
+#   le sous-marin ne prend plus de dégâts (pscope_player @eventDamageTorp, @eventMessageExplosionHit),
+#   ne perd plus de torpilles (periscope_move fireTorpedo) et garde son air (func_16010). Rien ne
+#   l'active en jeu normal : le patch remplace, dans les scripts concernés, la chaîne lue par
+#   sysGetGlobal("player.muteki") par « mode.ready », qui vaut 1 pendant toute la bataille.
+# * les caractéristiques des 23 sous-marins (bxml/pscope_plyNN_stats.bxml) : temps de rechargement des
+#   torpilles, cadence de tir, air consommé par le masqueur, accélérations et virage (notes de 1 à 9).
+
+name = "Triche"
+description = "Invincible, torpilles et air infinis, rechargement rapide, masqueur gratuit, moteur gonflé"
+token_flags = ["triche"]
+
+[params.invincible]
+help = "aucun dégât (oui/non)"
+default = "oui"
+
+[params.torpilles]
+help = "torpilles infinies (oui/non)"
+default = "oui"
+
+[params.air]
+help = "air infini (oui/non)"
+default = "oui"
+
+[params.rechargement]
+help = "rechargement et tir rapides (oui/non)"
+default = "oui"
+
+[params.masqueur]
+help = "le masqueur ne consomme plus d'air (oui/non)"
+default = "oui"
+
+[params.moteur]
+help = "accélération et virage au maximum (oui/non)"
+default = "oui"
+
+# -- invincible -------------------------------------------------------------------------------------
+[[amx]]
+if = "${invincible}"
+file = "amx/pscope_player.amx"          # dégâts des torpilles et des explosions
+string = "player.muteki"
+replace = "mode.ready"
+count = 3
+
+[[amx]]
+if = "${invincible}"
+file = "amx/hud.amx"                    # flash rouge des dégâts
+string = "player.muteki"
+replace = "mode.ready"
+count = 1
+
+[[amx]]
+if = "${invincible}"
+file = "amx/periscope_move.amx"         # @missile_hit : secousse et dégâts des missiles
+at = 0x864C
+string = "player.muteki"
+replace = "mode.ready"
+
+# -- torpilles infinies -----------------------------------------------------------------------------
+[[amx]]
+if = "${torpilles}"
+file = "amx/periscope_move.amx"         # fireTorpedo : ne décompte plus la torpille tirée
+at = 0x5D4C
+string = "player.muteki"
+replace = "mode.ready"
+
+# -- air infini -------------------------------------------------------------------------------------
+[[amx]]
+if = "${air}"
+file = "amx/periscope_move.amx"         # func_16010 : air remis à 100
+at = 0x8F84
+string = "player.muteki"
+replace = "mode.ready"
+
+# -- caractéristiques des 23 sous-marins du joueur (pscope_ply01 à 23_stats) -------------------------
+[[bxml]]
+if = "${rechargement}"
+files = "bxml/pscope_ply[0-9][0-9]_stats.bxml"
+set = { torpedoReplenishTime = "1", torpedoFireInterval = "30" }
+
+[[bxml]]
+if = "${masqueur}"
+files = "bxml/pscope_ply[0-9][0-9]_stats.bxml"
+set = { maskerUseAir = "0.0" }
+
+[[bxml]]
+if = "${moteur}"
+files = "bxml/pscope_ply[0-9][0-9]_stats.bxml"
+set = { aboveAccel = "9", belowAccel = "9", maxTurn = "8" }
