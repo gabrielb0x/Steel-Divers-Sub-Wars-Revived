@@ -19,6 +19,25 @@ Little endian, offsets depuis le début du fichier (transformés en pointeurs au
 - Types (`BXML::Attribute::set*Data`) : 1 nom, 2 octets, 3 chaîne, 4 s16[], 5 s32[], 7 f32[].
 - Hash des noms : `generateCRC` = **CRC-32 standard** (identique à `zlib.crc32`).
 
+**Écriture (XML → BXML)** : `tools/bxml.py --to-bxml fichier.xml -o fichier.bxml`. L'écrivain reproduit la
+disposition du convertisseur de Nintendo/Vitei, si bien qu'un fichier non modifié ressort **identique à l'octet près**
+(`tools/bxml.py --check` : 490/490) :
+
+- en-tête, nœuds en préordre, tables d'attributs dans l'ordre des nœuds, puis un « pool » où chaque attribut écrit son
+  nom puis ses données, chacun complété à 4 octets ;
+- les données de texture (type 2) sont alignées sur 128 octets, et le pool aussi dans ces fichiers (sauf
+  `textures/decal_22` et `decal_28`, faits par une version plus ancienne de l'outil : `--no-align`) ;
+- un bloc dont la taille est un multiple de 4 réutilise la dernière entrée identique du pool ; les autres jamais
+  (l'outil d'origine compare visiblement les blocs avec leur remplissage) ;
+- un attribut sans données pointe sur le début du pool, avec une taille nulle.
+
+**Représentation XML** (`make data`) : un élément par nœud, un attribut XML par attribut BXML. Le type se déduit de la
+valeur : entiers → `s32`, nombres écrits avec un point ou un exposant → `f32` (toujours écrits avec un point : `1200.0`),
+le reste → chaîne. Un préfixe donne le type quand la déduction se tromperait : `s:31308` est une chaîne, `hex:…` des
+octets bruts (textures), `s16:` des entiers 16 bits. Dans les chaînes, les caractères de contrôle s'écrivent `\n` et
+`\xHH` (le texte du jeu utilise `0x0E` et `0x0C` comme codes de mise en forme, par ex. `\x0e(80)`) et la barre
+oblique inverse `\\`.
+
 Contenu : niveaux (`worlds/`, dont les 10 cartes en ligne `scope00_online_stage01..10` et leurs variantes `_p1..`),
 écrans des modes (`worlds/mode_*_upper/lower`), statistiques des sous-marins (`bxml/pscope_ply*_stats`), de
 l'équipage (`worlds/crew_stats`), textes localisés (`text/*.bxml`, 1 367 entrées par langue, régions EU, US et JP),
@@ -37,17 +56,26 @@ Format vérifié sur les 57 fichiers (taille exacte, indices < V, normales de lo
 | 0x1C | u32 nombre de sommets V, u32 nombre de triangles T |
 | 0x24 | V × f32[3] sommets, puis T × u32[3] indices de triangles, puis T × f32[3] normales unitaires |
 
-### Collision : `.edge` (`edges/`, 58 fichiers)
+### Collision : `.edge` (`edges/`, 58 fichiers, inutilisés)
 
-`CollShapeEdges::load` : contours 2D (plan XZ).
+`CollShapeEdges::load` : contours 2D dans le plan XY de l'acteur (vue de côté), plus une grille de colonnes pour
+trouver vite les segments proches. **Aucun niveau ni script de Sub Wars ne s'en sert** (aucune forme de collision
+`type="edges"` ; les décors utilisent `hmap`) : ce sont des restes du moteur de Steel Diver, dont le jeu d'origine était
+en 2D vu de côté.
 
 | Offset | Contenu |
 |---|---|
 | 0x00 | `"edge"` |
-| 0x04 | f32 largeur, f32 profondeur, f32 origine X, f32 origine Z |
-| 0x14 | u32 nombre de segments N, u32 M |
-| 0x1C | N × 32 octets : f32 x1, z1, x2, z2, longueur, normale nx, nz, distance au plan |
-| … | données liées à M (structure d'accélération, pas encore décodée) |
+| 0x04 | f32 largeur, f32 hauteur, f32 origine X, f32 origine Y (centre de la sphère englobante = origine + taille / 2) |
+| 0x14 | u32 nombre de segments N, u32 nombre de colonnes M = ⌊largeur / 16⌋ + 1 |
+| 0x1C | N × 32 octets : f32 x1, y1, x2, y2, longueur, normale nx, ny, distance au plan (`nx·x + ny·y`) |
+| … | M × 64 octets : une colonne de 16 unités en X ; u16 nombre de cases (toujours 31), puis 31 × u16 numéros de segments (0 pour une case vide, le segment 0 n'étant testé qu'une fois) |
+
+Les tests (`intersectPoint`, `intersectSphere`, `intersectCapsule`) prennent la colonne `(int)(x - origineX) >> 4` et
+ne testent que ses segments. Vérifié sur 56 fichiers (taille, normales unitaires, chaque segment listé recoupe sa
+colonne). `enmy_bship_l_coli` et `n2obj_geo01_coli` ont une autre organisation des colonnes (listes sans nombre de
+cases ni taille fixe), que le chargeur du jeu lirait mal : produits par une autre version de l'outil, et inutilisés
+eux aussi.
 
 ### Textures brutes (`textures/*.bin`)
 

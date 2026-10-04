@@ -20,8 +20,9 @@ Projet de rétro-ingénierie de **Steel Diver: Sub Wars** (Nintendo / Vitei, 3DS
 - **Scripts Pawn décompilés** : les 123 scripts qui portent la logique du jeu (modes, acteurs, interface) sont
   décompilés en pseudo-Pawn lisible dans `decomp/scripts/` ([docs/scripts-pawn.md](docs/scripts-pawn.md)).
 
-- **Données du jeu lisibles** : le format BXML (niveaux, stats, textes) est décodé ; `make data` convertit les 490
-  fichiers en XML. Formats documentés dans [docs/formats.md](docs/formats.md).
+- **Données du jeu lisibles et modifiables** : le format BXML (niveaux, stats, textes) est décodé ; `make data`
+  convertit les 490 fichiers en XML, et `tools/bxml.py --to-bxml` les reconvertit (identiques à l'octet près si on
+  n'y touche pas). Formats documentés dans [docs/formats.md](docs/formats.md).
 
 Détails : [docs/analyse-initiale.md](docs/analyse-initiale.md) · Plan : [docs/roadmap.md](docs/roadmap.md)
 

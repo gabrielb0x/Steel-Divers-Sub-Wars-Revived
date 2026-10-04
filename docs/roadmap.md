@@ -21,10 +21,11 @@ Fait :
    partir des constructeurs et des vtables, puis réexporter : le pseudo-code devient beaucoup plus lisible.
 2. **Nettoyage** module par module dans `decomp/src/`, avec la même arborescence que `source/`, en commençant par
    `main.cpp`, `sys/system.cpp`, `game/world.cpp`, `game/actor.cpp` et `amx/*` (les natives appelées par les scripts).
-3. **Scripts Pawn** : nommer les variables globales et les fonctions sans log (par recoupement entre scripts),
-   écrire les prototypes Pawn des natives.
-4. **Formats maison** : BXML décodé (`tools/bxml.py`, XML lisible) ; `hmap`/`edge` documentés
-   ([formats.md](formats.md)) ; reste la partie secondaire des `.edge` et un écrivain XML → BXML.
+3. **Scripts Pawn** : prototypes des natives écrits (`decomp/pawn/natives.inc`), noms propagés entre scripts,
+   états Pawn décompilés ; continuer à nommer les ~1 400 groupes de fonctions restants et les globales
+   (`decomp/pawn/symbols.txt`).
+4. ~~**Formats maison**~~ : BXML dans les deux sens (`tools/bxml.py`, XML lisible, réécriture identique à l'octet
+   près pour les 490 fichiers) ; `hmap` et `edge` entièrement documentés ([formats.md](formats.md)).
 
 ## Volet 2 — Portage PC (`port/`)
 
