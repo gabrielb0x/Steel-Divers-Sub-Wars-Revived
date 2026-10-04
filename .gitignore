@@ -1,0 +1,25 @@
+# --- Game data: never commit (everyone brings their own dump) ---
+cia/
+*.cia
+*.3ds
+*.cci
+*.cxi
+*.cfa
+extracted/
+# Decompiler output and Ghidra database are derived from the game binary
+decomp/raw/
+ghidra/project/
+ghidra/project.bak/
+
+# --- Console keys ---
+boot9.bin
+boot9_prot.bin
+aes_keys.txt
+seeddb.bin
+
+# --- Build & local environment ---
+build/
+.venv/
+local.env
+__pycache__/
+*.pyc

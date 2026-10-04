@@ -1,0 +1,37 @@
+# Function names and prototypes added on top of romfs:/map, applied by ghidra/scripts/ApplySymbols.java.
+# Format: <address> <qualified name> [: <C prototype>]   (the prototype's function name is ignored,
+# methods take an explicit `this`; types come from ghidra/types.h)
+# Only add what has been verified in the disassembly.
+
+# --- ARM C runtime, absent from the map (ranked by number of call sites) ---
+0x00252b00 __aeabi_memcpy : void f(void * dst, void * src, u32 n)
+0x002526bc __aeabi_memclr4 : void f(void * dst, u32 n)
+0x002444ec strlen : u32 f(char * s)
+0x00249a78 strcmp : s32 f(char * a, char * b)
+0x00250444 __aeabi_memcpy4 : void f(void * dst, void * src, u32 n)
+0x00239604 __aeabi_uidiv : u32 f(u32 numerator, u32 denominator)
+0x00254044 strncpy : char * f(char * dst, char * src, u32 n)
+0x00249edc __aeabi_memclr : void f(void * dst, u32 n)
+0x0023c598 wcslen : u32 f(u16 * s)
+
+# --- Game / SDK helpers absent from the map ---
+# Allocates through the global allocator: (*g_allocator)->Allocate(size, 4).
+0x00254000 operator_new : void * f(u32 size)
+# Copies 12 floats (3x4 matrix) when the pointers differ, returns dst.
+0x0024d2a4 nn::math::MTX34Copy : void * f(void * dst, void * src)
+
+# --- Prototypes of mapped functions ---
+# Returns the elapsed time in s0 (hard-float ABI).
+0x00103758 System::getRunningTimeInSeconds : f32 f(void)
+# r0 = 0x400 then falls through into nngxCheckVSync.
+0x0010e098 Graphics::getVBlankCount : u32 f(void)
+# nnMain and the start-up sequence: no argument register is read before the first call.
+0x00100114 nnMain : void f(void)
+0x00104a20 Graphics::init : void f(void)
+0x0010679c SyncEvent::init : void f(void)
+0x001043f4 DebugFX::init : void f(void)
+0x0010297c Fader::init : void f(void)
+0x0010253c DOF::init : void f(void)
+0x00101434 Distortion::init : void f(void)
+0x001062ec SpeedBlur::init : void f(void)
+0x00101fe0 EffectManager::init : void f(void)
