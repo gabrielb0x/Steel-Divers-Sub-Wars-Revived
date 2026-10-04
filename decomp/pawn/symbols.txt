@@ -180,3 +180,46 @@ mode_title:g_3184 gULCDSettings
 mode_title:g_32a4 gTouchPosition
 mode_title:g_32ac gTouchLastPosition
 mode_title:g_32a0 gTouching
+
+# ---- more helpers ----
+mode_battle_record:0x0d18 setText(actor, const textBox[], const text[])           # actorReplaceStringf, no format arguments
+crew_maker:0x0040 nextRandomSeed()
+mode_lobby:0x39ec buttonSetEnabled(button[], bool:enabled)
+mode_internet_menu:0x33d8 buttonIsOn(button[])
+pause:0x0f0c buttonPlayOut(button[])
+game_state:0x377c getPlayerId(node)                                            # "player.<node>.id"
+hud_pause:0x26bc getCardId(card)                                               # "save.multi.card<nnn>.id"
+sky_scope:0x005c randomAngle()                                                 # -pi..pi
+netplay_dummy:0x0070 vecScale(Float:dest[3], const Float:source[3], Float:scale)
+surface_cannon:0xa290 adoptChild(child)                                        # the calling actor becomes its parent
+surface_cannon:0xbfe0 setCollisionTypeSynced(type)
+camera_internet:0x0d70 ulcdSetOffset(Float:offset)
+camera_internet:0x0d94 ulcdSetRange(Float:range)
+camera_scope:0x0d88 setMorseActive(bool:active)                                # "controls.isMorseActive", adapts the control set
+message_queue:0x157c isLobby()
+message_queue:g_09f8 gIsLobby                                                  # the game's name (error message)
+
+# ---- save.inc: writing the save data in the background ----
+mode_battle_record:0x8e58 saveStart()                                          # sysSaveDataSave("save", 27), 90-frame timeout
+mode_battle_record:0x8e30 saveDone()
+mode_battle_record:0x9a18 saveCheckTimeout()                                   # "Save timed out!"
+mode_battle_record:0x8ea4 eraseSaveData()
+
+# ---- vectors and actors ----
+surface_echarge:0x0194 vecZero(Float:vector[3])
+camera_scope:0x03f8 vecCopy(Float:dest[3], const Float:source[3])
+netplay_dummy:0x0168 vecLengthSq(const Float:vector[3])
+camera_internet:0x0090 vecRotateX(Float:dest[3], const Float:source[3], Float:angle)
+surface_bomb:0x1018 vecRelativeTo(Float:dest[3], const Float:position[3], actor)   # position - actor's position
+camera_scope:0x4344 wrapAngle(Float:angle)                                     # into -pi..pi
+surface_bomb:0x0f68 actorDistance(actorA, actorB)
+explosion_damage:0x0ac8 actorGetPropVectorCopy(const name[], Float:dest[3], actor)
+netplay_dummy_sub:0x0d4c playPropAnim(const property[])                        # animation named by a property
+surface_echarge:0x103c addForce(const Float:force[3])
+
+# ---- misc ----
+mode_battle_record:0x00e0 intToString(value, dest[], size)
+mode_customize:0x8fb0 wait20Frames()
+mode_customize:0x5744 saveAllAndWait(const reason[])
+camera_scope:0x1264 setControlSet(set)                                         # another version of controls.inc
+mode_sale:0x2374 shopDisconnect()

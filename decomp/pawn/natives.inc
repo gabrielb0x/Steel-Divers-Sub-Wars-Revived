@@ -92,9 +92,9 @@ native sysSendMessage(UID:uid, message, value, flags);                   // queu
 
 /* ---- amxsys: input ----
  * Button masks of the controller (System::getController(), one 0x14-byte record per controller). */
-native sysGetButtonsClicked(controller = 0);                        // pressed this frame
-native sysGetButtonsDown(controller = 0);                           // held
-native sysGetButtonsRepeated(controller = 0);                       // pressed, with key repeat
+native BUTTON:sysGetButtonsClicked(controller = 0);                        // pressed this frame
+native BUTTON:sysGetButtonsDown(controller = 0);                           // held
+native BUTTON:sysGetButtonsRepeated(controller = 0);                       // pressed, with key repeat
 native sysGetTouchPad(position[2]);                                  // returns true while the screen is touched
 native sysGetStick(stick[]);
 native Float:sysGetGyroBearing();

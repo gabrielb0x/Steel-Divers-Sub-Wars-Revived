@@ -62,6 +62,34 @@ class Signature:
     tags: list[str | None] = field(default_factory=list)
 
 
+def tag_of(e: Expr | None) -> str | None:
+    if isinstance(e, (Var, Call)):
+        return e.tag
+    if isinstance(e, Binary) and e.op in ("|", "&", "^"):
+        return tag_of(e.left) or tag_of(e.right)
+    if isinstance(e, Assign):
+        return tag_of(e.value)
+    return None
+
+
+def named_constant(e: Expr, enum: dict[int, str]) -> Expr:
+    """Const -> its name in `enum`; for an enumeration of bit flags, an OR of names."""
+    if type(e) not in (Const, Lit) or e.as_float:
+        return e
+    if e.value in enum:
+        return Named(e.value, origin=e.origin, name=enum[e.value])
+    if e.value > 0 and all(v > 0 and v & (v - 1) == 0 for v in enum):   # every constant is one bit
+        names, rest = [], e.value
+        for bit in sorted(enum):
+            if rest & bit:
+                names.append(enum[bit])
+                rest &= ~bit
+        if rest:
+            names.append(f"{rest:#x}")
+        return Flags(e.value, origin=e.origin, names=tuple(names))
+    return e
+
+
 def format_kinds(text: str, style: str) -> list[str]:
     """Kinds of the variadic arguments described by a format string."""
     if style == "letters":   # sysCallPublicf & co: one letter per argument, s = string, anything else = cell
@@ -107,6 +135,16 @@ class Named(Const):
 
 
 @dataclass
+class Flags(Const):
+    """Constant of a bit-flag enumeration of decomp/pawn/natives.inc: BUTTON_A | BUTTON_B."""
+    names: tuple[str, ...] = ()
+
+    def render(self, prec: int = 0) -> str:
+        text = " | ".join(self.names)
+        return f"({text})" if len(self.names) > 1 and prec > PREC["|"] else text
+
+
+@dataclass
 class Str(Expr):
     text: str
 
@@ -127,6 +165,7 @@ class Lit(Const):
 @dataclass
 class Var(Expr):
     name: str
+    tag: str | None = field(default=None, compare=False)   # BUTTON: ... (see BlockInterpreter.tagged)
 
     def render(self, prec: int = 0) -> str:
         return self.name
@@ -227,6 +266,7 @@ class Binary(Expr):
 class Call(Expr):
     name: str
     args: list[Expr]
+    tag: str | None = field(default=None, compare=False)   # return tag of the native
     side_effects = True
 
     def render(self, prec: int = 0) -> str:
@@ -384,6 +424,7 @@ class FunctionDecompiler:
         self.arrays: dict[int, tuple[str, int]] = {}   # frame offset -> (name, cells)
         self.max_param = -1
         self.blocks: dict[int, Block] = {}
+        self.local_tags: dict[int, str] = {}   # frame offset -> tag of the value last stored there
 
     # ---- naming
     def frame_var(self, offset: int) -> Expr:
@@ -394,7 +435,15 @@ class FunctionDecompiler:
         for start, (name, size) in self.arrays.items():
             if start <= offset < start + 4 * size:
                 return Index(Var(name), Const((offset - start) // 4))
-        return Var(self.locals.get(offset, f"local_{-offset:x}"))
+        return Var(self.locals.get(offset, f"local_{-offset:x}"), self.local_tags.get(offset))
+
+    def note_local_tag(self, offset: int, value: Expr) -> None:
+        """A local holding a tagged value (sysGetButtons*()) shows its constants by name."""
+        tag = tag_of(value)
+        if tag:
+            self.local_tags[offset] = tag
+        else:
+            self.local_tags.pop(offset, None)
 
     def frame_addr(self, offset: int) -> Expr:
         """Address of a frame slot: an array passed by reference reads as its name."""
@@ -576,6 +625,7 @@ class BlockInterpreter:
         for offset, value in self.temps:
             name = f"local_{-offset:x}"
             self.fn.locals[offset] = name
+            self.fn.note_local_tag(offset, value)
             init = "" if isinstance(value, Var) and value.name.startswith("uninit") else f" = {value.render()}"
             self.emit(f"new {name}{init};")
         self.temps.clear()
@@ -684,7 +734,8 @@ class BlockInterpreter:
                     for n, x in enumerate(args)]
         elif name.startswith("float"):
             args = [Const(x.value, True) if type(x) is Const and looks_like_float(x.value) else x for x in args]
-        return Call(name, args)
+        native = self.fn.ctx.natives.get(name)
+        return Call(name, args, tag=native[2] if native else None)
 
     def execute(self) -> None:
         """Runs the block; a conditional jump that only computes a value (no BREAK before the
@@ -766,6 +817,7 @@ class BlockInterpreter:
             self.flush_pending()
             self.emit(f"{self.fn.global_var(a[0]).render()} = {self.alt.render()};")
         elif name == "STOR_S_PRI":
+            self.fn.note_local_tag(a[0], self.pri)
             if not self.initialise(a[0], self.pri):
                 self.store(self.fn.frame_var(a[0]))
         elif name == "STOR_S_ALT":
@@ -903,7 +955,8 @@ class BlockInterpreter:
             left = self.use_pri()
             self.note_param(left, "i")
             self.note_param(self.alt, "i")
-            self.set_pri(Binary(ops[name], left, self.alt))
+            left, right = self.tagged(ops[name], left, self.alt)
+            self.set_pri(Binary(ops[name], left, right))
         elif name in ("SUB_ALT", "SDIV_ALT", "UDIV_ALT"):
             self.set_pri(Binary({"SUB_ALT": "-", "SDIV_ALT": "/", "UDIV_ALT": "/"}[name], self.alt, self.use_pri()))
         elif name in ("SHL_C_PRI", "SHR_C_PRI"):
@@ -931,9 +984,9 @@ class BlockInterpreter:
         elif name in ("SIGN_PRI", "SIGN_ALT"):
             return
         elif name == "EQ_C_PRI":
-            self.set_pri(Binary("==", self.use_pri(), self.constant(a[0], (i.addr, 0))))
+            self.set_pri(Binary("==", *self.tagged("==", self.use_pri(), self.constant(a[0], (i.addr, 0)))))
         elif name == "EQ_C_ALT":
-            self.set_pri(Binary("==", self.alt, self.constant(a[0], (i.addr, 0))))
+            self.set_pri(Binary("==", *self.tagged("==", self.alt, self.constant(a[0], (i.addr, 0)))))
         elif name in ("INC_PRI", "DEC_PRI"):
             self.set_pri(self.add_const(self.use_pri(), 1 if name == "INC_PRI" else -1))
         elif name in ("INC_ALT", "DEC_ALT"):
@@ -1057,6 +1110,17 @@ class BlockInterpreter:
         if isinstance(expr, Param):
             self.note_param(expr, "a")
         return expr
+
+    def tagged(self, op: str, left: Expr, right: Expr) -> tuple[Expr, Expr]:
+        """A constant combined with a tagged value (BUTTON: mask from sysGetButtons*) by &, |, ^,
+        == or != is shown with the names of the tag's enumeration."""
+        if op not in ("&", "|", "^", "==", "!="):
+            return left, right
+        tag = tag_of(left) or tag_of(right)
+        enum = self.fn.ctx.enums.get(tag) if tag else None
+        if not enum:
+            return left, right
+        return named_constant(left, enum), named_constant(right, enum)
 
     def global_at(self, address: Const, array: bool) -> Var:
         """A constant used as the address of a global variable or array."""
@@ -1436,7 +1500,7 @@ def operator_template(expr: Expr | None) -> tuple[str, Expr] | None:
 
 
 class ScriptDecompiler:
-    def __init__(self, amx: AmxFile, natives: dict[str, tuple[list[Parameter], bool]] | None = None,
+    def __init__(self, amx: AmxFile, natives: dict[str, tuple[list[Parameter], bool, str | None]] | None = None,
                  native_types: dict | None = None, enums: dict[str, dict[int, str]] | None = None):
         self.amx = amx
         self.insns = list(amx.instructions())
@@ -1572,7 +1636,7 @@ class ScriptDecompiler:
     def native_signature(self, name: str) -> Signature | None:
         fmt = FORMATS.get(name)
         if name in self.natives:
-            params, variadic = self.natives[name]
+            params, variadic, _ = self.natives[name]
             return Signature([p.kind or "i" for p in params], variadic, fmt, [p.tag for p in params])
         auto = self.native_types.get(name)
         if auto is None:

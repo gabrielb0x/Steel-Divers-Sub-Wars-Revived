@@ -106,15 +106,16 @@ def parse_params(text: str) -> tuple[list[Parameter], bool]:
     return params, variadic
 
 
-def read_natives(path: Path) -> tuple[dict[str, tuple[list[Parameter], bool]], dict[str, dict[int, str]]]:
-    """decomp/pawn/natives.inc: native prototypes (name -> (parameters, variadic)) and enumerations
-    (tag -> value -> constant name), used to name the constants passed to parameters of that tag."""
+def read_natives(path: Path) -> tuple[dict[str, tuple[list[Parameter], bool, str | None]], dict[str, dict[int, str]]]:
+    """decomp/pawn/natives.inc: native prototypes (name -> (parameters, variadic, return tag)) and
+    enumerations (tag -> value -> constant name), used to name the constants passed to parameters
+    of that tag or compared with values of that tag."""
     if not path.exists():
         return {}, {}
     text = re.sub(r"/\*.*?\*/|//[^\n]*", "", path.read_text(), flags=re.S)
     natives = {}
-    for m in re.finditer(r"\bnative\s+(?:\w+:)?(\w+)\s*\(([^)]*)\)", text):
-        natives[m[1]] = parse_params(m[2])
+    for m in re.finditer(r"\bnative\s+(?:(\w+):)?(\w+)\s*\(([^)]*)\)", text):
+        natives[m[2]] = (*parse_params(m[3]), m[1])
     enums: dict[str, dict[int, str]] = {}
     for m in re.finditer(r"\benum\s+(\w+)\s*\{([^}]*)\}", text):
         values = enums.setdefault(m[1], {})
