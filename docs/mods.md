@@ -87,5 +87,15 @@ Passer simplement à une image par VBlank ferait tourner tout le jeu deux fois p
 
 Les scripts des modes contiennent encore la console de debug des développeurs (`consoleSystemMenu` dans
 `mode_title`, voir [scripts-pawn.md](scripts-pawn.md)) : invincibilité, `godmode`, `killThemAll`, désactivation des
-effets, réglages du brouillard et de la 3D, simulation de latence et de pertes de paquets. L'affichage passe par des
-fonctions de texte de debug vidées dans la version commerciale ; la réactiver est un bon premier mod à étudier.
+effets, réglages du brouillard et de la 3D, simulation de latence et de pertes de paquets, accès au mode de test des
+développeurs (`mode_test` : choix du mode, du sous-marin, des missions). Mais ce n'est pas un mod rapide :
+
+- la logique qui ouvre la console et passe d'un menu à l'autre a disparu : aucun script ne remet à zéro le compteur de
+  menus (`gConsoleMenuIndex`) ni ne referme la console ; seuls `mode_test` et `mode_controls` ouvrent leurs propres
+  menus ;
+- l'affichage aussi : `gfxPrintStringf` écrit toujours dans un tampon de texte de 50 colonnes
+  (`System::getDebugBuffer`, 0x800 caractères), mais plus aucun code ne le dessine (`DebugFX::draw` ne trace que des
+  lignes de debug).
+
+Il faudrait réécrire ces deux morceaux : naturel dans le portage PC (une surcouche de debug), possible plus tard dans
+Azahar avec des patchs de scripts et de code.

@@ -69,7 +69,8 @@ Le plan détaillé est dans [mods.md](mods.md) : on publie des recettes (`mods/`
 
 1. ~~**Outillage**~~ : jeu installable dans Azahar (`tools/azahar.py`), mods en recettes construites et installées
    par `tools/mod.py` (textes, BXML, patchs de code IPS) ; reste les scripts Pawn (assembleur AMX).
-2. **Menu de debug** des développeurs, encore présent dans les scripts : le réactiver.
+2. **Scripts Pawn** : modifier le bytecode (assembleur AMX, puis pseudo-Pawn recompilable), base des mods de
+   gameplay. Le menu de debug des développeurs en dépend (sa logique et son affichage ont été retirés).
 3. **Jeu en ligne** : patch de `JobCTRLogin` pour viser notre serveur (volet 3), somme de version propre au mod.
 4. **60 fps** : affichage interpolé entre deux pas de simulation, d'abord dans le portage PC.
 
