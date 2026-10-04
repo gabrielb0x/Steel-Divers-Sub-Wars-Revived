@@ -1,39 +1,40 @@
 # Mods : ce qui est possible, et comment les distribuer
 
 Objectif : que chaque joueur, avec **sa propre copie** du jeu, puisse appliquer un mod (jeu en ligne sur notre serveur,
-60 fps, nouvelles fonctionnalités…) sur 3DS ou sur émulateur.
+60 fps, nouvelles fonctionnalités…). Deux cibles : l'émulateur **Azahar** maintenant, et le **portage PC** plus tard,
+où les mods seront plus simples encore. La 3DS elle-même n'est pas une cible.
 
 ## Distribuer le mod, jamais le jeu
 
 Un `.cia` modifié contient le jeu entier : le distribuer revient à distribuer le jeu de Nintendo, ce qui est illégal et
-contraire à la règle du dépôt (aucune donnée du jeu n'est publiée). On distribue **uniquement le mod** : nos propres
-fichiers et des correctifs (patchs) qui ne contiennent que nos modifications. C'est aussi ce que font les mods 3DS
-connus.
+contraire à la règle du dépôt (aucune donnée du jeu n'est publiée). On distribue **uniquement le mod**, sous forme de
+recette ([../mods/README.md](../mods/README.md)) : une liste de changements que `tools/mod.py` applique aux fichiers
+du joueur pour produire le dossier qu'Azahar charge :
 
-Format conseillé, qui marche sans toucher au jeu installé :
+```
+load/mods/00040000000D7E00/romfs/...        fichiers remplacés (textes, niveaux, scripts…)
+load/mods/00040000000D7E00/exefs/code.ips   patch du code
+```
 
-| Cible | Où mettre le mod | Contenu |
-|---|---|---|
-| 3DS avec Luma3DS (« game patching » activé) | `luma/titles/00040000000D7E00/` sur la carte SD | `code.ips` ou `code.bps` (patch du code), `romfs/` (fichiers remplacés : scripts `.amx`, `.bxml`…), éventuellement `exheader.bin` |
-| Azahar / Citra | `load/mods/00040000000D7E00/` | `exefs/code.ips` (ou `.bps`), `romfs/` |
+(chemins vérifiés dans le code d'Azahar, `ncch_container.cpp` : identifiant en hexadécimal majuscule, `code.ips` ou
+`code.bps`, `romfs/`, `romfs_ext/`, `exheader.bin`). Le Title ID ci-dessus est celui de la version européenne.
 
-Le Title ID ci-dessus est celui de la version européenne ; il en faut un dossier par région (`000D7C00` Japon,
-`000D7D00` Amérique). Pour ceux qui préfèrent installer un CIA, un petit outil peut fabriquer le CIA modifié **sur la
-machine du joueur**, à partir de son propre dump : on publie l'outil et le patch, pas le résultat.
+**Installer le jeu dans Azahar** : le CIA de l'eShop contient aussi le manuel électronique, resté chiffré, et Azahar
+refuse alors toute l'installation. `tools/azahar.py prepare` fabrique, sur la machine du joueur, un CIA contenant le
+jeu seul (et un `.cxi` chargeable directement).
 
-**Version visée** : le patch de code dépend de l'exécutable exact. Les joueurs qui ont joué en ligne ont la mise à
-jour installée (la mise à jour 2.0 de juin 2014 remplace tout le contenu du jeu), et Luma applique les patchs au code de
-la mise à jour. Les mods doivent donc viser la **dernière mise à jour**, qu'il faut dumper (voir la feuille de route).
+**Version visée** : la version de lancement (v0, Europe), celle du dump. Un patch de code dépend de l'exécutable exact :
+les recettes peuvent vérifier les octets d'origine (`expect`).
 
 ## Ce qu'on sait déjà modifier
 
-- **Données** : niveaux, statistiques des sous-marins et de l'équipage, textes, réglages. `make data` les met en XML,
-  `tools/bxml.py --to-bxml` les remet en BXML (identiques à l'octet près si on n'y touche pas). Formats dans
-  [formats.md](formats.md), dont celui des niveaux.
+- **Données** : niveaux, statistiques des sous-marins et de l'équipage, textes, réglages ; recettes `[[text]]` et
+  `[[bxml]]`. Formats dans [formats.md](formats.md), dont celui des niveaux.
+- **Code C++** : recettes `[[code]]` (octets ou assembleur ARM), en connaissant les fonctions grâce à la table des
+  symboles du jeu et à la décompilation.
 - **Scripts** : la logique du jeu (modes, sous-marins, interface) est en Pawn ([scripts-pawn.md](scripts-pawn.md)).
-  On sait les lire ; pour les modifier il faudra soit un assembleur AMX (modifier le bytecode), soit rendre le
-  pseudo-Pawn recompilable avec le compilateur Pawn 3.3. C'est la prochaine brique côté mods.
-- **Code C++** : patchs IPS/BPS de `code.bin`, en connaissant les fonctions grâce à la table des symboles du jeu.
+  On sait les lire ; pour les modifier il faudra un assembleur AMX (modifier le bytecode), puis rendre le pseudo-Pawn
+  recompilable avec le compilateur Pawn 3.3. C'est la prochaine brique.
 
 ## Jeu en ligne sur notre serveur
 
@@ -50,7 +51,7 @@ Deux façons de rediriger le jeu :
 
 - **Au niveau de la console** (méthode de Pretendo avec Nimbus) : patcher les modules système *friends* et *ssl* pour
   qu'ils parlent à un autre serveur de comptes. Marche pour tous les jeux, mais demande toute une infrastructure de
-  comptes (amis, NASC).
+  comptes (amis, NASC), et sous émulateur un service *friends* qui la reproduise.
 - **Au niveau du jeu** (ce qui nous intéresse) : un patch de code qui remplace la connexion au serveur d'amis et le
   résultat NASC par l'adresse de notre serveur et un jeton à nous, avant `RendezVous::Login`. Le mod devient
   autonome : notre serveur n'a qu'à accepter l'identifiant de la console (*principal ID*) et implémenter les
@@ -79,9 +80,8 @@ Passer simplement à une image par VBlank ferait tourner tout le jeu deux fois p
 2. **Simuler à 30 Hz et afficher à 60 Hz** en interpolant entre deux états : le moteur sépare déjà l'état simulé des
    acteurs (`positionPtr`, fonctions `*Sim`) de l'état dessiné (`Actor` +0x4C), copié par `World::postScriptUpdate`.
    Il faudrait dessiner une image intermédiaire en interpolant positions, rotations et caméra. Aucun script à
-   toucher, compatible en ligne, mais c'est du code moteur à injecter : plus simple à faire d'abord dans le portage
-   PC, puis à reporter en patch 3DS si les performances suivent (la vue stéréo coûte déjà deux rendus par image ; une
-   New 3DS sera sans doute nécessaire).
+   toucher, compatible en ligne, mais c'est du code moteur à injecter : naturel dans le portage PC, plus délicat en
+   patch pour Azahar (il faut y loger du code neuf).
 
 ## Menu de debug
 

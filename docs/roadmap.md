@@ -63,20 +63,21 @@ se jouent en P2P via Pia. Aucune bibliothèque NEX de classement ou de stockage 
    (1 à 8 joueurs, mode 1000), attributs (continent, type de salon, niveau, somme de version).
 4. **NAT** : Pia fait déjà du NAT traversal ; prévoir un relais pour les NAT stricts si besoin.
 
-## Volet 4 — Mods (sur 3DS et émulateur)
+## Volet 4 — Mods (Azahar, puis portage PC)
 
-Le plan détaillé est dans [mods.md](mods.md) : on publie des patchs (dossier Luma3DS / Azahar), jamais un CIA modifié.
+Le plan détaillé est dans [mods.md](mods.md) : on publie des recettes (`mods/`), jamais un CIA modifié.
 
-1. **Outillage** : données (fait : `tools/bxml.py`) ; scripts Pawn (assembleur AMX ou pseudo-Pawn recompilable) ;
-   construction du dossier de mod et d'un patch IPS/BPS du code.
-2. **Jeu en ligne** : patch de `JobCTRLogin` pour viser notre serveur (volet 3), somme de version propre au mod.
-3. **Menu de debug** des développeurs, encore présent dans les scripts : le réactiver.
+1. ~~**Outillage**~~ : jeu installable dans Azahar (`tools/azahar.py`), mods en recettes construites et installées
+   par `tools/mod.py` (textes, BXML, patchs de code IPS) ; reste les scripts Pawn (assembleur AMX).
+2. **Menu de debug** des développeurs, encore présent dans les scripts : le réactiver.
+3. **Jeu en ligne** : patch de `JobCTRLogin` pour viser notre serveur (volet 3), somme de version propre au mod.
 4. **60 fps** : affichage interpolé entre deux pas de simulation, d'abord dans le portage PC.
 
-## Décisions à prendre
+## Décisions
 
-- **Version du jeu** : le dump est la v0 de lancement. Le jeu a reçu des mises à jour (1.1 en mars 2014,
-  2.0 en juin 2014). Il faut dumper la dernière mise à jour (`0004000E000D7E00`) et la mettre dans `cia/` avant de
-  commencer le portage et le serveur. Elle remplace tout le CXI ; il faudra vérifier que `romfs:/map` y est toujours.
-- **Licence du dépôt : MIT** (choisie). Le code GPL/AGPL (serveur Pretendo, composants d'Azahar/Citra) ne peut
-  donc pas être intégré tel quel : il sert de référence, et on écrit nos propres implémentations.
+- **Version du jeu** : la version de lancement (v0, Europe), celle du dump. Pas de mise à jour disponible (pas de
+  3DS pour la dumper) : tout vise cette version.
+- **Cibles** : mods pour Azahar d'abord, portage PC ensuite (recompilation statique + HLE). La 3DS n'est pas une
+  cible.
+- **Licence du dépôt : MIT**. Le code GPL/AGPL (serveur Pretendo, Azahar/Citra) ne peut pas être intégré tel quel : il
+  sert de référence, et on écrit nos propres implémentations.

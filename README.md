@@ -26,8 +26,9 @@ Projet de rétro-ingénierie de **Steel Diver: Sub Wars** (Nintendo / Vitei, 3DS
 
 - **Moteur en cours de nettoyage** (`decomp/src/`) : boucle principale, chargeur de scripts, monde (pool d'acteurs,
   format des niveaux, replays), système, cycle de vie des acteurs.
-- **Mods** : ce qu'on peut déjà modifier et comment distribuer un mod sans distribuer le jeu :
-  [docs/mods.md](docs/mods.md).
+- **Mods pour Azahar** : `make azahar` rend le jeu installable dans l'émulateur (le CIA de l'eShop est refusé à cause
+  du manuel chiffré), et `tools/mod.py` construit et installe des mods décrits par des recettes
+  ([mods/README.md](mods/README.md), [docs/mods.md](docs/mods.md)).
 
 Détails : [docs/analyse-initiale.md](docs/analyse-initiale.md) · Plan : [docs/roadmap.md](docs/roadmap.md)
 
@@ -36,7 +37,8 @@ Détails : [docs/analyse-initiale.md](docs/analyse-initiale.md) · Plan : [docs/
 ```
 cia/               ton dump .cia (ignoré par git)
 extracted/         sortie de l'extraction : code.bin, nsub.elf, exefs/, romfs/ (ignoré)
-tools/             scripts Python : extraction CIA, code.bin -> ELF, désassembleur/décompilateur Pawn (amx*.py)
+tools/             scripts Python : extraction CIA, code.bin -> ELF, Pawn (amx*.py), BXML, Azahar, mods
+mods/              recettes de mods (aucune donnée du jeu : elles s'appliquent au dump du joueur)
 ghidra/scripts/    scripts Ghidra : symboles du map, SVC, pointeurs de code, export du pseudo-code
 ghidra/symbols.txt noms et prototypes ajoutés à la main (versionnés, réappliqués à chaque analyse/export)
 ghidra/types.h     types C reconstitués (idem)

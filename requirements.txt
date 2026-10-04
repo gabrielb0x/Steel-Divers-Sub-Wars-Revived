@@ -1,3 +1,4 @@
 pyctr==0.7.6
 capstone==5.0.9
 pyelftools==0.33
+keystone-engine==0.9.2

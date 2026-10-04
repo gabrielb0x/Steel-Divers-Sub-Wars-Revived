@@ -1,0 +1,8 @@
+# Mod d'exemple : remplace « Version gratuite » sous le logo de l'écran titre, dans toutes les langues.
+# Sert à vérifier que la chaîne complète fonctionne (recette -> BXML -> dossier de mod -> Azahar).
+name = "Texte de l'écran titre"
+description = "Exemple : « Version gratuite » devient « Version moddée » sur l'écran titre"
+
+[[text]]
+key = "title_version"
+text = "Version moddée"

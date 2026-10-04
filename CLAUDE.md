@@ -7,7 +7,9 @@ replies in French, code and code comments in English.
 ## Hard rules
 
 - Never commit game data or anything derived mechanically from it: `cia/`, `extracted/`, `decomp/raw/`,
-  `ghidra/project/` stay gitignored. Tools must read the user's own dump at runtime.
+  `ghidra/project/` stay gitignored. Tools must read the user's own dump at runtime. Mods are recipes
+  (`mods/<name>/mod.toml`) applied to the dump at build time; built mods and modified game files are never committed.
+- Targets: the EUR v0 executable (no update available), mods for the Azahar emulator, then the PC port. Not real 3DS.
 - The repo is MIT-licensed: never copy GPL/AGPL code (Pretendo, Azahar/Citra) into it; use it as reference only.
 - Ghidra must live in a path without non-ASCII characters (its log4j config fails on `Téléchargements`):
   it is in `~/tools/ghidra_12.1.4_PUBLIC`, referenced by `local.env`.
@@ -22,6 +24,8 @@ make analyze    ghidra/analyze.sh     -> ghidra/project/ (import + romfs map sym
 make export     ghidra/export.sh      -> decomp/raw/ (pseudo-code per original object file + functions.csv)
 make scripts    tools/native_types.py, tools/amx.py, tools/amxdec.py (+ amxsym.py) -> decomp/scripts/ (Pawn asm + pseudo-Pawn)
 make data       tools/bxml.py -> extracted/xml/ (BXML: levels, stats, texts; name hash = zlib CRC-32)
+make azahar     tools/azahar.py prepare -> build/azahar/ (CIA without the encrypted manual, which Azahar rejects; CXI)
+tools/mod.py build <name> [--install]   mods/<name>/mod.toml -> build/mods/<name>/ -> Azahar load/mods/00040000000D7E00/
 ```
 
 The Ghidra database is disposable (analyze.sh recreates it, keeping one backup in `ghidra/project.bak/`).

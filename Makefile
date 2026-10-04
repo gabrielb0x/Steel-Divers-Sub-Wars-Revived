@@ -2,7 +2,7 @@
 PY := .venv/bin/python
 STAMPS := build/stamps
 
-.PHONY: all extract elf analyze export scripts data check-types
+.PHONY: all extract elf analyze export scripts data check-types azahar
 
 all: export scripts data
 
@@ -44,3 +44,7 @@ $(STAMPS)/data: extracted/manifest.json tools/bxml.py
 # Struct layouts of ghidra/types.h against the offsets verified in the binary (32-bit).
 check-types:
 	gcc -m32 -fsyntax-only -Wall ghidra/types_check.c
+
+# The game for the Azahar emulator: CIA without the encrypted manual, and CXI (build/azahar/).
+azahar: extracted/manifest.json
+	$(PY) tools/azahar.py prepare
