@@ -122,5 +122,5 @@ de chemin connu : ils sont exportés à la racine de `source/` en attendant d'ê
 - [Pretendo Network](https://github.com/PretendoNetwork/steel-diver-sub-wars) a déjà un serveur NEX pour ce jeu
   (Go, AGPL-3.0) : NEX 3.7.0, clé d'accès `fb9537fe`, protocoles TicketGranting, SecureConnection, NATTraversal,
   MatchMaking, MatchMakingExt et MatchmakeExtension. Il dépend des serveurs de comptes de Pretendo (gRPC).
-- La clé d'accès n'apparaît pas en clair dans le binaire : à retrouver dans l'initialisation NEX
-  (`ConnectionInternet`, `nn::pia::inet::NexFacade`).
+- Côté client, l'ID du serveur de jeu (`0x000D7C00`), la clé d'accès (en UTF-16) et les paramètres de matchmaking
+  sont détaillés dans [online.md](online.md).

@@ -9,4 +9,7 @@ Ce qu'on sait déjà :
   NEX 3.7.0, clé d'accès `fb9537fe`, protocoles TicketGranting, SecureConnection, NATTraversal, MatchMaking,
   MatchMakingExt, MatchmakeExtension.
 
+Ce que le client attend (ID de serveur `0x000D7C00`, clé `fb9537fe`, attributs de matchmaking, méthodes RMC) :
+[../docs/online.md](../docs/online.md).
+
 Objectif : un serveur autonome, hébergeable par n'importe qui, utilisable par le portage PC et par de vraies 3DS.

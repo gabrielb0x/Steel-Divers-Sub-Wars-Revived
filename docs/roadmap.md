@@ -58,8 +58,8 @@ se jouent en P2P via Pia. Aucune bibliothèque NEX de classement ou de stockage 
    fonctionne déjà avec les vraies 3DS, mais dépend de leur infrastructure de comptes.
 2. **Serveur autonome** : PRUDP + RMC (NEX 3.7), protocoles TicketGranting, SecureConnection, NATTraversal,
    MatchMaking, MatchMakingExt et MatchmakeExtension, sans dépendance externe, plus un NASC minimal pour les 3DS.
-3. **Validation** : lister dans le code (`ConnectionInternet`, `NexFacade`, `JugemMatchmakeClient`) les méthodes RMC
-   réellement appelées et les paramètres de session (modes de jeu, attributs, nombre de joueurs).
+3. **Validation** : fait pour la v0 ([online.md](online.md)) : méthodes RMC appelées, session `Steel Matcher`
+   (1 à 8 joueurs, mode 1000), attributs (continent, type de salon, niveau, somme de version).
 4. **NAT** : Pia fait déjà du NAT traversal ; prévoir un relais pour les NAT stricts si besoin.
 
 ## Décisions à prendre
