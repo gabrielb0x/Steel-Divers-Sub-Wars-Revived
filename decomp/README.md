@@ -19,6 +19,13 @@ Chaque fonction est précédée de son adresse et de sa taille dans le map.
 `make scripts` désassemble (`scripts/asm/*.asm`) et décompile (`scripts/*.p`) les 123 scripts `romfs:/amx/*.amx`.
 Voir [../docs/scripts-pawn.md](../docs/scripts-pawn.md).
 
+## `pawn/` — connaissances sur les scripts (versionné)
+
+- `pawn/natives.inc` : prototypes Pawn des natives (noms de paramètres, `Float:`, références) et énumérations
+  (`UID`, `BUTTON`), écrits à partir des implémentations C++ ;
+- `pawn/symbols.txt` : noms des fonctions de script sans log et de leurs paramètres, et noms de globales ; un nom
+  s'applique à toutes les copies de la fonction dans les autres scripts.
+
 ## Améliorer le pseudo-code
 
 La base Ghidra est jetable (`make analyze` la recrée). Tout ce qu'on comprend va dans deux fichiers versionnés,

@@ -29,7 +29,8 @@ $(STAMPS)/exported: $(STAMPS)/analyzed ghidra/export.sh ghidra/symbols.txt ghidr
 	@mkdir -p $(@D) && touch $@
 
 # Pawn scripts: native parameter types (from the C++ pseudo-code), disassembly, pseudo-Pawn.
-$(STAMPS)/scripts: $(STAMPS)/exported tools/amx.py tools/amxdec.py tools/native_types.py
+$(STAMPS)/scripts: $(STAMPS)/exported tools/amx.py tools/amxdec.py tools/amxsym.py tools/native_types.py \
+		$(wildcard decomp/pawn/*)
 	$(PY) tools/native_types.py
 	$(PY) tools/amx.py
 	$(PY) tools/amxdec.py

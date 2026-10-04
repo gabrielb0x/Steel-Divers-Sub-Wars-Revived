@@ -165,11 +165,12 @@ class AmxFile:
                 yield Instruction(cip, op, [s32(self.cell(cip + 4 + 4 * i)) for i in range(n)], 4 + 4 * n)
                 cip += 4 + 4 * n
 
-    def string_at(self, addr: int) -> str | None:
-        """Returns the string literal stored at a data address, packed or unpacked."""
+    def string_at(self, addr: int, strict: bool = True) -> str | None:
+        """Returns the string literal stored at a data address, packed or unpacked. Not strict (the
+        address is known to be a string): may follow another value, may be a single character."""
         if addr < 0 or addr % 4 or addr + 4 > len(self.data):
             return None
-        if addr >= 4:
+        if addr >= 4 and strict:
             before = struct.unpack_from("<I", self.data, addr - 4)[0]
             if before != 0 and before & 0xFF != 0:   # inside another string, not at its start
                 return None
@@ -187,7 +188,7 @@ class AmxFile:
             chars = b"".join(struct.pack(">I", c) for c in cells).split(b"\0")[0]
         else:
             return None
-        if len(chars) < 2 or not all(0x20 <= b < 0x7F or b in (9, 10, 13) for b in chars):
+        if len(chars) < (2 if strict else 1) or not all(0x20 <= b < 0x7F or b in (9, 10, 13) for b in chars):
             return None
         return chars.decode("latin-1")
 
@@ -275,10 +276,12 @@ def find_native_tables(code_bin: bytes, amx_register: int) -> dict[str, int]:
 # Disassembly listing
 
 _LOG_TAG = re.compile(r"^\[([\w.]+)::(\w+)\]")
+_LOG_FUNCTION = re.compile(r"^\[([a-z]\w*[A-Z]\w*)\]")   # "[btnsupActivateButton] ...": camelCase, no file
 
 
 def function_names(amx: AmxFile, insns: list[Instruction]) -> dict[int, tuple[str, str]]:
-    """Names functions after the "[file.inc::function]" prefix of the log strings they print."""
+    """Names functions after the "[file.inc::function]" (or "[function]") prefix of the log strings
+    they print. Returns {address: (file, function)}, file is "" when the prefix has none."""
     names = {}
     start, tags = None, []
     for i in insns + [Instruction(len(amx.code), OP["PROC"], [], 0)]:
@@ -288,9 +291,11 @@ def function_names(amx: AmxFile, insns: list[Instruction]) -> dict[int, tuple[st
             start, tags = i.addr, []
         elif i.op in CONSTANTS:
             for a in i.args:
-                m = _LOG_TAG.match(amx.string_at(a) or "")
-                if m:
+                text = amx.string_at(a) or ""
+                if m := _LOG_TAG.match(text):
                     tags.append((m[1], m[2]))
+                elif m := _LOG_FUNCTION.match(text):
+                    tags.append(("", m[1]))
     publics = {addr for addr, _ in amx.publics}
     return {addr: tag for addr, tag in names.items() if addr not in publics}
 
@@ -335,7 +340,7 @@ def disassemble(amx: AmxFile, natives: dict[str, tuple[int, str]] | None = None)
     for k, i in enumerate(insns):
         if i.op == OP["PROC"]:
             kind = "public" if i.addr in publics else "function"
-            source = f" ({names[i.addr][0]})" if i.addr in names else ""
+            source = f" ({names[i.addr][0]})" if i.addr in names and names[i.addr][0] else ""
             out += ["", f"; ---- {kind} {code_label(i.addr)}{source}"]
         if i.addr in publics or i.addr in calls or i.addr in jumps:
             out.append(f"{code_label(i.addr)}:")

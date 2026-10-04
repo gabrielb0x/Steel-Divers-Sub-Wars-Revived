@@ -24,7 +24,19 @@ fichier 10) et leur fournit 647 fonctions natives.
   `game_state.inc`, `lobby.inc`, `medal.inc`, `morse.inc`, `options.inc`, `overlay.inc`, `points.inc`, `rest.inc`,
   `save.inc`, `stageutil.inc`, `stats.inc`, `sub_customize.inc`, `surface_ship.inc`, `system.inc`, `torpedo.inc`…
 - **Debug retiré** : les fonctions d'affichage de debug sont vides dans la version commerciale, mais leurs appels
-  (avec leurs messages) sont toujours là, ce qui documente beaucoup de code.
+  (avec leurs messages) sont toujours là, ce qui documente beaucoup de code. Le décompilateur les nomme
+  `debugPrint` (ou `stub` quand elles ne reçoivent pas de message).
+- **États Pawn** : 23 scripts (les modes et les unités du mode surface) utilisent les automates de Pawn
+  (`fonction() <état>`, `state nom;`). Le compilateur place devant la première fonction un aiguillage
+  (`load.pri <variable d'état>; switch`) vers l'implémentation de l'état courant ; le décompilateur l'affiche
+  comme dans le source (`func_0010(arg0, arg1) <state2>`, `state state3;`), avec des noms d'états numérotés.
+- **UID des scripts** : un script prend un identifiant avec `sysSetUID()` ; les autres l'appellent par lui
+  (`sysCallPublic(UID_HUD, "@setBossLifeMeter", …)`). 10000 est le mode en cours, 10010 le HUD, 11030 `game_state`,
+  10100 le joueur… (énumération `UID` de `decomp/pawn/natives.inc`). En dessous de 1000, l'UID est un numéro d'acteur.
+- **Console de debug** : `mode_title` (et les autres modes) contiennent encore un menu de debug complet
+  (`consoleSystemMenu` : invincibilité `player.muteki`, `player.godmode`, `killThemAll`, `life100%`, désactivation
+  des effets, brouillard, latence et pertes de paquets simulées pour le réseau…), piloté par l'engine global
+  `system.consolemode`. Piste pour un futur mod.
 
 ## Natives (fonctions C++ appelées par les scripts)
 
@@ -41,7 +53,10 @@ suivant les appels à `amx_Register` :
 | `amxsound` | 30 | | `amxbb`, `amxdynamics` | 2, 2 |
 
 Les scripts en utilisent 466. Le type de chaque paramètre (chaîne en entrée/sortie, tableau, Float, entier) est
-déduit automatiquement de l'implémentation C++ (`tools/native_types.py`).
+déduit automatiquement de l'implémentation C++ (`tools/native_types.py`), et **`decomp/pawn/natives.inc`** donne les
+prototypes Pawn écrits à la main des ~340 natives les plus utilisées (noms des paramètres, `Float:`, références,
+fonctions variadiques), plus les énumérations `UID` et `BUTTON`. Conventions du jeu : l'acteur visé est le dernier
+paramètre des natives `actor*` (0 = l'acteur du script appelant), les vecteurs sont des `Float:v[3]`.
 
 ## Outils
 
@@ -51,20 +66,46 @@ déduit automatiquement de l'implémentation C++ (`tools/native_types.py`).
 - `*.p` : **pseudo-Pawn décompilé** (`tools/amxdec.py`).
 
 Le décompilateur reconstruit les expressions, les variables locales et les tableaux (y compris 2D), les appels de
-natives typés, les opérateurs flottants de `float.inc`, les conditions `&&`/`||`, les ternaires, et les structures
-`if`/`else`, `while`, `for`, `switch`, `break`/`continue`. Sur les 6 037 fonctions, il reste 132 `goto`, presque tous
+natives typés, les opérateurs flottants de `float.inc`, les conditions `&&`/`||`, les ternaires, les structures
+`if`/`else`, `while`, `for`, `switch`, `break`/`continue`, et les états Pawn. Il reste environ 130 `goto`, presque tous
 dans `sale_script`.
 
-Exemple (`hud.amx`) :
+Il analyse tous les scripts ensemble, en plusieurs passes :
+
+1. **Types des paramètres** : chaque fonction de script apprend comment ses paramètres sont utilisés (passés à une
+   native qui attend une chaîne, un tableau, un `Float`, écrits par référence…), de proche en proche à travers les
+   appels. Les appels s'affichent alors avec des chaînes, des flottants et des noms de globales au lieu d'adresses
+   (`consoleGlobalFloat("fog mindepth", "fog.near", 10.0, -1000000.0, 1000000.0, 0)` au lieu de
+   `func_2f28(10000, "fog.near", 0x41200000, -0x368bdc00, 0x49742400, 0)`), et les déclarations sont typées
+   (`setControlAction(const control[], action, bool:replace)`).
+2. **Correspondance entre scripts** (`tools/amxsym.py`) : les 6 037 fonctions viennent des mêmes `.inc` compilés dans
+   plusieurs scripts. Une empreinte du code normalisé (natives par nom, chaînes par contenu, globales renumérotées,
+   fonctions appelées par leur propre empreinte) regroupe les copies : 4 500 fonctions appartiennent à ~600 groupes.
+   Un nom donné une fois s'applique à toutes les copies, et les globales qu'elles utilisent à la même place sont
+   reliées entre scripts.
+3. **Noms** : noms d'origine (logs `[fichier.inc::fonction]` ou `[fonction]`), puis **`decomp/pawn/symbols.txt`**
+   (noms et paramètres donnés à la main, versionnés, marqués `[named by hand]` dans la sortie), fichier `.inc` déduit
+   des voisines pour les fonctions sans log, globales initialisées avec un nom appelées d'après lui (`g_btn_ok`).
+
+Exemple (`mode_title.amx`, `controls.inc`) :
 
 ```pawn
-switch (arg0) {
-    case 4:
-        sysGetString(local_180, "sub_display_hit", 96);
-    case 6:
-        sysGetString(local_180, "sub_display_homing_hit", 96);
+// 0x0a8c  controls.inc  [named by hand]
+setControlSet(set)
+{
+    ...
+    sysSetGlobal("controls.controlSet", set);
+    sysGetGlobalString("mode.current", local_180);
+    sysCallPublic(UID_CAMERA, "@resetControlData");
+    switch (set) {
+        case 0:
+            setStandardControls(local_184);
+            setActionForInput(BUTTON_X, 1, 1);
     ...
 ```
 
-Limites : les noms des variables locales, des globales et des fonctions sans log restent synthétiques
-(`local_14`, `g_01c8`, `func_02c0`), et les natives n'ont pas encore de prototypes Pawn nommés.
+Pour nommer une fonction : lire son code dans `decomp/scripts/*.p`, ajouter une ligne
+`<script>:<adresse> nom(paramètres)` à `decomp/pawn/symbols.txt`, relancer `make scripts`.
+
+Limites : les variables locales et la plupart des globales restent synthétiques (`local_14`, `g_01c8`), comme les
+noms d'états ; ~1 500 groupes de fonctions n'ont pas encore de nom.

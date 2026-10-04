@@ -20,10 +20,12 @@ import dataclasses
 import json
 import re
 import struct
+import sys
 from dataclasses import dataclass, field
 from pathlib import Path
 
-from amx import BRANCHES, OP, AmxFile, Instruction, function_names
+from amx import BRANCHES, OP, AmxFile, Instruction
+from amxsym import NATIVES, Parameter, Program, ScriptSymbols, read_natives
 
 ROOT = Path(__file__).resolve().parent.parent
 
@@ -41,6 +43,33 @@ FLOAT_PARAMS = {"floatmul": (0, 1), "floatdiv": (0, 1), "floatadd": (0, 1), "flo
                 "floatatan": (0,), "floatabs": (0,), "floatsqroot": (0,), "floatfract": (0,), "floatround": (0,)}
 
 
+# Kinds of parameters, weakest first: a parameter used in several ways gets the strongest.
+#   i value, f Float, r by reference (&x), a array, s input string, S array or string written to
+PARAM_RANK = {"i": 1, "f": 2, "r": 3, "a": 4, "s": 5, "S": 6}
+# Natives taking a format string: (its parameter index, how it describes the variadic arguments).
+FORMATS = {"printf": (0, "printf"), "LOG": (0, "printf"), "ERROR": (0, "printf"), "WARNING": (0, "printf"),
+           "strformat": (3, "printf"), "gfxPrintStringf": (2, "printf"), "actorReplaceStringf": (2, "printf"),
+           "actorFastReplaceStringf": (2, "printf"), "sysCallPublicf": (2, "letters"),
+           "netCallPublicf": (2, "letters"), "actorSyncCallPublicf": (1, "letters")}
+
+
+@dataclass
+class Signature:
+    """Parameter kinds of a native or script function (None: unknown)."""
+    kinds: list[str | None]
+    variadic: bool = False
+    format: tuple[int, str] | None = None
+    tags: list[str | None] = field(default_factory=list)
+
+
+def format_kinds(text: str, style: str) -> list[str]:
+    """Kinds of the variadic arguments described by a format string."""
+    if style == "letters":   # sysCallPublicf & co: one letter per argument, s = string, anything else = cell
+        return ["s" if c == "s" else "i" for c in text]
+    conversions = re.findall(r"%[-+ 0#]*\d*(?:\.\d+)?([a-zA-Z%])", text)
+    return ["f" if c in "fFeEgGqr" else "s" if c == "s" else "i" for c in conversions if c != "%"]
+
+
 class Expr:
     side_effects = False
 
@@ -55,6 +84,9 @@ class Expr:
 class Const(Expr):
     value: int
     as_float: bool = False
+    # (instruction address, operand index) the constant comes from: the analysis pass records
+    # whether it was used as a number or as the address of a global (see ScriptDecompiler.usage).
+    origin: tuple[int, int] | None = field(default=None, compare=False, repr=False)
 
     def render(self, prec: int = 0) -> str:
         if self.as_float:
@@ -63,6 +95,15 @@ class Const(Expr):
         bitmask = v >= 0x100 and v & (v - 1) == 0
         text = str(v) if -100000 < v < 100000 and not bitmask else (f"{v:#x}" if v > 0 else f"-{-v:#x}")
         return f"({text})" if v < 0 and prec > 11 else text
+
+
+@dataclass
+class Named(Const):
+    """Constant of an enumeration of decomp/pawn/natives.inc (UID_HUD ...)."""
+    name: str = ""
+
+    def render(self, prec: int = 0) -> str:
+        return self.name
 
 
 @dataclass
@@ -89,6 +130,22 @@ class Var(Expr):
 
     def render(self, prec: int = 0) -> str:
         return self.name
+
+
+@dataclass
+class Global(Var):
+    """Global variable; keeps its data address (two-dimensional arrays are recognised by it)."""
+    addr: int = field(default=-1, compare=False)
+
+
+@dataclass
+class Param(Expr):
+    """Parameter of the current function: argN, or the name given in decomp/pawn/symbols.txt."""
+    index: int
+    label: str
+
+    def render(self, prec: int = 0) -> str:
+        return self.label
 
 
 @dataclass
@@ -333,7 +390,7 @@ class FunctionDecompiler:
         if offset >= 12:
             index = (offset - 12) // 4
             self.max_param = max(self.max_param, index)
-            return Var(f"arg{index}")
+            return Param(index, self.ctx.param_label(self.start, index))
         for start, (name, size) in self.arrays.items():
             if start <= offset < start + 4 * size:
                 return Index(Var(name), Const((offset - start) // 4))
@@ -346,7 +403,7 @@ class FunctionDecompiler:
         return AddrOf(self.frame_var(offset))
 
     def global_var(self, addr: int) -> Var:
-        return Var(self.ctx.global_name(addr))
+        return Global(self.ctx.global_name(addr), addr)
 
     # ---- block construction
     def split_blocks(self) -> list[Block]:
@@ -529,33 +586,87 @@ class BlockInterpreter:
             args.append(self.pop())
         return args
 
-    def typed_args(self, sig: dict, args: list[Expr]) -> list[Expr]:
-        """Applies the parameter types inferred from the native's C++ implementation."""
-        kinds = list(sig["params"])
-        if sig.get("variadic") and "s" in kinds:
-            fmt = args[kinds.index("s")] if kinds.index("s") < len(args) else None
-            if isinstance(fmt, Lit):
-                conversions = re.findall(r"%[-+ 0#]*\d*(?:\.\d+)?([a-zA-Z%])", fmt.text)
-                kinds += ["f" if c in "fFeEgG" else "s" if c == "s" else "i" for c in conversions if c != "%"]
+    def typed_args(self, sig: Signature, args: list[Expr]) -> list[Expr]:
+        """Applies the parameter kinds of the callee (native or script function) to the arguments."""
+        extra: list[str] = []
+        if sig.format is not None and sig.format[0] < len(args):
+            text = self.literal_text(args[sig.format[0]])
+            if text is not None:
+                extra = format_kinds(text, sig.format[1])
         typed = []
         for n, arg in enumerate(args):
-            kind = kinds[n] if n < len(kinds) else None
-            value = arg.value if isinstance(arg, HeapCell) and arg.value is not None else arg
-            if kind == "f" and type(value) in (Const, Lit):
-                value = Const(value.value, True)
-            elif kind == "i" and type(value) is Lit:
-                value = Const(value.value)
-            elif kind in ("a", "S") and type(value) is Lit:
-                value = self.fn.global_var(value.value)
-            typed.append(value if isinstance(arg, HeapCell) else value if value is not arg else arg)
+            enum = self.fn.ctx.enums.get(sig.tags[n]) if n < len(sig.tags) and sig.tags[n] else None
+            if enum is not None and type(arg) in (Const, Lit) and arg.value in enum:
+                self.fn.ctx.note_usage(arg, "number")
+                typed.append(Named(arg.value, origin=arg.origin, name=enum[arg.value]))
+            elif n < len(sig.kinds):
+                typed.append(self.typed_arg(arg, sig.kinds[n]))
+            elif sig.variadic:
+                k = n - len(sig.kinds)
+                typed.append(self.by_reference(arg, extra[k] if k < len(extra) else None))
+            else:
+                typed.append(arg)
         return typed
+
+    def typed_arg(self, arg: Expr, kind: str | None) -> Expr:
+        value = arg.value if isinstance(arg, HeapCell) and arg.value is not None else arg
+        if kind is None:
+            return value
+        if isinstance(value, Ternary) and kind in ("s", "f", "i"):   # cond ? "ON" : "OFF"
+            return Ternary(value.cond, self.typed_arg(value.then, kind), self.typed_arg(value.other, kind))
+        self.note_param(value, kind)
+        if kind == "f" and type(value) in (Const, Lit):
+            self.fn.ctx.note_usage(value, "number")
+            return Const(value.value, True, value.origin)
+        if kind == "i" and type(value) is Lit:
+            self.fn.ctx.note_usage(value, "number")
+            return Const(value.value, origin=value.origin)
+        if kind == "s":
+            if type(value) is Const and value.value > 0:
+                text = self.fn.ctx.amx.string_at(value.value, strict=False)
+                if text is not None:
+                    return Lit(value.value, text=text, origin=value.origin)
+            return self.reference(value, True) if type(value) is Const else value
+        if kind in ("S", "a", "r"):
+            return self.reference(value, kind != "r")
+        return value
+
+    def by_reference(self, arg: Expr, kind: str | None) -> Expr:
+        """Variadic argument: Pawn passes them by reference, a value goes through a heap cell."""
+        if isinstance(arg, HeapCell):
+            return self.typed_arg(arg, kind if kind in ("f", "i") else None)
+        if kind == "s" or kind is None and type(arg) is Lit:
+            return self.typed_arg(arg, "s")
+        if isinstance(arg, Ternary):
+            return Ternary(arg.cond, self.by_reference(arg.then, kind), self.by_reference(arg.other, kind))
+        return self.reference(arg, False)
+
+    def reference(self, value: Expr, array: bool) -> Expr:
+        """Argument passed by reference: a constant is the address of a global (or of one of its cells)."""
+        if type(value) in (Const, Lit) and self.is_data_address(value.value):
+            return self.global_at(value, array)
+        if (isinstance(value, Binary) and value.op == "+" and type(value.left) in (Const, Lit)
+                and type(value.right) is Const and value.right.value % 4 == 0
+                and self.is_data_address(value.left.value)):
+            return Index(self.global_at(value.left, True), Const(value.right.value // 4))
+        return value
+
+    def is_data_address(self, value: int) -> bool:
+        return 0 < value < len(self.fn.ctx.amx.data) and value % 4 == 0
+
+    def literal_text(self, expr: Expr) -> str | None:
+        if type(expr) is Lit:
+            return expr.text
+        if type(expr) is Const and expr.value > 0:
+            return self.fn.ctx.amx.string_at(expr.value)
+        return None
 
     def native(self, index: int) -> str:
         natives = self.fn.ctx.amx.natives
         return natives[index] if index < len(natives) else f"native_{index}"
 
     def make_native_call(self, name: str, args: list[Expr]) -> Expr:
-        sig = self.fn.ctx.native_types.get(name)
+        sig = self.fn.ctx.native_signature(name)
         if sig is not None:
             args = self.typed_args(sig, args)
         if name in FLOAT_OPS and len(args) == 2:
@@ -620,8 +731,10 @@ class BlockInterpreter:
             self.alt = Deref(self.fn.global_var(a[0]))
         elif name == "LREF_S_PRI":
             self.set_pri(self.fn.frame_var(a[0]))   # by-reference parameter: reads as the name
+            self.note_param(self.pri, "r")
         elif name == "LREF_S_ALT":
             self.alt = self.fn.frame_var(a[0])
+            self.note_param(self.alt, "r")
         elif name == "LOAD_BOTH":
             self.set_pri(self.fn.global_var(a[0]))
             self.alt = self.fn.global_var(a[1])
@@ -633,9 +746,9 @@ class BlockInterpreter:
         elif name == "LODB_I":
             self.set_pri(Call(f"load_byte{a[0] * 8}", [self.use_pri()]))
         elif name == "CONST_PRI":
-            self.set_pri(self.constant(a[0]))
+            self.set_pri(self.constant(a[0], (i.addr, 0)))
         elif name == "CONST_ALT":
-            self.alt = self.constant(a[0])
+            self.alt = self.constant(a[0], (i.addr, 0))
         elif name == "ADDR_PRI":
             self.set_pri(self.fn.frame_addr(a[0]))
         elif name == "ADDR_ALT":
@@ -653,15 +766,20 @@ class BlockInterpreter:
             self.emit(f"{self.fn.frame_var(a[0]).render()} = {self.alt.render()};")
         elif name in ("SREF_PRI", "SREF_S_PRI"):
             var = self.fn.global_var(a[0]) if name == "SREF_PRI" else self.fn.frame_var(a[0])
+            self.note_param(var, "r")
             self.store(var)
         elif name in ("SREF_ALT", "SREF_S_ALT"):
             var = self.fn.global_var(a[0]) if name == "SREF_ALT" else self.fn.frame_var(a[0])
+            self.note_param(var, "r")
             self.flush_pending()
             self.emit(f"{var.render()} = {self.alt.render()};")
         elif name == "STOR_I" and isinstance(self.alt, HeapCell):
             self.alt.value = self.use_pri()
         elif name == "STOR_I":
-            self.store(self.deref(self.alt))
+            target = self.deref(self.alt)
+            if isinstance(target, Index) and isinstance(target.base, Param):
+                self.note_param(target.base, "S")   # written through: not a const array
+            self.store(target)
         elif name == "STRB_I":
             value = self.use_pri()
             self.flush_pending()
@@ -693,8 +811,8 @@ class BlockInterpreter:
         elif name == "PUSH_ALT":
             self.push(self.alt)
         elif name in ("PUSH_C", "PUSH2_C", "PUSH3_C", "PUSH4_C", "PUSH5_C"):
-            for v in a:
-                self.push(self.constant(v))
+            for n, v in enumerate(a):
+                self.push(self.constant(v, (i.addr, n)))
         elif name in ("PUSH", "PUSH2", "PUSH3", "PUSH4", "PUSH5"):
             for v in a:
                 self.push(self.fn.global_var(v))
@@ -728,6 +846,7 @@ class BlockInterpreter:
             if inline is not None:
                 self.set_pri(substitute(inline[1], args))
             else:
+                args = self.typed_args(self.fn.ctx.script_signature(target), args)
                 self.set_pri(Call(self.fn.ctx.function_label(target), args))
         elif name == "SYSREQ_N":
             self.set_pri(self.make_native_call(self.native(a[0]), self.call_args(a[1] // 4)))
@@ -765,13 +884,19 @@ class BlockInterpreter:
             index = self.alt if isinstance(self.alt, Index) else self.use_pri()
             self.use_pri()
             self.set_pri(Row(index.base, index.index))
+        elif name == "ADD" and (row := self.constant_row(self.pri, self.alt) or self.constant_row(self.alt, self.pri)):
+            self.use_pri()
+            self.set_pri(row)
         elif name in ("SHL", "SHR", "SSHR", "SMUL", "SDIV", "UMUL", "UDIV", "ADD", "SUB", "AND", "OR", "XOR",
                       "EQ", "NEQ", "LESS", "LEQ", "GRTR", "GEQ", "SLESS", "SLEQ", "SGRTR", "SGEQ"):
             ops = {"SHL": "<<", "SHR": ">>>", "SSHR": ">>", "SMUL": "*", "SDIV": "/", "UMUL": "*", "UDIV": "/",
                    "ADD": "+", "SUB": "-", "AND": "&", "OR": "|", "XOR": "^", "EQ": "==", "NEQ": "!=",
                    "LESS": "<", "LEQ": "<=", "GRTR": ">", "GEQ": ">=", "SLESS": "<", "SLEQ": "<=",
                    "SGRTR": ">", "SGEQ": ">="}
-            self.set_pri(Binary(ops[name], self.use_pri(), self.alt))
+            left = self.use_pri()
+            self.note_param(left, "i")
+            self.note_param(self.alt, "i")
+            self.set_pri(Binary(ops[name], left, self.alt))
         elif name in ("SUB_ALT", "SDIV_ALT", "UDIV_ALT"):
             self.set_pri(Binary({"SUB_ALT": "-", "SDIV_ALT": "/", "UDIV_ALT": "/"}[name], self.alt, self.use_pri()))
         elif name in ("SHL_C_PRI", "SHR_C_PRI"):
@@ -799,9 +924,9 @@ class BlockInterpreter:
         elif name in ("SIGN_PRI", "SIGN_ALT"):
             return
         elif name == "EQ_C_PRI":
-            self.set_pri(Binary("==", self.use_pri(), self.constant(a[0])))
+            self.set_pri(Binary("==", self.use_pri(), self.constant(a[0], (i.addr, 0))))
         elif name == "EQ_C_ALT":
-            self.set_pri(Binary("==", self.alt, self.constant(a[0])))
+            self.set_pri(Binary("==", self.alt, self.constant(a[0], (i.addr, 0))))
         elif name in ("INC_PRI", "DEC_PRI"):
             self.set_pri(self.add_const(self.use_pri(), 1 if name == "INC_PRI" else -1))
         elif name in ("INC_ALT", "DEC_ALT"):
@@ -828,24 +953,28 @@ class BlockInterpreter:
             else:
                 self.push(self.alt)
                 self.alt = top
+        elif name == "CONST" and a[0] in self.fn.ctx.state_vars:
+            self.flush_pending()
+            self.emit(f"state {self.fn.ctx.state_name(a[0], a[1])};")
         elif name == "CONST":
-            self.assign(self.fn.global_var(a[0]), self.constant(a[1]))
+            self.assign(self.fn.global_var(a[0]), self.constant(a[1], (i.addr, 1)))
         elif name == "CONST_S":
-            if not self.initialise(a[0], self.constant(a[1])):
-                self.assign(self.fn.frame_var(a[0]), self.constant(a[1]))
+            value = self.constant(a[1], (i.addr, 1))
+            if not self.initialise(a[0], value):
+                self.assign(self.fn.frame_var(a[0]), value)
         elif name == "JREL":
             self.emit(f"/* jrel {a[0]} */")
         else:
             self.emit(f"/* unhandled {i.name} {a} */")
 
     # ---- helpers
-    def constant(self, value: int) -> Expr:
+    def constant(self, value: int, origin: tuple[int, int] | None = None) -> Expr:
         # 0 is zero/false/NULL, and round decimal numbers (100, 10000 ...) are far more likely
-        # values than string addresses.
+        # values than string addresses (string parameters are checked again in typed_args).
         if value <= 0 or value >= 100 and value % 100 == 0:
-            return Const(value)
+            return Const(value, origin=origin)
         text = self.fn.ctx.amx.string_at(value)
-        return Lit(value, text=text) if text is not None else Const(value)
+        return Lit(value, text=text, origin=origin) if text is not None else Const(value, origin=origin)
 
     def initialise(self, offset: int, value: Expr) -> bool:
         """`stack -4` followed by a store: the store is the initialiser of the new local."""
@@ -869,7 +998,7 @@ class BlockInterpreter:
         if isinstance(address, AddrOf):
             return address.target
         if type(address) in (Const, Lit):
-            return self.fn.global_var(address.value)
+            return self.global_at(address, False)
         # Two-dimensional arrays: a row is &a[i] + a[i] (indirection vector of relative offsets).
         if isinstance(address, Binary) and address.op == "+" and isinstance(address.right, Const) \
                 and address.right.value % 4 == 0 and isinstance(address.left, Row):
@@ -878,18 +1007,34 @@ class BlockInterpreter:
             return Index(address, Const(0))
         if (isinstance(address, Binary) and address.op == "+" and type(address.left) in (Const, Lit)
                 and type(address.right) is Const and address.right.value % 4 == 0):
-            return Index(self.fn.global_var(address.left.value), Const(address.right.value // 4))
+            return Index(self.global_at(address.left, True), Const(address.right.value // 4))
         # Array parameters hold an address: arg + 8 is &arg[2].
-        if isinstance(address, Var) and address.name.startswith("arg"):
+        if isinstance(address, Param):
+            self.note_param(address, "a")
             return Index(address, Const(0))
-        if (isinstance(address, Binary) and address.op == "+" and isinstance(address.left, Var)
-                and address.left.name.startswith("arg") and type(address.right) is Const
-                and address.right.value % 4 == 0):
+        if (isinstance(address, Binary) and address.op == "+" and isinstance(address.left, Param)
+                and type(address.right) is Const and address.right.value % 4 == 0):
+            self.note_param(address.left, "a")
             return Index(address.left, Const(address.right.value // 4))
         if (isinstance(address, Binary) and address.op == "+" and isinstance(address.right, Const)
                 and address.right.value % 4 == 0 and isinstance(address.left, AddrOf)):
             return Index(address.left.target, Const(address.right.value // 4))
         return Deref(address)
+
+    def constant_row(self, a: Expr, b: Expr) -> Row | None:
+        """arr[k] + (&arr + 4k) with a constant k: address of row k of a global two-dimensional array."""
+        if isinstance(a, Index) and isinstance(a.base, Global) and type(a.index) is Const and a.shift == 2:
+            base, k = a.base, a.index.value
+        elif isinstance(a, Global):
+            base, k = a, 0
+        else:
+            return None
+        parts = [b.left, b.right] if isinstance(b, Binary) and b.op == "+" else [b]
+        if all(type(x) in (Const, Lit) for x in parts) and sum(x.value for x in parts) == base.addr + 4 * k:
+            self.fn.ctx.note_usage(parts[0], "address")
+            self.fn.ctx.array_globals.add(base.addr)
+            return Row(base, Const(k))
+        return None
 
     @staticmethod
     def is_row(a: Expr, b: Expr) -> bool:
@@ -901,13 +1046,30 @@ class BlockInterpreter:
         if isinstance(expr, AddrOf):
             return expr.target
         if type(expr) in (Const, Lit):
-            return self.fn.global_var(expr.value)
+            return self.global_at(expr, True)
+        if isinstance(expr, Param):
+            self.note_param(expr, "a")
         return expr
+
+    def global_at(self, address: Const, array: bool) -> Var:
+        """A constant used as the address of a global variable or array."""
+        self.fn.ctx.note_usage(address, "address")
+        if array:
+            self.fn.ctx.array_globals.add(address.value)
+        return self.fn.global_var(address.value)
+
+    def note_param(self, expr: Expr, kind: str) -> None:
+        """Records that a parameter of the current function is used as `kind` (see PARAM_RANK)."""
+        if isinstance(expr, Param):
+            self.fn.ctx.note_param_kind(self.fn.start, expr.index, kind)
 
     def store(self, target: Expr) -> None:
         value = self.use_pri()
         self.flush_pending()
-        self.emit(f"{target.render()} = {value.render()};")
+        if isinstance(target, Global) and target.addr in self.fn.ctx.state_vars and type(value) is Const:
+            self.emit(f"state {self.fn.ctx.state_name(target.addr, value.value)};")
+        else:
+            self.emit(f"{target.render()} = {value.render()};")
         self.pri = target   # later uses of PRI read the variable, not a second evaluation
 
     def stack(self, delta: int) -> None:
@@ -1224,9 +1386,9 @@ COMPARISONS = ("==", "!=", "<", "<=", ">", ">=")
 
 
 def substitute(expr: Expr, args: list[Expr]) -> Expr:
-    """Copy of a template expression with argN replaced by the call arguments."""
-    if isinstance(expr, Var) and expr.name.startswith("arg") and expr.name[3:].isdigit():
-        return args[int(expr.name[3:])]
+    """Copy of a template expression with the parameters replaced by the call arguments."""
+    if isinstance(expr, Param):
+        return args[expr.index]
     if not dataclasses.is_dataclass(expr):
         return expr
     changes = {}
@@ -1252,53 +1414,149 @@ def operator_template(expr: Expr | None) -> tuple[str, Expr] | None:
     """Recognises the float.inc stocks: floatcmp(a, b) <op> 0, a ^ cellmin (negation), a op b."""
     def is_arg(e: Expr) -> bool:
         e = e.args[0] if isinstance(e, Call) and e.name == "float" and len(e.args) == 1 else e
-        return isinstance(e, Var) and e.name in ("arg0", "arg1")
+        return isinstance(e, Param) and e.index in (0, 1)
     if (isinstance(expr, Binary) and expr.op in COMPARISONS and isinstance(expr.left, Call)
             and expr.left.name == "floatcmp" and type(expr.right) is Const and expr.right.value == 0
             and len(expr.left.args) == 2 and all(is_arg(a) for a in expr.left.args)):
         a, b = expr.left.args
         return expr.op, Binary(expr.op, as_float_operand(a), as_float_operand(b))
-    if (isinstance(expr, Binary) and expr.op == "^" and isinstance(expr.left, Var) and expr.left.name == "arg0"
+    if (isinstance(expr, Binary) and expr.op == "^" and isinstance(expr.left, Param) and expr.left.index == 0
             and type(expr.right) is Const and expr.right.value == -0x80000000):
-        return "-", Unary("-", Var("arg0"))
+        return "-", Unary("-", Param(0, "arg0"))
     if isinstance(expr, Binary) and expr.op in ("+", "-", "*", "/") and is_arg(expr.left) and is_arg(expr.right):
         return expr.op, Binary(expr.op, as_float_operand(expr.left), as_float_operand(expr.right))
     return None
 
 
 class ScriptDecompiler:
-    def __init__(self, amx: AmxFile, native_impl: dict[str, tuple[int, str]] | None = None):
+    def __init__(self, amx: AmxFile, natives: dict[str, tuple[list[Parameter], bool]] | None = None,
+                 native_types: dict | None = None, enums: dict[str, dict[int, str]] | None = None):
         self.amx = amx
-        self.native_impl = native_impl or {}
         self.insns = list(amx.instructions())
         self.publics = {addr: name for addr, name in amx.publics}
-        self.names = function_names(amx, self.insns)
         self.pubvars = {addr: name for addr, name in amx.pubvars}
         self.casetbl = {i.addr: i for i in self.insns if i.cases}
         self.inline: dict[int, tuple[str, Expr]] = {}   # function -> (operator, template)
-        path = ROOT / "extracted" / "native_types.json"
-        self.native_types = json.loads(path.read_text()) if path.exists() else {}
+        self.natives = natives or {}                     # prototypes from decomp/pawn/natives.inc
+        self.native_types = native_types or {}           # kinds inferred by tools/native_types.py
+        self.enums = enums or {}                         # tag -> value -> name (decomp/pawn/natives.inc)
+        self.symbols = ScriptSymbols()                    # names (tools/amxsym.py)
+        self.param_kinds: dict[int, dict[int, str]] = {}  # function -> parameter index -> kind
+        self.usage: dict[tuple[int, int], str] = {}      # constant origin -> "address" | "number"
+        self.array_globals: set[int] = set()             # globals used as arrays
         self.goto_targets: dict[int, set[int]] = {}
         self.globals_used: set[int] = set()
+        self.find_states()
 
+    # ---- Pawn states
+    def find_states(self) -> None:
+        """A function declared for several states (`f() <a>`, `f() <b>`) is called through a stub
+        outside any PROC: `load.pri <state variable>; switch` on a case table whose entries are the
+        implementations (the default entry is `halt 13`, AMX_ERR_INVSTATE, or the fallback `f() <>`)."""
+        self.dispatchers: dict[int, tuple[int, dict[int, int], int | None]] = {}
+        self.state_impl: dict[int, tuple[int, int | None]] = {}    # implementation -> (stub, state)
+        self.state_vars: set[int] = set()
+        procs = {i.addr for i in self.insns if i.op == OP["PROC"]}
+        by_addr = {i.addr: i for i in self.insns}
+        inside = False
+        for k, i in enumerate(self.insns[:-1]):
+            inside = inside or i.op == OP["PROC"]
+            nxt = self.insns[k + 1]
+            if (i.op in (OP["LOAD_PRI"], OP["LOAD_P_PRI"]) and nxt.op == OP["SWITCH"] and not self.in_function(i.addr)):
+                table = by_addr.get(nxt.addr + nxt.args[0])
+                if table is None or not table.cases:
+                    continue
+                default = table.cases[0][1]
+                fallback = default if default in procs else None
+                impls = {value: target for value, target in table.cases[1:]}
+                self.dispatchers[i.addr] = (i.args[0], impls, fallback)
+                self.state_vars.add(i.args[0])
+                for value, target in impls.items():
+                    self.state_impl[target] = (i.addr, value)
+                if fallback is not None:
+                    self.state_impl[fallback] = (i.addr, None)
+
+    def in_function(self, addr: int) -> bool:
+        """Whether addr lies between a PROC and the end of that function (stubs come before them)."""
+        first = next((i.addr for i in self.insns if i.op == OP["PROC"]), None)
+        return first is not None and addr >= first
+
+    def state_name(self, variable: int, value: int) -> str:
+        return f"state{value}"
+
+    # ---- names
     def function_label(self, addr: int) -> str:
+        if addr in self.state_impl:
+            addr = self.state_impl[addr][0]   # every implementation has the name of the stub
         if addr in self.publics:
             return self.publics[addr]
-        if addr in self.names:
-            return self.names[addr][1]
+        symbol = self.symbols.functions.get(addr)
+        if symbol is not None and symbol.name:
+            return symbol.name
         if addr == self.amx.header["cip"]:
             return "main"
         return f"func_{addr:04x}"
 
     def global_name(self, addr: int) -> str:
         self.globals_used.add(addr)
-        return self.pubvars.get(addr, f"g_{addr:04x}")
+        return self.pubvars.get(addr) or self.symbols.globals.get(addr) or f"g_{addr:04x}"
 
+    def param_label(self, function: int, index: int) -> str:
+        symbol = self.symbols.functions.get(function)
+        if symbol is not None and symbol.params is not None and index < len(symbol.params):
+            return symbol.params[index].label
+        return f"arg{index}"
+
+    def param_kind(self, function: int, index: int) -> str | None:
+        symbol = self.symbols.functions.get(function)
+        if symbol is not None and symbol.params is not None and index < len(symbol.params):
+            return symbol.params[index].kind or "i"
+        return self.param_kinds.get(function, {}).get(index)
+
+    def param_declaration(self, function: int, index: int) -> str:
+        label, kind = self.param_label(function, index), self.param_kind(function, index)
+        return {"s": f"const {label}[]", "S": f"{label}[]", "a": f"{label}[]", "f": f"Float:{label}",
+                "r": f"&{label}"}.get(kind or "", label)
+
+    # ---- types
+    def note_param_kind(self, function: int, index: int, kind: str) -> None:
+        kinds = self.param_kinds.setdefault(function, {})
+        if PARAM_RANK[kind] > PARAM_RANK.get(kinds.get(index, ""), 0):
+            kinds[index] = kind
+
+    def note_usage(self, const: Expr, usage: str) -> None:
+        if isinstance(const, Const) and const.origin is not None:
+            self.usage[const.origin] = usage
+
+    def native_signature(self, name: str) -> Signature | None:
+        fmt = FORMATS.get(name)
+        if name in self.natives:
+            params, variadic = self.natives[name]
+            return Signature([p.kind or "i" for p in params], variadic, fmt, [p.tag for p in params])
+        auto = self.native_types.get(name)
+        if auto is None:
+            return None
+        kinds: list[str | None] = [None if k == "?" else k for k in auto["params"]]
+        if fmt is not None:
+            kinds = (kinds + [None] * fmt[0])[:fmt[0]] + ["s"] + kinds[fmt[0] + 1:]
+        return Signature(kinds, auto["variadic"] or fmt is not None, fmt)
+
+    def script_signature(self, function: int) -> Signature:
+        symbol = self.symbols.functions.get(function)
+        if symbol is not None and symbol.params is not None:
+            return Signature([p.kind or "i" for p in symbol.params], symbol.variadic,
+                             tags=[p.tag for p in symbol.params])
+        kinds = self.param_kinds.get(function, {})
+        count = max(kinds) + 1 if kinds else 0
+        return Signature([kinds.get(n) for n in range(count)], bool(symbol and symbol.variadic))
+
+    # ---- passes
     def functions(self):
-        starts = [i.addr for i in self.insns if i.op == OP["PROC"]]
-        for n, start in enumerate(starts):
-            end = starts[n + 1] if n + 1 < len(starts) else len(self.amx.code)
-            yield start, end, [i for i in self.insns if start <= i.addr < end]
+        starts = [k for k, i in enumerate(self.insns) if i.op == OP["PROC"]]
+        for n, k in enumerate(starts):
+            stop = starts[n + 1] if n + 1 < len(starts) else len(self.insns)
+            end = self.insns[stop].addr if stop < len(self.insns) else len(self.amx.code)
+            yield self.insns[k].addr, end, self.insns[k:stop]
 
     def find_operators(self) -> None:
         """First pass: functions that are only `return <operator on the arguments>;`."""
@@ -1316,11 +1574,39 @@ class ScriptDecompiler:
                     self.inline[start] = template
         self.globals_used.clear()
 
+    def analyse(self, passes: int = 2) -> None:
+        """Decompiles without output to learn how parameters and constants are used. The kinds of
+        parameters propagate from callee to caller, one call level per pass."""
+        for _ in range(passes):
+            for start, end, insns in self.functions():
+                FunctionDecompiler(self, start, end, insns).run()
+        self.globals_used.clear()
+
+    def name_string_arrays(self) -> None:
+        """Global arrays initialised with an identifier-like string (the name of a button, of a
+        layout pane...) are called after it: g_btn_ok."""
+        taken = set(self.symbols.globals.values())
+        for addr in sorted(self.array_globals):
+            if addr in self.symbols.globals or addr in self.pubvars:
+                continue
+            text = self.amx.string_at(addr, strict=False)
+            if text is None or not re.fullmatch(r"[A-Za-z_][\w.]{2,40}", text):
+                continue
+            base = "g_" + text.replace(".", "_")
+            name, n = base, 2
+            while name in taken:
+                name, n = f"{base}_{n}", n + 1
+            taken.add(name)
+            self.symbols.globals[addr] = name
+
     def decompile(self) -> str:
-        self.find_operators()
         h = self.amx.header
         out = [f"// {self.amx.name}.amx — pseudo-Pawn decompiled from the game's compiled script.",
-               "// Synthetic names: argN (parameters), local_X (frame offset), g_X (data offset), func_X (code offset).",
+               "// Function names come from the game's log strings, or from decomp/pawn/symbols.txt",
+               "// (marked [named by hand]); the .inc file of a function without log strings is that",
+               "// of its neighbours. Globals initialised with a name are called after it (g_btn_ok).",
+               "// Otherwise names are synthetic: argN (parameters), local_X (frame offset), g_X (data",
+               "// offset), func_X (code offset).",
                ""]
         used_natives = sorted(set(self.amx.natives))
         out.append(f"// natives used: {len(used_natives)}")
@@ -1330,16 +1616,36 @@ class ScriptDecompiler:
             blocks = fn.run()
             lines = Structurer(fn, blocks).emit()
             name = self.function_label(start)
-            source = f"  // {self.names[start][0]}" if start in self.names else ""
+            symbol = self.symbols.functions.get(start)
+            notes = []
+            if symbol is not None and symbol.include:
+                notes.append(symbol.include)
+            if symbol is not None and symbol.name and symbol.origin == "hand":
+                notes.append("[named by hand]")
+            elif symbol is not None and symbol.origin == "auto":
+                notes.append("[empty: debug output removed from the retail build]")
             if start in self.inline:
                 name = f"operator{self.inline[start][0]}"
-                source = "  // Float operator (float.inc), inlined at call sites"
-            params = ", ".join(f"arg{n}" for n in range(fn.max_param + 1))
+                notes = ["Float operator (float.inc), inlined at call sites"]
+            if start == h["cip"]:
+                notes.append("entry point")
+            count = fn.max_param + 1
+            if symbol is not None and symbol.params is not None:
+                count = max(count, len(symbol.params))
+            params = [self.param_declaration(start, n) for n in range(count)]
+            if symbol is not None and symbol.variadic:
+                params.append("...")
             prefix = "public " if start in self.publics else ""
-            entry = "  // entry point" if start == h["cip"] else ""
+            states = ""
+            if start in self.state_impl:
+                stub, value = self.state_impl[start]
+                variable = self.dispatchers[stub][0]
+                states = f" <{self.state_name(variable, value) if value is not None else ''}>"
+                symbol = self.symbols.functions.get(stub)
+                notes = ([symbol.include] if symbol is not None and symbol.include else []) + [f"implementation for one state, stub at {stub:#06x}"]
             bodies.append("")
-            bodies.append(f"// {start:#06x}{source}{entry}")
-            bodies.append(f"{prefix}{name}({params})")
+            bodies.append(f"// {start:#06x}" + "".join(f"  {n}" for n in notes))
+            bodies.append(f"{prefix}{name}({', '.join(params)}){states}")
             bodies.append("{")
             bodies += lines
             bodies.append("}")
@@ -1347,10 +1653,45 @@ class ScriptDecompiler:
             out.append("")
             for addr in sorted(self.globals_used):
                 init = struct.unpack_from("<i", self.amx.data, addr)[0] if addr + 4 <= len(self.amx.data) else 0
-                name = self.pubvars.get(addr, f"g_{addr:04x}")
+                name = self.global_name(addr)
                 public = "public " if addr in self.pubvars else ""
-                out.append(f"{public}new {name} = {init};" if init else f"{public}new {name};")
+                if addr in self.array_globals:
+                    text = self.amx.string_at(addr, strict=False)
+                    out.append(f"{public}new {name}[];" + (f"   // {Str(text).render()}" if text else ""))
+                else:
+                    out.append(f"{public}new {name} = {init};" if init else f"{public}new {name};")
         return "\n".join(out + bodies) + "\n"
+
+
+def load_scripts(paths: list[Path]) -> tuple[dict[str, ScriptDecompiler], list[str]]:
+    """Every script analysed together, so that names and parameter kinds are shared."""
+    path = ROOT / "extracted" / "native_types.json"
+    native_types = json.loads(path.read_text()) if path.exists() else {}
+    natives, enums = read_natives(NATIVES)
+    decompilers = {}
+    for p in paths:
+        amx = AmxFile.load(p)
+        decompilers[amx.name] = ScriptDecompiler(amx, natives, native_types, enums)
+    for dec in decompilers.values():
+        dec.find_operators()
+        dec.analyse()
+    program = Program(decompilers)
+    symbols, warnings = program.resolve()
+    for name, dec in decompilers.items():
+        dec.symbols = symbols[name]
+    # What one copy of a function shows about its parameters holds for every copy.
+    for members in program.groups.values():
+        merged: dict[int, str] = {}
+        for f in members:
+            for index, kind in decompilers[f.script].param_kinds.get(f.start, {}).items():
+                if PARAM_RANK[kind] > PARAM_RANK.get(merged.get(index, ""), 0):
+                    merged[index] = kind
+        for f in members:
+            decompilers[f.script].param_kinds[f.start] = dict(merged)
+    for dec in decompilers.values():
+        dec.analyse(1)
+        dec.name_string_arrays()
+    return decompilers, warnings
 
 
 def main() -> None:
@@ -1359,12 +1700,15 @@ def main() -> None:
     ap.add_argument("-o", "--out", type=Path, default=ROOT / "decomp" / "scripts")
     args = ap.parse_args()
 
-    files = args.files or sorted((ROOT / "extracted" / "romfs" / "amx").glob("*.amx"))
+    every = sorted((ROOT / "extracted" / "romfs" / "amx").glob("*.amx"))
+    wanted = {p.stem for p in args.files} if args.files else {p.stem for p in every}
+    decompilers, warnings = load_scripts(every)
+    for w in warnings:
+        print(f"[!] {w}", file=sys.stderr)
     args.out.mkdir(parents=True, exist_ok=True)
-    for path in files:
-        amx = AmxFile.load(path)
-        (args.out / f"{amx.name}.p").write_text(ScriptDecompiler(amx).decompile())
-    print(f"[+] {len(files)} scripts decompiled into {args.out}")
+    for name in sorted(wanted):
+        (args.out / f"{name}.p").write_text(decompilers[name].decompile())
+    print(f"[+] {len(wanted)} scripts decompiled into {args.out}")
 
 
 if __name__ == "__main__":

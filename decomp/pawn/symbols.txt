@@ -1,0 +1,86 @@
+# Names for the Pawn scripts, applied by tools/amxdec.py (see tools/amxsym.py).
+#
+#   <script>:<address> <name>(<parameters>)  [<file.inc>]   function
+#   <script>:g_<address> <name>                              global variable
+#
+# A function name applies to every copy of the function in the other scripts (same normalised
+# code); a global name to every script whose matching functions use that global. Parameters are
+# in Pawn syntax: const name[] (string), name[] (array), Float:name, &name (by reference), tags
+# of decomp/pawn/natives.inc (BUTTON:name), "..." (variadic).
+# The game's own names (from its log strings) need no entry; give parameter names by repeating it.
+# Names written here are ours: keep them descriptive, and only for code that has been read.
+
+# ---- system.inc: engine globals holding strings, modes ----
+mode_title:0x0078 sysSetGlobalString(const name[], const value[])  [system.inc]
+mode_title:0x0100 sysGetGlobalString(const name[], value[])  [system.inc]       # false if the global does not exist
+mode_title:0x0174 sysSetMode(const mode[])
+mode_title:0x02c0 isFirstMode()  [system.inc]                                   # no "mode.previous" yet: first mode since boot
+mode_title:0x1b3c initOnFirstMode()                                             # language, random seed, 3D settings, controls
+mode_title:0x1cb4 loadSaveData()
+
+# ---- controls.inc: button -> action mapping, stored in the engine globals "controls.<button>" ----
+mode_title:0x0318 setStandardControls(bool:yInverted)  [controls.inc]           # control sets 0 and 1
+mode_title:0x0728 setAlternateControls(bool:yInverted)  [controls.inc]          # control sets 2 and 3
+mode_title:0x0a8c setControlSet(set)  [controls.inc]                            # 0-5, "controls.controlSet"
+mode_title:0x14a4 setControlAction(const control[], action, bool:replace)  [controls.inc]
+mode_title:0x1580 setActionForInput(BUTTON:input, action, bool:replace)
+mode_title:0x1b1c getControlAction(const control[])
+
+# ---- actor.inc and other helpers shared by every script ----
+mode_title:0x1d4c actorGetCustomSubProperties(&pattern, &color0, &color1, &color2)
+mode_title:0x1cd8 debugPrintAt(x, y, const format[])                            # gfxPrintStringf wrapper
+mode_title:0x1d04 touchToLayout(&x, &y)                                         # touch screen pixels -> centred coordinates
+mode_title:0x2524 playLayoutPaneAnim(const pane[], const animation[], actor, &length)
+mode_title:0x25e4 replaceKeyString(actor, const textBox[], const textId[], value)
+mode_title:0x2614 playBGM(music)                                                # unless "debug.disable_bgm"
+
+# ---- debug console (the "system" menu: cheats, effects, network simulation; "system.consolemode") ----
+mode_title:0x2664 consoleMenu(const title[], bool:open)                         # true while this menu is shown
+mode_title:0x2a1c consoleIsSelected()                                           # the current item has the cursor
+mode_title:0x2ad8 consoleNextItem()
+mode_title:0x2b24 consoleItemLine()                                             # screen line of the current item (14 lines, scrolling)
+mode_title:0x2c08 consoleItemVisible()
+mode_title:0x2c84 consoleFloat(const label[], &Float:value, Float:step, Float:min, Float:max, bool:noHold)
+mode_title:0x2f28 consoleGlobalFloat(const label[], const global[], Float:step, Float:min, Float:max, bool:noHold)
+mode_title:0x2fb8 consoleInt(const label[], &value, step, min, max, bool:noHold)
+mode_title:0x321c consoleGlobalInt(const label[], const global[], step, min, max, bool:noHold)
+mode_title:0x32ac consoleCounter(const label[], &value, step, min, bool:noHold)
+mode_title:0x3594 consoleGlobalCounter(const label[], const global[], step, min, bool:noHold)
+mode_title:0x3620 consoleBool(const label[], &value)
+mode_title:0x37ec consoleGlobalBool(const label[], const global[])
+mode_title:0x3868 consoleFlag(const label[], &flags, bit)
+mode_title:0x3a48 consoleAction(const label[])                                  # true when the item is chosen with A
+mode_title:0x3bec consoleSystemMenu()
+mode_title:0x456c consoleWorldMenu()
+mode_title:0x4848 consoleULCDMenu()
+
+# ---- stereoscopic 3D settings ("ulcd.settings": offset, range, fov, near, far, valid, wscale) ----
+mode_title:0x4628 ulcdSetDefaults()
+mode_title:0x4724 ulcdLoad()
+mode_title:0x4754 ulcdSave()
+mode_title:0x4784 ulcdApply()
+
+# ---- touch screen events sent to observers (@screenTouch, @screenMove, @screenUntouch) ----
+mode_title:0x4a1c updateTouch(bool:notify)
+
+# ---- button.inc: layout buttons. A button is an array: [0] pane name, [96] animation prefix,
+# [192] state (1 off, 2 touched, 3 on), [193] previous state, [196..200] animations touch, on, off,
+# in, out, [202] playing animation, [204] button_anim_play_flag (the game's name), [205] frames
+# left in the animation, [206] layout actor, [207] delay, [208] released, [210] pane, [211] sound.
+mode_title:0x4d20 loadPaneAnim(const pane[], const prefix[], const suffix[], actor)   # "<prefix>_<suffix>"
+mode_title:0x4e1c buttonPlayIn(button[])
+mode_title:0x4e8c buttonReset(button[], bool:on, actor, bool:altSound, a, b)
+mode_title:0x52c0 buttonClearReleased(button[])
+mode_title:0x52ec buttonIsReleased(button[])
+mode_title:0x530c buttonHitTest(button[], x, y)
+mode_title:0x53b4 buttonPlayAnim(button[], animation)                           # returns its length in frames
+mode_title:0x5500 buttonSetState(button[], state)
+mode_title:0x5788 buttonTouch(button[], x, y)
+mode_title:0x5830 buttonUpdateAnim(button[], bool:hold)
+mode_title:0x5958 buttonUpdateDelay(button[])
+mode_title:0x5a24 buttonUpdate(button[], bool:hold)
+mode_title:0x5c14 btnsupIsButtonActive()
+mode_title:0x5c28 btnsupCheckButtonTouch(button[], x, y, sound)
+mode_title:0x5cc0 btnsupActivateButton(button[], sound)
+mode_title:0x5d64 btnsupCheckButtonTouchEnd(button[])
+mode_title:0x5e18 isFullVersion()                                               # premium version bought

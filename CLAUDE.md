@@ -20,7 +20,7 @@ make extract    tools/extract_cia.py  -> extracted/{code.bin,exefs,ncch,romfs,ma
 make elf        tools/code2elf.py     -> extracted/nsub.elf
 make analyze    ghidra/analyze.sh     -> ghidra/project/ (import + romfs map symbols + auto-analysis)
 make export     ghidra/export.sh      -> decomp/raw/ (pseudo-code per original object file + functions.csv)
-make scripts    tools/native_types.py, tools/amx.py, tools/amxdec.py -> decomp/scripts/ (Pawn asm + pseudo-Pawn)
+make scripts    tools/native_types.py, tools/amx.py, tools/amxdec.py (+ amxsym.py) -> decomp/scripts/ (Pawn asm + pseudo-Pawn)
 make data       tools/bxml.py -> extracted/xml/ (BXML: levels, stats, texts; name hash = zlib CRC-32)
 ```
 
@@ -28,6 +28,8 @@ The Ghidra database is disposable (analyze.sh recreates it, keeping one backup i
 Knowledge goes into versioned text applied by `ApplySymbols.java` on every analyze/export:
 `ghidra/symbols.txt` (`<address> <qualified name> [: <C prototype>]`) and `ghidra/types.h` (plain C, no macros).
 Only add verified facts. Beware armlink identical-code folding: a call can carry another function's name.
+Same for the Pawn scripts: `decomp/pawn/natives.inc` (native prototypes, enums) and `decomp/pawn/symbols.txt`
+(`<script>:<address> name(params)`, propagated to every copy of the function in the other scripts).
 
 Ghidra scripts are Java (`ghidra/scripts/`), compiled by Ghidra 12.1.4; check them with
 `javac -cp "$(find ~/tools/ghidra_12.1.4_PUBLIC/Ghidra -name '*.jar' | tr '\n' :)" -d build/javac ghidra/scripts/*.java`.

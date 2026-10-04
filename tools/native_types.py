@@ -5,7 +5,7 @@ Reads the pseudo-code exported by Ghidra (decomp/raw/, natives typed as
 `cell f(AMX *amx, cell *params)`) and classifies each params[N]:
   s  input string   (loader->getString, or amx_GetAddr + amx_GetString/StrLen/printstring)
   S  output string  (loader->setString, or amx_GetAddr + amx_SetString)
-  a  array / by-reference variable (other amx_GetAddr / loader->getAddr uses)
+  a  array / by-reference variable (other amx_GetAddr / loader->getAddr uses, AMXLoader::getVector3)
   f  Float          ((float)params[N])
   i  plain cell
 Natives reading *params (the argument byte count) are variadic.
@@ -69,8 +69,14 @@ def classify(body: str) -> dict:
         if len(parts) > position and (n := param_index(re.sub(r"^\([^)]*\)", "", parts[position]))) is not None:
             types[n] = {"getString": "s", "setString": "S", "getAddr": "a"}[method]
 
-    # amx_GetAddr(amx, params[N], &ptr): look at what ptr is used for until it is reassigned.
-    getaddr = list(re.finditer(r"amx_GetAddr\([^,]+,([^,]+),\s*(?:\([^)]*\))?\s*&(\w+)\)", body))
+    # AMXLoader::getVector3(loader, params[N]): three floats read from an array.
+    for arg in re.findall(r"AMXLoader::getVector3\([^,]+,([^)]+)\)", body):
+        if (n := param_index(arg)) is not None:
+            types[n] = "a"
+
+    # amx_GetAddr(amx, params[N], &ptr): look at what ptr is used for until it is reassigned
+    # (ptr may also be an array, passed without &).
+    getaddr = list(re.finditer(r"amx_GetAddr\([^,]+,([^,]+),\s*(?:\([^)]*\))?\s*&?(\w+)\)", body))
     for k, m in enumerate(getaddr):
         n = param_index(m[1])
         if n is None:
@@ -85,7 +91,7 @@ def classify(body: str) -> dict:
         elif types.get(n, "i") == "i":
             types[n] = "a"
     count = max(types) if types else 0
-    variadic = bool(re.search(r"\(uint\)\*params|\*params >>|params\[0\]", body))
+    variadic = bool(re.search(r"\(uint\)\*params|\*params >>|params\[0\]|= \*params;", body))
     return {"params": "".join(types.get(n, "?") for n in range(1, count + 1)), "variadic": variadic}
 
 
