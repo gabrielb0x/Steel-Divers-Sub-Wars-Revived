@@ -29,6 +29,14 @@ Projet de rétro-ingénierie de **Steel Diver: Sub Wars** (Nintendo / Vitei, 3DS
 - **Mods pour Azahar** : `make azahar` rend le jeu installable dans l'émulateur (le CIA de l'eShop est refusé à cause
   du manuel chiffré), et `tools/mod.py` construit et installe des mods décrits par des recettes
   ([mods/README.md](mods/README.md), [docs/mods.md](docs/mods.md)).
+- **Le jeu en ligne refonctionne** : serveur maison ([server/](server/README.md), Python sans dépendance) et mod
+  `en-ligne` pour Azahar. Deux émulateurs se connectent, se trouvent par le matchmaking et jouent une bataille
+  ensemble. Protocole reconstitué : [docs/online.md](docs/online.md).
+
+```sh
+cd server && python3 -m sdsw_server                        # le serveur (royaumes « emulateur » et « pc »)
+.venv/bin/python tools/mod.py build en-ligne --set server=<adresse> --install    # chaque joueur
+```
 
 Détails : [docs/analyse-initiale.md](docs/analyse-initiale.md) · Plan : [docs/roadmap.md](docs/roadmap.md)
 
@@ -45,7 +53,7 @@ ghidra/types.h     types C reconstitués (idem)
 ghidra/project/    base Ghidra, jetable : `make analyze` la recrée (ignorée)
 decomp/            pseudo-code source : raw/ (C++ Ghidra), scripts/ (Pawn décompilé), src/ (nettoyé à la main)
 port/              portage PC
-server/            serveur online
+server/            serveur online (royaumes émulateur et PC, détection de NAT, tests)
 docs/              notes de rétro-ingénierie
 ```
 

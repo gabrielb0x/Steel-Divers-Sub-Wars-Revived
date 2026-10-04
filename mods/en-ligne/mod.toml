@@ -1,0 +1,150 @@
+# Mod « jeu en ligne » : le jeu se connecte à notre serveur (server/) au lieu des serveurs de Nintendo.
+#
+#   tools/mod.py build en-ligne --set server=192.0.2.10 --install
+#
+# Pourquoi un patch : sur 3DS, le module système « friends » se connecte aux serveurs de Nintendo et rend
+# l'adresse du serveur du jeu (authentification NASC). Azahar ne l'émule pas : RequestGameAuthentication et
+# GetGameAuthenticationData de frd:u y sont des fonctions vides, et le jeu attend sans fin (voir le journal
+# d'Azahar). Le patch remplace les trois fonctions que la connexion du jeu utilise
+# (nn::nex::JobCTRLogin, libJugemLoginClient) :
+#   GetMyPrincipalId           -> l'identifiant du joueur
+#   GetMyPassword              -> son mot de passe
+#   GetGameAuthenticationData  -> résultat 1, HTTP 200, adresse et port de notre serveur, jeton
+# et dirige les serveurs de détection de NAT de Pia (nncs1/nncs2.app.nintendowifi.net) vers le serveur.
+#
+# Chaque joueur reçoit à la construction un identifiant et un mot de passe aléatoires, gardés dans
+# ~/.config/sub-wars-open-sourced/identites.json (un par serveur) : le serveur l'enregistre à la première
+# connexion (le jeton contient la clé Kerberos dérivée du mot de passe). Détails : docs/online.md.
+
+name = "Jeu en ligne"
+description = "Jouer en ligne sur un serveur Sub Wars Open Sourced (server/), dans Azahar"
+
+[params.server]
+help = "adresse IP ou nom du serveur (31 caractères au plus)"
+default = "127.0.0.1"
+max_length = 31
+
+[params.port]
+help = "port UDP du serveur d'authentification (royaume « emulateur » : 61000)"
+default = "61000"
+
+[identity]
+scope = "${server}:${port}"
+
+# -- nn::friends::CTR::detail::GetMyPrincipalId (108 octets) --------------------------------------
+[[code]]
+address = 0x0021BD34
+expect = "30402de914d04de2"
+max_size = 108
+arm = """
+    ldr r0, pid
+    bx lr
+pid:
+    .word ${pid}
+"""
+
+# -- nn::friends::CTR::detail::GetMyPassword(char buffer[32]) (120 octets) -------------------------
+[[code]]
+address = 0x002AF2C0
+expect = "70402de90050a0e1"
+max_size = 120
+arm = """
+    adr r1, password
+copy:
+    ldrb r2, [r1], #1
+    strb r2, [r0], #1
+    cmp r2, #0
+    bne copy
+    mov r0, #0
+    bx lr
+password:
+    .asciz "${password}"
+"""
+
+# -- nn::friends::CTR::detail::GetGameAuthenticationData(GameAuthenticationData*) (116 octets) ------
+# Structure de 0x138 octets (taille du tampon IPC 0x4E0002) : +0 résultat, +4 code HTTP, +8 adresse
+# (32 octets), +0x28 port, +0x30 jeton (256 octets), +0x130 heure du serveur.
+[[code]]
+address = 0x0020E3CC
+expect = "70402de90050a0e1"
+max_size = 116
+arm = """
+    push {r4, lr}
+    mov r4, r0
+    mov r1, #0
+    mov r2, #0x138
+clear:
+    subs r2, r2, #4
+    str r1, [r4, r2]
+    bne clear
+    mov r1, #1
+    str r1, [r4]
+    mov r1, #200
+    str r1, [r4, #4]
+    ldr r1, port
+    strh r1, [r4, #0x28]
+    add r0, r4, #8
+    ldr r1, host
+    bl strcopy
+    add r0, r4, #0x30
+    ldr r1, token
+    bl strcopy
+    mov r0, #0
+    pop {r4, pc}
+strcopy:
+    ldrb r2, [r1], #1
+    strb r2, [r0], #1
+    cmp r2, #0
+    bne strcopy
+    bx lr
+port:
+    .word ${port}
+host:
+    .word 0x002AF4F8
+token:
+    .word 0x002AF56C
+"""
+
+# -- Données, dans trois fonctions que le patch rend inutiles (0x002AF4F0-0x002AF798) ----------------
+# Chacune commence par « rendre une erreur », au cas où le jeu l'appellerait encore.
+[[code]]
+address = 0x002AF4F0                     # GetServiceLocatorData
+expect = "70402de90050a0e1"
+arm = "mvn r0, #0\nbx lr"
+
+[[code]]
+address = 0x002AF4F8                     # adresse du serveur
+ascii = "${server}"
+max_size = 108
+
+[[code]]
+address = 0x002AF564                     # RequestServiceLocator
+expect = "ff4f2de90cd04de2"
+arm = "mvn r0, #0\nbx lr"
+
+[[code]]
+address = 0x002AF56C                     # jeton d'authentification
+ascii = "${token}"
+max_size = 284
+
+[[code]]
+address = 0x002AF688                     # RequestGameAuthentication
+expect = "f84f2de90050a0e1"
+arm = "mvn r0, #0\nbx lr"
+
+[[code]]
+address = 0x002AF690                     # nom du serveur de NAT, en UTF-16
+utf16 = "${server}"
+max_size = 264
+
+# -- Serveurs de détection de NAT : nncs1 et nncs2 -> notre serveur ----------------------------------
+# Pointeurs lus par Pia (NatTraverser::updateNatServerAddress) et la table de NEX.
+[[code]]
+address = 0x003B0940
+expect = "8e343800c4343800"
+words = ["0x002AF690", "0x002AF690"]
+
+[[code]]
+address = 0x00399E90
+expect = "8e343800c4343800"
+words = ["0x002AF690", "0x002AF690"]

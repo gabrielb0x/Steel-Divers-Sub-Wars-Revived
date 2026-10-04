@@ -24,16 +24,35 @@ mod.toml:
 
   [[code]]                          # code patch, at a virtual address of code.bin
   address = 0x0010C7FC
-  arm = "bx lr"                     # ARM assembly (keystone), or: bytes = "1eff2fe1"
+  arm = "bx lr"                     # ARM assembly (keystone), or: bytes = "1eff2fe1",
+                                    # ascii = "text" / utf16 = "text" (NUL-terminated), words = ["0x1234"]
   expect = "f0412de9"               # optional: bytes that must be there (guards the version)
+  max_size = 116                    # optional: the patch must not be longer (end of the function)
 
-Usage:  tools/mod.py build <name> [--install]     tools/mod.py list
+  [params.server]                   # optional: values given on the command line (--set server=...),
+  help = "..."                      # used as ${server} in the [[code]] texts
+  default = "127.0.0.1"
+  max_length = 31
+
+  [identity]                        # optional: a player identity for an online server, generated once
+  scope = "${server}:${port}"       # per scope and kept in ~/.config/sub-wars-open-sourced/identites.json;
+                                    # gives ${pid}, ${password} and ${token}
+
+Usage:  tools/mod.py build <name> [--set key=value ...] [--install] [--cxi]     tools/mod.py list
+
+--cxi also writes build/azahar/SteelDiverSubWars_<name>[_<server>].cxi, the game with the code patch already
+applied, to open in Azahar next to the original (RomFS changes stay in the mod folder only).
 """
 
 from __future__ import annotations
 
 import argparse
+import hashlib
+import json
+import os
+import secrets
 import shutil
+import string
 import sys
 import tomllib
 import xml.etree.ElementTree as ET
@@ -92,12 +111,34 @@ def assemble(source: str, address: int) -> bytes:
     return bytes(encoding)
 
 
-def code_patches(entries: list[dict]) -> dict[int, bytes]:
+def fill(text: str, params: dict[str, str]) -> str:
+    try:
+        return string.Template(text).substitute(params)
+    except KeyError as e:
+        raise ModError(f"unknown parameter {e} in the recipe") from e
+
+
+def patch_data(entry: dict, params: dict[str, str]) -> bytes:
+    address = entry["address"]
+    if "arm" in entry:
+        return assemble(fill(entry["arm"], params), address)
+    if "ascii" in entry:
+        return fill(entry["ascii"], params).encode("ascii") + b"\0"
+    if "utf16" in entry:
+        return fill(entry["utf16"], params).encode("utf-16-le") + b"\0\0"
+    if "words" in entry:
+        return b"".join(int(fill(w, params), 0).to_bytes(4, "little") for w in entry["words"])
+    return bytes.fromhex(fill(entry["bytes"], params).replace(" ", ""))
+
+
+def code_patches(entries: list[dict], params: dict[str, str] | None = None) -> dict[int, bytes]:
     code = CODE_BIN.read_bytes()
     patches: dict[int, bytes] = {}
     for entry in entries:
         address = entry["address"]
-        data = assemble(entry["arm"], address) if "arm" in entry else bytes.fromhex(entry["bytes"].replace(" ", ""))
+        data = patch_data(entry, params or {})
+        if "max_size" in entry and len(data) > entry["max_size"]:
+            raise ModError(f"code patch at {address:#x}: {len(data)} bytes, more than {entry['max_size']}")
         offset = address - CODE_BASE
         if not 0 <= offset <= len(code) - len(data):
             raise ModError(f"code patch at {address:#x}: outside code.bin")
@@ -122,13 +163,59 @@ def ips(patches: dict[int, bytes]) -> bytes:
     return bytes(out + b"EOF")
 
 
+# ---- parameters and identity ----------------------------------------------------------------
+
+IDENTITY_FILE = Path(os.environ.get("XDG_CONFIG_HOME", Path.home() / ".config")) / "sub-wars-open-sourced" / "identites.json"
+
+
+def user_key(pid: int, password: str) -> str:
+    """Kerberos key of a NEX account: MD5 applied 65000 + pid % 1024 times (MD5KeyDerivation)."""
+    data = password.encode("ascii")
+    for _ in range(65000 + pid % 1024):
+        data = hashlib.md5(data).digest()
+    return data.hex()
+
+
+def identity(scope: str) -> dict[str, str]:
+    known = json.loads(IDENTITY_FILE.read_text(encoding="utf-8")) if IDENTITY_FILE.exists() else {}
+    if scope not in known:
+        alphabet = string.ascii_letters + string.digits
+        known[scope] = {"pid": 0x10000000 + secrets.randbelow(0x70000000),
+                        "password": "".join(secrets.choice(alphabet) for _ in range(16))}
+        IDENTITY_FILE.parent.mkdir(parents=True, exist_ok=True)
+        IDENTITY_FILE.write_text(json.dumps(known, indent=2) + "\n", encoding="utf-8")
+        os.chmod(IDENTITY_FILE, 0o600)
+        print(f"[+] new player identity for {scope}: pid {known[scope]['pid']} (kept in {IDENTITY_FILE})")
+    pid, password = known[scope]["pid"], known[scope]["password"]
+    return {"pid": str(pid), "password": password, "token": "sdsw1:" + user_key(pid, password)}
+
+
+def recipe_params(mod: dict, overrides: dict[str, str]) -> dict[str, str]:
+    specs = mod.get("params", {})
+    unknown = set(overrides) - set(specs)
+    if unknown:
+        raise ModError(f"unknown parameter(s) {', '.join(sorted(unknown))}; this mod takes: {', '.join(specs) or 'none'}")
+    params = {}
+    for key, spec in specs.items():
+        value = str(overrides.get(key, spec.get("default", "")))
+        if not value:
+            raise ModError(f"--set {key}=... is required: {spec.get('help', '')}")
+        if len(value) > spec.get("max_length", 1 << 30):
+            raise ModError(f"{key}: at most {spec['max_length']} characters")
+        params[key] = value
+    if "identity" in mod:
+        params.update(identity(fill(mod["identity"]["scope"], params)))
+    return params
+
+
 # ---- build ----------------------------------------------------------------------------------
 
-def build(name: str, out_root: Path) -> Path:
+def build(name: str, out_root: Path, overrides: dict[str, str] | None = None) -> Path:
     recipe = MODS / name / "mod.toml"
     if not recipe.exists():
         raise ModError(f"no recipe {recipe}")
     mod = tomllib.loads(recipe.read_text(encoding="utf-8"))
+    params = recipe_params(mod, overrides or {})
     out = out_root / name / azahar.TITLE_ID
     if out.exists():
         shutil.rmtree(out)
@@ -146,9 +233,29 @@ def build(name: str, out_root: Path) -> Path:
     if mod.get("code"):
         dest = out / "exefs" / "code.ips"
         dest.parent.mkdir(parents=True, exist_ok=True)
-        dest.write_bytes(ips(code_patches(mod["code"])))
+        dest.write_bytes(ips(code_patches(mod["code"], params)))
     print(f"[+] {mod.get('name', name)}: {len(files)} file(s), {len(mod.get('code', []))} code patch(es) -> {out}")
+    build.params = params
     return out_root / name
+
+
+def write_cxi(name: str, built: Path, params: dict[str, str]) -> Path:
+    patch = built / azahar.TITLE_ID / "exefs" / "code.ips"
+    if not patch.exists():
+        raise ModError("this mod has no code patch: nothing to put in a CXI")
+    if (built / azahar.TITLE_ID / "romfs").exists():
+        print("[!] the CXI only holds the code patch; the RomFS changes need the mod folder (--install)")
+    cia = next(iter(sorted((ROOT / "cia").glob("*.cia"))), None)
+    if cia is None:
+        raise ModError("no .cia in cia/")
+    code = bytearray(CODE_BIN.read_bytes())
+    azahar.apply_ips(code, patch.read_bytes())
+    label = name + (f"_{params['server']}" if "server" in params else "")
+    label = "".join(c if c.isalnum() or c in "._-" else "-" for c in label)
+    dest = ROOT / "build" / "azahar" / f"SteelDiverSubWars_{label}.cxi"
+    azahar.patched_cxi(cia, bytes(code), dest)
+    azahar.write_readme(dest.parent)
+    return dest
 
 
 def main() -> None:
@@ -156,7 +263,9 @@ def main() -> None:
     sub = ap.add_subparsers(dest="command", required=True)
     p = sub.add_parser("build", help="build mods/<name> into build/mods/<name>")
     p.add_argument("name")
+    p.add_argument("--set", action="append", default=[], metavar="KEY=VALUE", help="a parameter of the recipe")
     p.add_argument("--install", action="store_true", help="then install it into Azahar")
+    p.add_argument("--cxi", action="store_true", help="also write the game with this code patch applied")
     p.add_argument("-o", "--out", type=Path, default=ROOT / "build" / "mods")
     sub.add_parser("list", help="list the mods of mods/")
     args = ap.parse_args()
@@ -167,7 +276,13 @@ def main() -> None:
             print(f"{recipe.parent.name:24s} {mod.get('description', '')}")
         return
     try:
-        built = build(args.name, args.out)
+        overrides = dict(item.split("=", 1) for item in args.set)
+    except ValueError:
+        sys.exit("[!] --set expects KEY=VALUE")
+    try:
+        built = build(args.name, args.out, overrides)
+        if args.cxi:
+            print(f"[+] {write_cxi(args.name, built, build.params)}: Azahar > File > Load File")
     except (ModError, KeyError, tomllib.TOMLDecodeError) as e:
         sys.exit(f"[!] {e}")
     if args.install:

@@ -1,0 +1,20 @@
+# Configuration du serveur en ligne (python3 -m sdsw_server, depuis server/).
+# Deux « royaumes » indépendants : comptes et parties séparés. Le mod en ligne d'Azahar vise le premier,
+# le portage PC visera le second.
+
+[server]
+listen = "0.0.0.0"              # adresse d'écoute
+public_address = "127.0.0.1"    # adresse (IP ou nom) par laquelle les joueurs joignent cette machine
+nat_check = true                # détection du NAT de Pia : UDP 10025 et 10125 (ports fixés par le jeu)
+
+[[realm]]
+name = "emulateur"              # joueurs sur émulateur (mods/en-ligne)
+auth_port = 61000               # serveur d'authentification (UDP)
+secure_port = 61001             # serveur sécurisé (UDP)
+data_dir = "data/emulateur"     # comptes (sqlite), relatif à ce fichier
+
+[[realm]]
+name = "pc"                     # joueurs du portage PC
+auth_port = 61010
+secure_port = 61011
+data_dir = "data/pc"

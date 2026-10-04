@@ -24,3 +24,6 @@ build/
 local.env
 __pycache__/
 *.pyc
+
+# Online server state (player accounts, secrets)
+server/data/

@@ -47,6 +47,9 @@ Comment le jeu trouve son serveur (`source/net/connectionInternet.cpp`, `JobCTRL
    `RendezVous::Login` (serveur d'authentification NEX), puis la connexion sécurisée.
 3. Le reste (matchmaking, NAT traversal, parties en P2P avec Pia) passe par ce serveur (voir [online.md](online.md)).
 
+**Fait** : mod [`en-ligne`](../mods/en-ligne/mod.toml) et serveur [`server/`](../server/README.md), vérifiés avec
+deux instances d'Azahar qui jouent ensemble. Ce qui suit explique le choix.
+
 Deux façons de rediriger le jeu :
 
 - **Au niveau de la console** (méthode de Pretendo avec Nimbus) : patcher les modules système *friends* et *ssl* pour

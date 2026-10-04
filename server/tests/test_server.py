@@ -1,0 +1,123 @@
+"""Tests of the server: formats, cryptography, and a full session between simulated consoles.
+
+    cd server && python3 -m unittest -v
+"""
+
+from __future__ import annotations
+
+import asyncio
+import logging
+import socket
+import struct
+import tempfile
+import unittest
+from pathlib import Path
+
+from sdsw_server import testclient
+from sdsw_server.crypto import RC4, derive_user_key, kerberos_decrypt, kerberos_encrypt, KerberosError
+from sdsw_server.ddl import MatchmakeSession, criterion_matches
+from sdsw_server.natcheck import NatCheckService
+from sdsw_server.prudp import CONNECT, DATA, FLAG_NEED_ACK, FLAG_RELIABLE, Packet, Signer, decode_datagram, encode_packet
+from sdsw_server.realm import Realm, RealmConfig
+from sdsw_server.streams import StationURL, StreamIn, StreamOut
+
+
+def free_udp_port() -> int:
+    with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as s:
+        s.bind(("127.0.0.1", 0))
+        return s.getsockname()[1]
+
+
+class Formats(unittest.TestCase):
+    def test_rc4(self):
+        # RFC 6229 style check with the well-known "Key"/"Plaintext" vector
+        self.assertEqual(RC4(b"Key").crypt(b"Plaintext").hex(), "bbf316e8d940af0ad3")
+        self.assertEqual(RC4(b"").crypt(b"abc"), b"abc")
+
+    def test_rc4_is_a_stream(self):
+        a, b = RC4(b"CD&ML"), RC4(b"CD&ML")
+        self.assertEqual(a.crypt(b"hello") + a.crypt(b" world"), b.crypt(b"hello world"))
+
+    def test_kerberos(self):
+        key = derive_user_key(1234567, "password")
+        self.assertEqual(len(key), 16)
+        data = kerberos_encrypt(key, b"ticket")
+        self.assertEqual(kerberos_decrypt(key, data), b"ticket")
+        with self.assertRaises(KerberosError):
+            kerberos_decrypt(bytes(16), data)
+
+    def test_mod_and_server_derive_the_same_key(self):
+        import importlib.util
+        spec = importlib.util.spec_from_file_location("mod", Path(__file__).parents[2] / "tools" / "mod.py")
+        if spec is None:
+            self.skipTest("tools/mod.py not found")
+        import sys
+        sys.path.insert(0, str(Path(__file__).parents[2] / "tools"))
+        try:
+            mod = importlib.util.module_from_spec(spec)
+            spec.loader.exec_module(mod)
+        except ImportError as e:
+            self.skipTest(f"tools/mod.py needs {e.name}")
+        self.assertEqual(mod.user_key(424242, "abc"), derive_user_key(424242, "abc").hex())
+
+    def test_string_and_structures(self):
+        s = StreamOut()
+        s.string("Steel Matcher")
+        s.list([1, 2], StreamOut.u32)
+        session = MatchmakeSession(id=7, owner_pid=5, game_mode=1000, attributes=[2, 1], description="x")
+        s.anydata("MatchmakeSession", session)
+        self.assertEqual(s.get()[:2], struct.pack("<H", 14))
+        r = StreamIn(s.get())
+        self.assertEqual(r.string(), "Steel Matcher")
+        self.assertEqual(r.list(StreamIn.u32), [1, 2])
+        name, data = r.anydata()
+        back = MatchmakeSession.decode(data)
+        self.assertEqual((name, back.id, back.owner_pid, back.attributes), ("MatchmakeSession", 7, 5, [2, 1]))
+
+    def test_station_url(self):
+        text = "prudp:/address=1.2.3.4;port=5;sid=15;type=2"
+        url = StationURL.parse(text)
+        self.assertEqual(str(url), text)
+        url["PID"] = 9
+        self.assertEqual(url.get_int("PID"), 9)
+
+    def test_criteria(self):
+        self.assertTrue(criterion_matches("", 5))
+        self.assertTrue(criterion_matches("3,7", 5))
+        self.assertFalse(criterion_matches("6", 5))
+
+    def test_prudp_packet(self):
+        signer = Signer("fb9537fe")
+        p = Packet(src=0xAF, dst=0xA1, type=DATA, flags=FLAG_RELIABLE | FLAG_NEED_ACK, session_id=3, seq=2,
+                   fragment_id=0, payload=b"abc")
+        raw = encode_packet(p, signer, b"key", bytes(16))
+        (q,) = decode_datagram(raw)
+        self.assertEqual((q.type, q.seq, q.fragment_id, q.payload), (DATA, 2, 0, b"abc"))
+        self.assertEqual(q.signature, signer.sign(q.header8, b"key", bytes(16), q.options_raw, q.payload))
+        c = Packet(src=0xAF, dst=0xA1, type=CONNECT, supported_functions=3, conn_sig=b"s" * 16, max_substream_id=0)
+        (q,) = decode_datagram(encode_packet(c, signer, b"", b""))
+        self.assertEqual((q.supported_functions, q.conn_sig, q.max_substream_id), (3, b"s" * 16, 0))
+
+
+class Session(unittest.TestCase):
+    """Three simulated consoles log in, matchmake into one session and leave it."""
+
+    def test_full_session(self):
+        logging.basicConfig(level=logging.WARNING)
+
+        async def scenario():
+            with tempfile.TemporaryDirectory() as tmp:
+                config = RealmConfig(name="test", listen="127.0.0.1", public_address="127.0.0.1",
+                                     auth_port=free_udp_port(), secure_port=free_udp_port(), data_dir=Path(tmp))
+                realm = Realm(config, NatCheckService())
+                await realm.start()
+                result = await testclient.scenario("127.0.0.1", config.auth_port, 3)
+                self.assertEqual(len(realm.matchmaker.sessions), 1)
+                self.assertEqual(realm.accounts.count(), 3)
+                return result
+
+        self.assertEqual(asyncio.run(scenario()), 0)
+
+
+if __name__ == "__main__":
+    unittest.main()

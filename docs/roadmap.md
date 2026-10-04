@@ -55,13 +55,15 @@ au final, mais rien ne tourne avant que tout soit terminé.
 Constat : le serveur ne gère que l'authentification, le matchmaking et le NAT traversal ; les parties elles-mêmes
 se jouent en P2P via Pia. Aucune bibliothèque NEX de classement ou de stockage n'est liée au jeu.
 
-1. **Référence** : le serveur de [Pretendo](https://github.com/PretendoNetwork/steel-diver-sub-wars) (Go, AGPL-3.0)
-   fonctionne déjà avec les vraies 3DS, mais dépend de leur infrastructure de comptes.
-2. **Serveur autonome** : PRUDP + RMC (NEX 3.7), protocoles TicketGranting, SecureConnection, NATTraversal,
-   MatchMaking, MatchMakingExt et MatchmakeExtension, sans dépendance externe, plus un NASC minimal pour les 3DS.
-3. **Validation** : fait pour la v0 ([online.md](online.md)) : méthodes RMC appelées, session `Steel Matcher`
-   (1 à 8 joueurs, mode 1000), attributs (continent, type de salon, niveau, somme de version).
-4. **NAT** : Pia fait déjà du NAT traversal ; prévoir un relais pour les NAT stricts si besoin.
+1. ~~**Rétro-ingénierie du client**~~ : PRUDP v1, Kerberos, RMC, structures NEX 3.7, détection de NAT de Pia,
+   notifications ([online.md](online.md)).
+2. ~~**Serveur autonome**~~ (Python, sans dépendance) : TicketGranting, SecureConnection, NATTraversal, MatchMaking,
+   MatchMakingExt, MatchmakeExtension, serveurs « nncs » ; deux royaumes séparés, émulateur et PC.
+3. ~~**Validation avec le jeu**~~ : deux Azahar avec le mod `en-ligne` se connectent, se trouvent et jouent une
+   bataille ensemble.
+4. **À suivre** : essais entre machines distantes derrière de vrais NAT (le serveur n'a qu'une adresse IP, voir
+   la détection de NAT dans [online.md](online.md)) ; relais pour les NAT stricts si besoin ; migration d'hôte et
+   départs en cours de partie à éprouver.
 
 ## Volet 4 — Mods (Azahar, puis portage PC)
 
@@ -71,7 +73,8 @@ Le plan détaillé est dans [mods.md](mods.md) : on publie des recettes (`mods/`
    par `tools/mod.py` (textes, BXML, patchs de code IPS) ; reste les scripts Pawn (assembleur AMX).
 2. **Scripts Pawn** : modifier le bytecode (assembleur AMX, puis pseudo-Pawn recompilable), base des mods de
    gameplay. Le menu de debug des développeurs en dépend (sa logique et son affichage ont été retirés).
-3. **Jeu en ligne** : patch de `JobCTRLogin` pour viser notre serveur (volet 3), somme de version propre au mod.
+3. ~~**Jeu en ligne**~~ : mod `en-ligne` (patch des fonctions *friends* utilisées par `JobCTRLogin`, serveurs de
+   détection de NAT redirigés, identité par joueur). Reste : une somme de version propre aux mods de gameplay.
 4. **60 fps** : affichage interpolé entre deux pas de simulation, d'abord dans le portage PC.
 
 ## Décisions
