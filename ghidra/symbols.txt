@@ -75,3 +75,17 @@
 0x0018283c ScriptAMXLoader::setString : void f(AMXLoader * self, char * src, cell amx_addr)
 # World::getActor: actors[id] if 0 < id < actorCount, else NULL.
 0x002455a0 World::getActor : Actor * f(World * self, int actor_id)
+
+# --- Actors (actor.o; Actor layout in types.h) ---
+0x0010cc20 Actor : Actor * f(Actor * self)
+0x0012463c Actor::init : void f(Actor * self)
+0x0010cbd8 Actor::setActive : void f(Actor * self, int active)
+0x00242e00 Actor::setPosition : void f(Actor * self, f32 * position)
+0x00116914 Actor::setRotation : void f(Actor * self, f32 * rotation)
+0x002e249c Actor::setIdleDistance : void f(Actor * self, f32 distance)
+0x0023f23c Actor::getScript : void f(Actor * self, char * dest)
+0x002e1d68 Actor::getCustomFlag : u32 f(Actor * self, u32 bit)
+0x002e1e4c Actor::getCustomValue : f32 f(Actor * self, int index)
+0x002e3048 Actor::getLastReadProperties : void f(Actor * self, char * dest)
+0x001031b4 World::init : void f(World * self)
+0x002e6dc4 World::newActor : Actor * f(World * self)

@@ -2,7 +2,7 @@
 PY := .venv/bin/python
 STAMPS := build/stamps
 
-.PHONY: all extract elf analyze export scripts data
+.PHONY: all extract elf analyze export scripts data check-types
 
 all: export scripts data
 
@@ -24,6 +24,7 @@ $(STAMPS)/analyzed: extracted/nsub.elf $(wildcard ghidra/scripts/*.java) ghidra/
 	@mkdir -p $(@D) && touch $@
 
 $(STAMPS)/exported: $(STAMPS)/analyzed ghidra/export.sh ghidra/symbols.txt ghidra/types.h
+	$(MAKE) check-types
 	ghidra/export.sh
 	@mkdir -p $(@D) && touch $@
 
@@ -38,3 +39,7 @@ $(STAMPS)/scripts: $(STAMPS)/exported tools/amx.py tools/amxdec.py tools/native_
 $(STAMPS)/data: extracted/manifest.json tools/bxml.py
 	$(PY) tools/bxml.py
 	@mkdir -p $(@D) && touch $@
+
+# Struct layouts of ghidra/types.h against the offsets verified in the binary (32-bit).
+check-types:
+	gcc -m32 -fsyntax-only -Wall ghidra/types_check.c
