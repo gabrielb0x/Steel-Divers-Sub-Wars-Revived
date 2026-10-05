@@ -47,7 +47,8 @@ description = "Ce qu'il change"
 
 [[text]]                                  # un texte du jeu, dans toutes les langues
 key = "title_version"                     # clé <string key=...> de extracted/xml/text/*.xml
-text = "Version moddée"                   # \n pour un retour à la ligne
+text = "Version moddée"                   # \n pour un retour à la ligne, ${option} pour une valeur donnée
+                                          # à la construction ; un caractère absent de la police est signalé
 languages = ["EU_French"]                 # facultatif
 
 [[bxml]]                                  # n'importe quel fichier BXML, modifié comme son XML (make data)
@@ -100,6 +101,7 @@ dans [../docs/formats.md](../docs/formats.md). Les modifications de scripts Pawn
 | `premium` | version complète, les 23 sous-marins, motifs et équipage débloqués, sans l'eShop ([détails](../docs/premium.md)) |
 | `en-ligne` | jeu en ligne sur un serveur [Sub Wars Open Sourced](../server/README.md) |
 | `specs` | vos propres caractéristiques de sous-marins (`tools/subs.py`) ; en ligne, comptées comme triche |
+| `mention-titre` | « © 2026 Nintendo Lawyers » et « Open Sourced by gabrielb0x. » sous le titre (options `ligne1`, `ligne2`) |
 | `triche` | invincible, torpilles et air infinis, rechargement rapide, masqueur gratuit, moteur gonflé |
 | `texte-titre` | exemple : « Version gratuite » devient « Version moddée » sur l'écran titre |
 

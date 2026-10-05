@@ -1,0 +1,28 @@
+# Mod « mention de l'écran titre » : les deux lignes en bas de l'écran du haut, au titre.
+#
+#   tools/mod.py build mention-titre --install
+#   tools/mod.py build premium mention-titre --set ligne2="Open Sourced by moi" --install
+#
+# Elles viennent de deux textes du jeu (text/*.bxml, toutes les langues), que le layout de l'écran titre
+# (layouts/mode_title_u.arc) appelle par leur clé : [title_company_name] et [title_codeveloped]. Le moteur
+# agrandit la place du texte s'il est plus long et réduit sa taille s'il dépasse la largeur prévue
+# (substituteKeystrings, source/gfx/layout.cpp) : des lignes plus longues passent.
+
+name = "Mention de l'écran titre"
+description = "« © 2026 Nintendo Lawyers » et « Open Sourced by gabrielb0x. » sous le titre (textes modifiables)"
+
+[params.ligne1]
+help = "première ligne (« © 2014 Nintendo » dans le jeu)"
+default = "© 2026 Nintendo Lawyers"
+
+[params.ligne2]
+help = "seconde ligne (« Codéveloppé par VITEI INC. » dans le jeu)"
+default = "Open Sourced by gabrielb0x."
+
+[[text]]
+key = "title_company_name"
+text = "${ligne1}"
+
+[[text]]
+key = "title_codeveloped"
+text = "${ligne2}"

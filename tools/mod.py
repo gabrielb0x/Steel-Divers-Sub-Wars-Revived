@@ -14,7 +14,7 @@ mod.toml:
 
   [[text]]                          # a text of the game, in every language (text/*.bxml)
   key = "title_version"             # <string key=...> of extracted/xml/text/*.xml
-  text = "My text"                  # \\n for a new line
+  text = "My text"                  # \\n for a new line; ${param} for a value given at build time
   languages = ["EU_French"]         # optional: only these files
 
   [[bxml]]                          # any BXML file, edited as the XML of `make data`
@@ -65,12 +65,14 @@ applied, to open in Azahar next to the original (RomFS changes stay in the mod f
 from __future__ import annotations
 
 import argparse
+import contextlib
 import hashlib
 import json
 import os
 import secrets
 import shutil
 import string
+import struct
 import sys
 import tomllib
 import xml.etree.ElementTree as ET
@@ -174,12 +176,48 @@ def edit_amx(scripts: dict[str, AmxPatcher], entry: dict) -> None:
         raise ModError(f"{file}: {e} (not the EUR v0 scripts?)") from e
 
 
-def apply_texts(files: dict[str, ET.Element], entry: dict) -> int:
+def font_characters(typeface: str, cache: dict[str, set[int] | None] = {}) -> set[int] | None:
+    """Characters of fonts/<typeface>.bcfnt (its CMAP sections), or None if it cannot be read."""
+    if typeface not in cache:
+        cache[typeface] = None
+        path = ROMFS / "fonts" / f"{typeface}.bcfnt"
+        with contextlib.suppress(OSError, struct.error, ValueError):
+            data = path.read_bytes()
+            if data[:4] != b"CFNT":
+                return None
+            end = "<" if data[4:6] == b"\xff\xfe" else ">"
+            finf = struct.unpack_from(end + "H", data, 6)[0]
+            chars: set[int] = set()
+            section = struct.unpack_from(end + "I", data, finf + 0x18)[0]       # FINF: first CMAP
+            while section:
+                begin, last, method, _, following = struct.unpack_from(end + "HHHHI", data, section)
+                body = section + 12
+                if method == 0:                                                 # direct
+                    chars.update(range(begin, last + 1))
+                elif method == 1:                                               # table
+                    chars.update(code for i, code in enumerate(range(begin, last + 1))
+                                 if struct.unpack_from(end + "H", data, body + 2 * i)[0] != 0xFFFF)
+                else:                                                           # scan
+                    count = struct.unpack_from(end + "H", data, body)[0]
+                    chars.update(struct.unpack_from(end + "H", data, body + 2 + 4 * i)[0] for i in range(count))
+                section = following
+            cache[typeface] = chars
+    return cache[typeface]
+
+
+def apply_texts(files: dict[str, ET.Element], entry: dict, params: dict[str, str] | None = None) -> int:
     languages = entry.get("languages") or sorted(p.stem for p in (ROMFS / "text").glob("*.bxml"))
+    text = fill(entry["text"], params or {})
     count = 0
     for language in languages:
         count += edit_bxml(files, f"text/{language}.bxml", f"string[@key='{entry['key']}']",
-                           {"text": escape_string(entry["text"])})
+                           {"text": escape_string(text)})
+        node = files[f"text/{language}.bxml"].find(f"string[@key='{entry['key']}']")
+        chars = font_characters(node.get("typeface", "")) if node is not None else None
+        missing = sorted({c for c in text if c not in "\n" and chars is not None and ord(c) not in chars})
+        if missing and language == languages[0]:
+            print(f"[!] {entry['key']} : la police {node.get('typeface')} n'a pas {' '.join(missing)} "
+                  "(ces caractères ne s'afficheront pas)")
     return count
 
 
@@ -322,7 +360,7 @@ def build(names: list[str], out_root: Path, overrides: dict[str, str] | None = N
     for mod in mods:
         for entry in mod.get("text", []):
             if enabled(entry, params):
-                apply_texts(files, entry)
+                apply_texts(files, entry, params)
         for entry in mod.get("bxml", []):
             if enabled(entry, params):
                 for file in bxml_files(entry):
