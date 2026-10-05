@@ -26,8 +26,15 @@ make scripts    tools/native_types.py, tools/amx.py, tools/amxdec.py (+ amxsym.p
 make data       tools/bxml.py -> extracted/xml/ (BXML: levels, stats, texts; name hash = zlib CRC-32)
 make azahar     tools/azahar.py prepare -> build/azahar/ (CIA without the encrypted manual, which Azahar rejects; CXI)
 tools/mod.py build <name>... [--install] [--cxi]   mods/<name>/mod.toml -> build/mods/<a+b>/ -> Azahar load/mods/00040000000D7E00/
+tools/save.py, tools/subs.py                        save editor (Azahar save), submarine characteristics (mod "specs")
+python3 subwars.py                                  players' launcher: local web UI (tools/webui.py + webui.html)
+python3 -m unittest discover -s tools/tests         tests of the players' tools (no game file needed)
 cd server && python3 -m sdsw_server        online server (realms "emulateur" and "pc", serveur.toml); tests: python3 -m unittest discover -s tests -t .
 ```
+
+Players' tools (subwars.py, mod.py, save.py, subs.py, extract_cia.py) must run with Python 3.11 alone on
+Windows/macOS/Linux: no pip package (tools/ncch.py reads NCCH/RomFS, tools/armasm.py assembles the recipes' ARM;
+its encodings are checked against keystone in tools/tests). Only the RE pipeline uses the venv (capstone).
 
 The Ghidra database is disposable (analyze.sh recreates it, keeping one backup in `ghidra/project.bak/`).
 Knowledge goes into versioned text applied by `ApplySymbols.java` on every analyze/export:
@@ -50,6 +57,10 @@ Ghidra scripts are Java (`ghidra/scripts/`), compiled by Ghidra 12.1.4; check th
   `romfs:/amx/`. 647 natives in 15 packed (unaligned) AMX_NATIVE_INFO tables, found via amx_Register call sites.
   HALT 12 is `sleep` (yield one frame). Pawn 3.3 sources for reference: build/ref/compuphase-pawn @ 6d82fa4.
 - armlink eliminated unused virtuals (vtable slots set to 0) and folded identical functions.
+- Premium = add-on content title 0004008C000D7E00 checked by NsubShop (source/sys/dlc.cpp): content 91 is the full
+  version, 1-5 the historical subs 19-23 (their prow models only exist in the DLC). docs/premium.md, mods/premium.
+  Never use a DLC CIA that is not the player's own purchase (a "piratelegit"/generated ticket has console id 0).
+- Save: "data:/save" = CRC-32 + script globals named save* (version 27); docs/formats.md#sauvegarde.
 - Online: NEX 3.7 (auth, matchmaking, NAT traversal) + Pia P2P, fully documented in `docs/online.md` and checked
   with the real game: PRUDP v1, RC4 "CD&ML" before the Kerberos session key, aggregate ACKs (MULTI_ACK, substream 1).
   Azahar's frd:u lacks game authentication, hence the `en-ligne` mod. Pretendo's server (Go, AGPL-3.0) is cloned for

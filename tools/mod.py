@@ -36,7 +36,7 @@ mod.toml:
 
   [[code]]                          # code patch, at a virtual address of code.bin
   address = 0x0010C7FC
-  arm = "bx lr"                     # ARM assembly (keystone), or: bytes = "1eff2fe1",
+  arm = "bx lr"                     # ARM assembly (tools/armasm.py), or: bytes = "1eff2fe1",
                                     # ascii = "text" / utf16 = "text" (NUL-terminated), words = ["0x1234"]
   expect = "f0412de9"               # optional: bytes that must be there (guards the version)
   max_size = 116                    # optional: the patch must not be longer (end of the function)
@@ -76,6 +76,7 @@ import tomllib
 import xml.etree.ElementTree as ET
 from pathlib import Path
 
+import armasm
 import azahar
 from amx import AmxPatcher
 from bxml import Bxml, escape_string, from_xml
@@ -186,12 +187,9 @@ def apply_texts(files: dict[str, ET.Element], entry: dict) -> int:
 
 def assemble(source: str, address: int) -> bytes:
     try:
-        import keystone
-    except ImportError as e:
-        raise ModError("ARM assembly needs keystone-engine (pip install keystone-engine)") from e
-    ks = keystone.Ks(keystone.KS_ARCH_ARM, keystone.KS_MODE_ARM)
-    encoding, _ = ks.asm(source, address)
-    return bytes(encoding)
+        return armasm.assemble(source, address)
+    except armasm.AsmError as e:
+        raise ModError(f"ARM code at {address:#x}: {e}") from e
 
 
 def fill(text: str, params: dict[str, str]) -> str:

@@ -9,6 +9,24 @@ Projet de rétro-ingénierie de **Steel Diver: Sub Wars** (Nintendo / Vitei, 3DS
 > **Aucune donnée du jeu n'est versionnée** (ni CIA, ni code, ni assets, ni sortie brute du décompilateur).
 > Chacun fournit son propre dump ; le `.gitignore` bloque `cia/`, `extracted/`, `decomp/raw/` et `ghidra/project/`.
 
+## Pour les joueurs : le lanceur
+
+Il faut [Python 3.11 ou plus récent](https://www.python.org/downloads/) (rien d'autre), l'émulateur
+[Azahar](https://azahar-emu.org/) et **votre** copie du jeu européen, déchiffrée (`.cia`, `.cxi` ou `.3ds`).
+
+1. Téléchargez ce projet (bouton *Code > Download ZIP* sur GitHub) et décompressez-le.
+2. Lancez `subwars.py` : double-clic sous Windows, ou dans un terminal `python3 subwars.py`. Le lanceur s'ouvre
+   dans votre navigateur ; il ne parle qu'à votre ordinateur.
+3. Onglet **Jeu** : il trouve votre jeu (dans le dossier `cia/` du projet ou dans Azahar, sinon choisissez le
+   fichier) et le prépare.
+4. Onglet **Mods** : cochez **Premium** (version complète et les 23 sous-marins), et si vous voulez la
+   **Triche**, vos **Caractéristiques** de sous-marins ou le **Jeu en ligne**, puis *Installer dans Azahar*.
+5. Onglets **Sauvegarde** (tout débloquer, médailles, drapeau premium), **Sous-marins** (caractéristiques) et
+   **Serveur** (héberger des parties en ligne).
+
+Les mêmes outils existent en ligne de commande : `tools/mod.py`, `tools/save.py`, `tools/subs.py`
+([mods/README.md](mods/README.md)). Ils fonctionnent sous Windows, macOS et Linux avec Python seul.
+
 ## État actuel
 
 - Extraction complète du CIA (EUR, `00040000000D7E00`, v0), déjà déchiffré : aucune clé de console n'est nécessaire.
@@ -72,8 +90,9 @@ docs/              notes de rétro-ingénierie
 
 ## Installation
 
-Prérequis : Linux, Python 3.10+, Java 21+, [Ghidra 12](https://github.com/NationalSecurityAgency/ghidra/releases)
-extrait dans un chemin **sans accents** (par ex. `~/tools/`, le chargement de Ghidra échoue sinon).
+Pour jouer, Python 3.11 suffit (voir plus haut). Pour la rétro-ingénierie : Linux, Python 3.11+, Java 21+,
+[Ghidra 12](https://github.com/NationalSecurityAgency/ghidra/releases) extrait dans un chemin **sans accents**
+(par ex. `~/tools/`, le chargement de Ghidra échoue sinon).
 
 ```sh
 ./setup.sh          # venv Python + détection de Ghidra (écrit local.env)

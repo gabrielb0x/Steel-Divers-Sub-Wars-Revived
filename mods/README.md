@@ -1,5 +1,9 @@
 # Mods
 
+> Le plus simple : le lanceur `subwars.py` (à la racine du projet) fait tout ce qui suit avec des boutons, dans
+> le navigateur. Cette page décrit les outils en ligne de commande et le format des recettes. Ils n'ont besoin que
+> de Python 3.11 (pas de venv) : `python3 tools/mod.py …` marche aussi bien que `.venv/bin/python tools/mod.py …`.
+
 Les mods de Steel Diver: Sub Wars pour l'émulateur **Azahar**, sous forme de **recettes** : chaque mod décrit des
 changements, qui sont appliqués aux fichiers du joueur (son propre dump) au moment de la construction. Le dépôt ne
 contient donc jamais de données du jeu, et un mod se partage en partageant sa recette.
@@ -62,7 +66,7 @@ replace = "mode.ready"                    # pas plus longue que l'originale
 
 [[code]]                                  # patch du code, à une adresse de code.bin (exemple de syntaxe)
 address = 0x0021A82C
-bytes = "8988883c"                        # ou : arm = "mov r0, #1" (assembleur keystone),
+bytes = "8988883c"                        # ou : arm = "mov r0, #1" (assembleur tools/armasm.py),
                                           # ascii = "texte", utf16 = "texte", words = ["0x1234"]
 expect = "8988083d"                       # facultatif : octets attendus, protège des autres versions
 max_size = 116                            # facultatif : taille maximale (la fin de la fonction remplacée)

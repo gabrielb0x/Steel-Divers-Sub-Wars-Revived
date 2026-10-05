@@ -1,0 +1,626 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Sub Wars Open Sourced</title>
+<style>
+:root {
+  --bg: #f3f6f9; --panel: #ffffff; --ink: #14212e; --muted: #5b6b7a; --line: #d8e0e8;
+  --accent: #0b6e8a; --accent-ink: #ffffff; --accent-soft: #e2f1f5; --ok: #1d7a46; --warn: #a1620a;
+  --bad: #b3261e; --chip: #eef2f6; --gold: #b8860b; --shadow: 0 1px 2px rgba(20, 33, 46, .08);
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0d1620; --panel: #14202c; --ink: #e3ebf2; --muted: #93a4b4; --line: #26384a;
+    --accent: #3fb3cf; --accent-ink: #062029; --accent-soft: #15303b; --ok: #4cc382; --warn: #e2a33b;
+    --bad: #ff7a70; --chip: #1c2b39; --gold: #e6c04d; --shadow: none;
+  }
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--ink);
+  font: 15px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, Ubuntu, sans-serif; }
+header { background: var(--panel); border-bottom: 1px solid var(--line); padding: 14px 20px 0; }
+header h1 { margin: 0; font-size: 20px; letter-spacing: .2px; }
+header p { margin: 2px 0 10px; color: var(--muted); font-size: 13px; }
+.chips { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 10px; }
+.chip { background: var(--chip); border-radius: 999px; padding: 2px 10px; font-size: 12.5px; color: var(--muted); }
+.chip.ok { color: var(--ok); } .chip.warn { color: var(--warn); }
+nav { display: flex; gap: 2px; flex-wrap: wrap; }
+nav button { border: 0; background: none; color: var(--muted); padding: 9px 14px; font: inherit; cursor: pointer;
+  border-bottom: 3px solid transparent; }
+nav button.active { color: var(--ink); border-bottom-color: var(--accent); font-weight: 600; }
+main { max-width: 1100px; margin: 0 auto; padding: 18px 16px 60px; }
+section.tab { display: none; } section.tab.active { display: block; }
+.card { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 16px 18px;
+  margin-bottom: 14px; box-shadow: var(--shadow); }
+.card h2 { margin: 0 0 6px; font-size: 16px; }
+.card h3 { margin: 14px 0 6px; font-size: 14px; }
+.muted { color: var(--muted); } .small { font-size: 13px; }
+.row { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+.grid2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 14px; }
+button.btn { border: 1px solid var(--line); background: var(--panel); color: var(--ink); border-radius: 7px;
+  padding: 7px 13px; font: inherit; cursor: pointer; }
+button.btn:hover { border-color: var(--accent); }
+button.btn.primary { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); font-weight: 600; }
+button.btn.danger { color: var(--bad); }
+button.btn:disabled { opacity: .5; cursor: default; }
+input[type=text], input[type=number], select { font: inherit; color: var(--ink); background: var(--bg);
+  border: 1px solid var(--line); border-radius: 6px; padding: 5px 8px; }
+input[type=number] { width: 90px; }
+a { color: var(--accent); }
+select { max-width: 100%; }
+code, .mono { font-family: ui-monospace, "Cascadia Mono", Menlo, Consolas, monospace; font-size: 12.5px; }
+code { background: var(--chip); padding: 1px 5px; border-radius: 4px; word-break: break-all; }
+.status { display: flex; gap: 8px; align-items: baseline; }
+.dot { width: 9px; height: 9px; border-radius: 50%; display: inline-block; background: var(--muted); flex: none; }
+.dot.ok { background: var(--ok); } .dot.warn { background: var(--warn); } .dot.bad { background: var(--bad); }
+.mod { border: 1px solid var(--line); border-radius: 9px; padding: 12px 14px; margin-bottom: 10px; }
+.mod.on { border-color: var(--accent); background: var(--accent-soft); }
+.mod label.title { font-weight: 600; display: flex; gap: 9px; align-items: center; cursor: pointer; }
+.mod .params { margin: 8px 0 0 28px; display: grid; gap: 6px; }
+.mod .params label { display: flex; gap: 8px; align-items: center; font-size: 13.5px; }
+.tag { font-size: 11.5px; border-radius: 4px; padding: 0 6px; background: var(--chip); color: var(--muted); }
+.tag.cheat { color: var(--warn); }
+.subs { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 6px; }
+.sub { border: 1px solid var(--line); border-radius: 6px; padding: 4px 8px; font-size: 13px; }
+.sub.on { border-color: var(--ok); } .sub.off { color: var(--muted); }
+table { border-collapse: collapse; width: 100%; }
+th, td { text-align: left; padding: 5px 8px; border-bottom: 1px solid var(--line); font-size: 13.5px; }
+th { color: var(--muted); font-weight: 600; font-size: 12.5px; }
+td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
+tr.pick { cursor: pointer; } tr.pick:hover td { background: var(--accent-soft); }
+tr.sel td { background: var(--accent-soft); }
+.changed { color: var(--accent); font-weight: 700; }
+.medal { font-weight: 700; } .medal.m2 { color: var(--gold); } .medal.m1 { color: var(--ok); } .medal.m0 { color: var(--muted); }
+.fields { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 8px 16px; }
+.field label { display: block; font-size: 13px; color: var(--muted); }
+.field .hint { font-size: 12px; color: var(--muted); }
+.log { background: #0b1117; color: #cfe3ee; border-radius: 8px; padding: 10px 12px; height: 260px; overflow: auto;
+  white-space: pre-wrap; font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 12.5px; }
+.overlay { position: fixed; inset: 0; background: rgba(5, 12, 18, .55); display: none; align-items: center;
+  justify-content: center; padding: 16px; z-index: 10; }
+.overlay.show { display: flex; }
+.dialog { background: var(--panel); border-radius: 12px; width: min(760px, 100%); max-height: 90vh; overflow: auto;
+  padding: 18px; border: 1px solid var(--line); }
+.dialog h2 { margin-top: 0; font-size: 17px; }
+.files { max-height: 50vh; overflow: auto; border: 1px solid var(--line); border-radius: 8px; }
+.files div { padding: 6px 10px; border-bottom: 1px solid var(--line); cursor: pointer; display: flex; gap: 8px; }
+.files div:hover { background: var(--accent-soft); }
+.files .other { color: var(--muted); }
+.toast { position: fixed; right: 16px; bottom: 16px; max-width: 420px; background: var(--panel); border: 1px solid var(--line);
+  border-left: 4px solid var(--accent); border-radius: 8px; padding: 10px 14px; box-shadow: 0 4px 18px rgba(0,0,0,.18);
+  display: none; z-index: 20; }
+.toast.err { border-left-color: var(--bad); } .toast.show { display: block; }
+.spin { display: inline-block; width: 14px; height: 14px; border: 2px solid var(--line); border-top-color: var(--accent);
+  border-radius: 50%; animation: spin .8s linear infinite; vertical-align: -2px; }
+@keyframes spin { to { transform: rotate(360deg); } }
+details summary { cursor: pointer; color: var(--muted); margin: 8px 0; }
+ol.steps { margin: 6px 0 0; padding-left: 20px; } ol.steps li { margin-bottom: 4px; }
+</style>
+</head>
+<body>
+<header>
+  <h1>Steel Diver: Sub Wars — Open Sourced</h1>
+  <p>Le lanceur : votre jeu, ses mods, votre sauvegarde. Tout reste sur cet ordinateur.</p>
+  <div class="chips" id="chips"></div>
+  <nav id="nav">
+    <button data-tab="jeu" class="active">Jeu</button>
+    <button data-tab="mods">Mods</button>
+    <button data-tab="sauvegarde">Sauvegarde</button>
+    <button data-tab="sousmarins">Sous-marins</button>
+    <button data-tab="serveur">Serveur</button>
+    <button data-tab="aide">Aide</button>
+  </nav>
+</header>
+<main>
+
+<section class="tab active" id="tab-jeu">
+  <div class="card">
+    <h2>1. Les fichiers du jeu</h2>
+    <div class="status" id="game-status"></div>
+    <p class="small muted">Il faut <b>votre</b> copie de Steel Diver: Sub Wars, version européenne
+      (<code>00040000000D7E00</code>), déchiffrée : le <code>.cia</code> de l'eShop, un <code>.cxi</code> ou un
+      <code>.3ds</code>. Le lanceur la cherche dans le dossier <code>cia/</code> du projet et dans Azahar. Rien n'est
+      envoyé nulle part.</p>
+    <div class="row">
+      <button class="btn primary" id="btn-extract-auto">Trouver le jeu et le préparer</button>
+      <button class="btn" id="btn-extract-pick">Choisir le fichier…</button>
+    </div>
+  </div>
+  <div class="card">
+    <h2>2. L'émulateur Azahar</h2>
+    <div class="status" id="emu-status"></div>
+    <p class="small muted">Azahar refuse le <code>.cia</code> de l'eShop entier (son manuel est resté chiffré) :
+      le lanceur en fait une copie du jeu seul, à installer (Fichier &gt; Installer un CIA), ou un <code>.cxi</code>
+      à ouvrir directement (Fichier &gt; Charger un fichier). Inutile avec un <code>.cxi</code> ou un <code>.3ds</code>.</p>
+    <div class="row">
+      <button class="btn" id="btn-prepare">Préparer le jeu pour Azahar</button>
+      <button class="btn" id="btn-open-prepared">Ouvrir le dossier</button>
+    </div>
+  </div>
+  <div class="card">
+    <h2>3. Les mods</h2>
+    <p class="small">Premium sans l'eShop, triche, caractéristiques des sous-marins, jeu en ligne :
+      <a href="#" data-goto="mods">onglet Mods</a>. Votre sauvegarde : <a href="#" data-goto="sauvegarde">onglet Sauvegarde</a>.</p>
+  </div>
+</section>
+
+<section class="tab" id="tab-mods">
+  <div class="card">
+    <h2>Mods</h2>
+    <p class="small muted">Cochez les mods voulus puis « Installer » : ils sont construits à partir de votre jeu et
+      copiés dans Azahar (<code>load/mods/00040000000D7E00/</code>). Azahar n'en charge qu'un dossier : tous les mods
+      cochés y vont ensemble. Relancez le jeu ensuite.</p>
+    <div id="installed" class="small"></div>
+  </div>
+  <div id="mod-list"></div>
+  <div class="card row">
+    <button class="btn primary" id="btn-install">Installer dans Azahar</button>
+    <button class="btn" id="btn-build">Construire sans installer</button>
+    <button class="btn danger" id="btn-uninstall">Retirer les mods d'Azahar</button>
+  </div>
+</section>
+
+<section class="tab" id="tab-sauvegarde">
+  <div class="card">
+    <h2>Sauvegarde</h2>
+    <p class="small"><b>Fermez le jeu dans Azahar avant de modifier la sauvegarde</b> : il garde ses valeurs en
+      mémoire et réécrirait l'ancienne. Une copie de sécurité est faite avant chaque modification.</p>
+    <div class="row"><label>Fichier : <select id="save-file"></select></label>
+      <button class="btn" id="btn-save-reload">Relire</button></div>
+  </div>
+  <div id="save-view"></div>
+</section>
+
+<section class="tab" id="tab-sousmarins">
+  <div class="card">
+    <h2>Caractéristiques des sous-marins</h2>
+    <p class="small muted">Vos valeurs vont dans votre fichier (<code id="subs-file"></code>), puis le mod
+      <b>Caractéristiques</b> (onglet Mods) les applique au jeu. Les valeurs que le jeu ne supporte pas sont refusées.
+      Prévu pour jouer hors ligne : en ligne, le serveur le traite comme de la triche.</p>
+    <div class="row"><button class="btn" id="btn-subs-reset-all">Tout remettre comme dans le jeu</button>
+      <button class="btn" data-goto="mods">Aller aux mods</button></div>
+  </div>
+  <div class="card" id="sub-editor"><p class="muted">Choisissez un sous-marin dans la liste.</p></div>
+  <div class="card" style="overflow-x:auto"><table id="subs-table"></table></div>
+</section>
+
+<section class="tab" id="tab-serveur">
+  <div class="card">
+    <h2>Serveur en ligne</h2>
+    <p class="small muted">Pour jouer en ligne entre amis : lancez le serveur sur un ordinateur, et chaque joueur
+      installe le mod <b>Jeu en ligne</b> avec l'adresse de cet ordinateur. Sur le même réseau (Wi-Fi), l'adresse
+      locale suffit ; par Internet, il faut ouvrir les ports UDP sur la box (voir l'aide du serveur).</p>
+    <div class="status" id="srv-status"></div>
+    <div class="row" style="margin-top:8px">
+      <button class="btn primary" id="btn-srv-start">Lancer le serveur</button>
+      <button class="btn" id="btn-srv-stop">Arrêter</button>
+      <button class="btn" id="btn-srv-config">Ouvrir sa configuration</button>
+    </div>
+    <div id="srv-info" class="small" style="margin-top:10px"></div>
+  </div>
+  <div class="card"><h2>Journal</h2><div class="log" id="srv-log"></div></div>
+</section>
+
+<section class="tab" id="tab-aide">
+  <div class="card">
+    <h2>En bref</h2>
+    <ol class="steps">
+      <li><b>Jeu</b> : le lanceur trouve votre copie du jeu et en extrait les fichiers dont les mods ont besoin.</li>
+      <li><b>Azahar</b> : installez le <code>.cia</code> préparé, ou ouvrez le <code>.cxi</code>.</li>
+      <li><b>Mods</b> : cochez <i>Premium</i> (version complète et les 23 sous-marins), et si vous voulez la
+        <i>Triche</i>, vos <i>Caractéristiques</i>, le <i>Jeu en ligne</i>. Installez, relancez le jeu.</li>
+      <li><b>Sauvegarde</b> : tout débloquer, des médailles d'or, retirer le drapeau premium d'une ancienne sauvegarde.</li>
+    </ol>
+    <h3>Questions</h3>
+    <p class="small"><b>Le premium sans l'eShop ?</b> Tout le contenu premium est déjà dans le jeu gratuit ; l'achat
+      n'ajoutait qu'un droit. Le mod le donne, et donne aux cinq sous-marins historiques leur coque à la place de leur
+      proue, qui était dans le contenu payant.</p>
+    <p class="small"><b>Retirer les mods ?</b> Onglet Mods, « Retirer les mods d'Azahar ». Les déblocages restent dans
+      la sauvegarde.</p>
+    <p class="small"><b>Le jeu affiche l'erreur 098-0101 au démarrage ?</b> La sauvegarde a été marquée « premium » :
+      onglet Sauvegarde, « Retirer le drapeau premium », ou installez le mod Premium.</p>
+    <p class="small"><b>En ligne, la triche ?</b> Le serveur sait quels mods vous avez : selon sa configuration, les
+      tricheurs (Triche, Caractéristiques) ne jouent qu'entre eux, avec tout le monde, ou pas du tout. Premium n'est
+      pas de la triche.</p>
+    <p class="small muted">Projet libre (MIT) : <code>README.md</code>, <code>mods/README.md</code>, <code>docs/</code>.
+      Les mêmes outils existent en ligne de commande dans <code>tools/</code>.</p>
+  </div>
+</section>
+</main>
+
+<div class="overlay" id="task-overlay"><div class="dialog">
+  <h2 id="task-title"></h2>
+  <div class="log" id="task-log"></div>
+  <p id="task-end" class="small"></p>
+  <div class="row"><button class="btn primary" id="task-close" disabled>Fermer</button></div>
+</div></div>
+
+<div class="overlay" id="files-overlay"><div class="dialog">
+  <h2>Choisir le fichier du jeu</h2>
+  <div class="row" style="margin-bottom:8px"><input type="text" id="files-path" style="flex:1">
+    <button class="btn" id="files-go">Aller</button></div>
+  <div class="row small" id="files-shortcuts" style="margin-bottom:8px"></div>
+  <div class="files" id="files-list"></div>
+  <p class="small muted">Les fichiers marqués ★ sont Steel Diver: Sub Wars (Europe).</p>
+  <div class="row"><button class="btn" id="files-cancel">Annuler</button></div>
+</div></div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+"use strict";
+const TOKEN = "{{TOKEN}}";
+let state = null, subsData = null, selectedSub = null, saveData = null;
+
+async function api(path, options = {}) {
+  const init = {method: options.method || "GET", headers: {"X-Token": TOKEN}};
+  if (options.body !== undefined) {
+    init.method = "POST";
+    init.headers["Content-Type"] = "application/json";
+    init.body = JSON.stringify(options.body);
+  }
+  const response = await fetch("/api/" + path, init);
+  const data = await response.json().catch(() => ({error: "réponse illisible"}));
+  if (!response.ok) throw new Error(data.error || response.statusText);
+  return data;
+}
+const $ = (sel, root = document) => root.querySelector(sel);
+function el(tag, attrs = {}, ...children) {
+  const node = document.createElement(tag);
+  for (const [k, v] of Object.entries(attrs)) {
+    if (k === "class") node.className = v;
+    else if (k.startsWith("on")) node.addEventListener(k.slice(2), v);
+    else if (v !== false && v !== null && v !== undefined) node.setAttribute(k, v === true ? "" : v);
+  }
+  for (const c of children.flat()) if (c !== null && c !== undefined && c !== false)
+    node.append(c instanceof Node ? c : document.createTextNode(String(c)));
+  return node;
+}
+let toastTimer = null;
+function toast(message, error = false) {
+  const t = $("#toast");
+  t.textContent = message;
+  t.className = "toast show" + (error ? " err" : "");
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => t.className = "toast", error ? 9000 : 4500);
+}
+async function guarded(work) {
+  try { return await work(); } catch (e) { toast(e.message, true); }
+}
+
+// ---- tabs ------------------------------------------------------------------------------------------
+function showTab(name) {
+  document.querySelectorAll("nav button").forEach(b => b.classList.toggle("active", b.dataset.tab === name));
+  document.querySelectorAll("section.tab").forEach(s => s.classList.toggle("active", s.id === "tab-" + name));
+  if (name === "sauvegarde") loadSave();
+  if (name === "sousmarins") loadSubs();
+  if (name === "serveur") loadServer();
+  history.replaceState(null, "", "#" + name);
+}
+document.querySelectorAll("nav button").forEach(b => b.addEventListener("click", () => showTab(b.dataset.tab)));
+document.addEventListener("click", e => {
+  const go = e.target.closest("[data-goto]");
+  if (go) { e.preventDefault(); showTab(go.dataset.goto); }
+});
+
+// ---- state -----------------------------------------------------------------------------------------
+async function refresh() {
+  state = await api("state");
+  const g = state.game, emu = state.emulator;
+  const chips = $("#chips");
+  chips.replaceChildren(
+    el("span", {class: "chip " + (g.ready ? "ok" : "warn")}, g.ready ? "● Jeu prêt" : "● Jeu à préparer"),
+    el("span", {class: "chip " + (emu.dirs.length ? "ok" : "warn")}, emu.dirs.length ? "● Azahar trouvé" : "● Azahar introuvable"),
+    el("span", {class: "chip " + (emu.mods_installed ? "ok" : "")},
+       emu.mods_installed ? "● Mods installés" + (emu.installed ? " : " + emu.installed.mods.join(", ") : "") : "● Aucun mod installé"));
+  $("#game-status").replaceChildren(el("span", {class: "dot " + (g.ready ? "ok" : "warn")}),
+    el("span", {}, g.ready ? `Prêts (${g.product}, depuis ${g.source_name}).`
+      : g.found ? "Pas encore préparés. Jeu trouvé : " : "Pas encore préparés, et le jeu n'a pas été trouvé automatiquement.",
+      g.ready || !g.found ? "" : el("code", {}, g.found)));
+  $("#emu-status").replaceChildren(el("span", {class: "dot " + (emu.dirs.length ? "ok" : "warn")}),
+    el("span", {}, emu.dirs.length ? ["Dossier d'Azahar : ", el("code", {}, emu.dirs[0])]
+      : "Dossier d'Azahar introuvable : lancez Azahar une fois. " + "(Ou définissez la variable AZAHAR_DIR.)"),
+    g.prepared ? el("span", {class: "muted small"}, " — jeu préparé dans build/azahar/") : "");
+  renderMods();
+  if (state.task && !state.task.done) followTask(state.task);
+}
+
+// ---- tasks -----------------------------------------------------------------------------------------
+async function followTask(task) {
+  const overlay = $("#task-overlay");
+  overlay.classList.add("show");
+  $("#task-title").replaceChildren(el("span", {class: "spin"}), " ", task.title);
+  $("#task-end").textContent = "";
+  $("#task-close").disabled = true;
+  while (true) {
+    const t = await api("task/" + task.id).catch(e => ({error: e.message, done: true, lines: []}));
+    const log = $("#task-log");
+    log.textContent = t.lines.join("\n");
+    log.scrollTop = log.scrollHeight;
+    if (t.done) {
+      $("#task-title").textContent = task.title;
+      $("#task-end").replaceChildren(t.error ? el("b", {style: "color:var(--bad)"}, "Échec : " + t.error)
+        : el("b", {style: "color:var(--ok)"}, "Terminé."));
+      $("#task-close").disabled = false;
+      await refresh();
+      return t;
+    }
+    await new Promise(r => setTimeout(r, 400));
+  }
+}
+$("#task-close").addEventListener("click", () => $("#task-overlay").classList.remove("show"));
+async function runTask(path, body) {
+  return guarded(async () => followTask(await api(path, {body: body || {}})));
+}
+
+// ---- game ------------------------------------------------------------------------------------------
+$("#btn-extract-auto").addEventListener("click", () => runTask("game/extract"));
+$("#btn-prepare").addEventListener("click", () => runTask("game/prepare"));
+$("#btn-open-prepared").addEventListener("click", () => guarded(() => api("open", {body: {path: state.game.prepared_dir}})));
+$("#btn-extract-pick").addEventListener("click", () => browse(null));
+$("#files-cancel").addEventListener("click", () => $("#files-overlay").classList.remove("show"));
+$("#files-go").addEventListener("click", () => browse($("#files-path").value));
+$("#files-path").addEventListener("keydown", e => { if (e.key === "Enter") browse(e.target.value); });
+async function browse(dir) {
+  await guarded(async () => {
+    const data = await api("files" + (dir ? "?dir=" + encodeURIComponent(dir) : ""));
+    $("#files-overlay").classList.add("show");
+    $("#files-path").value = data.dir;
+    $("#files-shortcuts").replaceChildren(...data.shortcuts.map(s =>
+      el("button", {class: "btn", onclick: () => browse(s.path)}, s.name)));
+    const list = $("#files-list");
+    list.replaceChildren();
+    if (data.parent) list.append(el("div", {onclick: () => browse(data.parent)}, "⬑ ..", el("span", {class: "muted"}, " dossier parent")));
+    for (const e of data.entries) {
+      if (e.type === "dir") list.append(el("div", {onclick: () => browse(e.path)}, "📁 " + e.name));
+      else list.append(el("div", {class: e.type === "game" ? "" : "other",
+        onclick: () => { $("#files-overlay").classList.remove("show"); runTask("game/extract", {path: e.path}); }},
+        (e.type === "game" ? "★ " : "· ") + e.name, el("span", {class: "muted small"}, ` ${(e.size / 1048576).toFixed(1)} Mo`)));
+    }
+    if (!data.entries.length) list.append(el("div", {class: "other"}, "(aucun dossier ni fichier de jeu ici)"));
+  });
+}
+
+// ---- mods ------------------------------------------------------------------------------------------
+const modChoices = JSON.parse(localStorageGet("mods") || "{}");
+function localStorageGet(k) { try { return localStorage.getItem("sdsw." + k); } catch (e) { return null; } }
+function localStorageSet(k, v) { try { localStorage.setItem("sdsw." + k, v); } catch (e) {} }
+function renderMods() {
+  const list = $("#mod-list");
+  const installed = state.emulator.installed;
+  $("#installed").replaceChildren(state.emulator.mods_installed
+    ? el("span", {}, "Installés : ", el("b", {}, installed ? installed.mods.join(" + ") : "des mods"),
+        installed ? el("span", {class: "muted"}, ` (le ${installed.date})`) : "")
+    : el("span", {class: "muted"}, "Aucun mod installé dans Azahar."));
+  if (list.dataset.built) return;
+  list.dataset.built = "1";
+  for (const m of state.mods) {
+    const choice = modChoices[m.id] || {on: installed ? installed.mods.includes(m.id) : m.id === "premium", params: {}};
+    modChoices[m.id] = choice;
+    const box = el("input", {type: "checkbox", "data-mod": m.id});
+    box.checked = choice.on;
+    const card = el("div", {class: "mod card" + (choice.on ? " on" : ""), id: "mod-" + m.id});
+    box.addEventListener("change", () => { choice.on = box.checked; card.classList.toggle("on", box.checked); saveChoices(); });
+    const tags = [];
+    if (m.flags.includes("triche") || m.flags.includes("specs")) tags.push(el("span", {class: "tag cheat"}, "triche en ligne"));
+    if (m.online) tags.push(el("span", {class: "tag"}, "en ligne"));
+    const params = el("div", {class: "params"});
+    for (const p of m.params) {
+      const value = choice.params[p.key] ?? (installed && installed.params[p.key]) ?? p.default;
+      let input;
+      if (p.kind === "bool") {
+        input = el("input", {type: "checkbox", "data-param": p.key});
+        input.checked = ["oui", "o", "yes", "1", "true", "vrai", "on"].includes(String(value).toLowerCase());
+        input.addEventListener("change", () => { choice.params[p.key] = input.checked ? "oui" : "non"; saveChoices(); });
+        params.append(el("label", {}, input, p.help.replace(/\s*\(oui\/non\)\s*$/, "")));
+      } else {
+        input = el("input", {type: "text", "data-param": p.key, value: value, size: 22});
+        input.addEventListener("input", () => { choice.params[p.key] = input.value; saveChoices(); });
+        params.append(el("label", {}, el("span", {style: "min-width:90px"}, p.key), input, el("span", {class: "muted"}, p.help)));
+      }
+    }
+    card.append(el("label", {class: "title"}, box, m.name, ...tags),
+                el("div", {class: "small muted", style: "margin-left:28px"}, m.description),
+                m.params.length ? params : "");
+    list.append(card);
+  }
+}
+function saveChoices() { localStorageSet("mods", JSON.stringify(modChoices)); }
+function selectedMods() {
+  const names = [], params = {};
+  for (const m of state.mods) {
+    const choice = modChoices[m.id];
+    if (!choice || !choice.on) continue;
+    names.push(m.id);
+    for (const p of m.params) params[p.key] = choice.params[p.key] ?? p.default;
+  }
+  return {names, params};
+}
+$("#btn-install").addEventListener("click", () => { const s = selectedMods(); runTask("mods/build", {mods: s.names, params: s.params, install: true}); });
+$("#btn-build").addEventListener("click", () => { const s = selectedMods(); runTask("mods/build", {mods: s.names, params: s.params, install: false}); });
+$("#btn-uninstall").addEventListener("click", () => guarded(async () => {
+  if (!confirm("Retirer les mods d'Azahar ? Le jeu redevient celui d'origine (la sauvegarde ne change pas).")) return;
+  const r = await api("mods/uninstall", {body: {}});
+  toast(r.removed.length ? "Mods retirés." : "Il n'y avait pas de mod installé.");
+  await refresh();
+}));
+
+// ---- save ------------------------------------------------------------------------------------------
+function shortSave(path) {
+  const parts = path.split(/[\\/]/);
+  const i = parts.indexOf("sdmc");
+  return (i > 0 ? parts[i - 1] + " — " : "") + "…/" + parts.slice(-4).join("/");
+}
+async function loadSave() {
+  const select = $("#save-file");
+  const files = state ? state.emulator.saves : [];
+  const current = select.value;
+  select.replaceChildren(...files.map(f => el("option", {value: f, title: f}, shortSave(f))));
+  if (current && files.includes(current)) select.value = current;
+  const view = $("#save-view");
+  if (!files.length) {
+    view.replaceChildren(el("div", {class: "card"}, el("p", {}, "Aucune sauvegarde du jeu dans Azahar : lancez le jeu une fois, jusqu'à l'écran titre.")));
+    return;
+  }
+  await guarded(async () => renderSave(await api("save?file=" + encodeURIComponent(select.value))));
+}
+$("#save-file").addEventListener("change", loadSave);
+$("#btn-save-reload").addEventListener("click", async () => { await refresh(); loadSave(); });
+function saveAction(path, body, question) {
+  return guarded(async () => {
+    if (question && !confirm(question)) return;
+    const r = await api(path, {body: Object.assign({file: $("#save-file").value}, body)});
+    toast(r.message + " — copie de sécurité faite.");
+    renderSave(r.summary);
+  });
+}
+function renderSave(s) {
+  saveData = s;
+  const medal = m => el("span", {class: "medal m" + Math.min(m.medal, 2)}, ["—", "✓", "★"][Math.min(m.medal, 2)]);
+  const missions = el("table", {},
+    el("tr", {}, el("th", {}, "Zone"), el("th", {}, "Mission 1"), el("th", {}, "Mission 2"), el("th", {}, "Mission 3")),
+    ...s.missions.map((row, i) => el("tr", {}, el("td", {}, String(i + 1)), ...row.map(m =>
+      el("td", {}, medal(m), m.time ? el("span", {class: "muted small"}, ` ${m.time.toFixed(1)} s`) : "")))));
+  const o = s.online;
+  $("#save-view").replaceChildren(
+    el("div", {class: "card"},
+      el("h2", {}, s.player || "Joueur"),
+      el("p", {class: "small"}, `Sous-marin : n° ${s.typenum} ${s.sub_name} · motifs ${s.patterns}/${s.patterns_total} · `
+        + `équipage ${s.crew}/${s.crew_total} · médailles d'or ${s.gold}/21`),
+      s.premium_flag ? el("p", {class: "small", style: "color:var(--warn)"},
+        "Drapeau premium présent : sans la version complète (ou le mod Premium), le jeu affiche l'erreur 098-0101 au démarrage.") : "",
+      el("h3", {}, "Sous-marins débloqués"),
+      el("div", {class: "subs"}, ...s.subs.map(x => el("div", {class: "sub " + (x.unlocked ? "on" : "off")},
+        (x.unlocked ? "✓ " : "· ") + x.n + " " + x.name))),
+      el("p", {class: "small muted"}, "Les n° 2 à 23 demandent la version complète, et les n° 19 à 23 le contenu additionnel : mod Premium."),
+      el("h3", {}, "Missions"), missions,
+      el("h3", {}, "En ligne"),
+      el("p", {class: "small"}, `${o.games} parties, ${o.wins} victoires, ${o.losses} défaites, ${o.ties} nuls, `
+        + `${o.points} points, ${o.kills} coulés, ${o.hits} touches pour ${o.shots} tirs`)),
+    el("div", {class: "card"},
+      el("h2", {}, "Modifier"),
+      el("div", {class: "row"},
+        el("button", {class: "btn primary", onclick: () => saveAction("save/unlock", {what: ["subs", "patterns", "crew", "missions"]},
+          "Débloquer tous les sous-marins, motifs, membres d'équipage et missions ?")}, "Tout débloquer"),
+        el("button", {class: "btn", onclick: () => saveAction("save/unlock", {what: ["subs"]})}, "Sous-marins"),
+        el("button", {class: "btn", onclick: () => saveAction("save/unlock", {what: ["patterns"]})}, "Motifs"),
+        el("button", {class: "btn", onclick: () => saveAction("save/unlock", {what: ["crew"]})}, "Équipage"),
+        el("button", {class: "btn", onclick: () => saveAction("save/unlock", {what: ["gold"]}, "Mettre une médaille d'or à chaque mission ?")}, "Médailles d'or"),
+        el("button", {class: "btn", onclick: () => saveAction("save/premium-off", {})}, "Retirer le drapeau premium")),
+      el("details", {},
+        el("summary", {}, "Avancé : une valeur, export et import"),
+        el("div", {class: "row"},
+          el("input", {type: "text", id: "set-name", placeholder: "save.sub.typenum", size: 30}),
+          el("input", {type: "text", id: "set-value", placeholder: "valeur (1,0,1 pour un tableau)", size: 26}),
+          el("button", {class: "btn", onclick: () => saveAction("save/set", {name: $("#set-name").value, value: $("#set-value").value})}, "Écrire")),
+        el("div", {class: "row", style: "margin-top:8px"},
+          el("button", {class: "btn", onclick: exportSave}, "Exporter en JSON"),
+          el("label", {class: "btn"}, "Importer un JSON…", el("input", {type: "file", accept: ".json", style: "display:none", onchange: importSave}))),
+        el("p", {class: "small muted"}, `${s.values} valeurs. Fichier : `, el("code", {}, s.file)))));
+}
+async function exportSave() {
+  await guarded(async () => {
+    const data = await api("save/export?file=" + encodeURIComponent($("#save-file").value));
+    const blob = new Blob([JSON.stringify(data, null, 1)], {type: "application/json"});
+    const a = el("a", {href: URL.createObjectURL(blob), download: "sauvegarde-subwars.json"});
+    document.body.append(a); a.click(); a.remove();
+  });
+}
+async function importSave(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+  const data = JSON.parse(await file.text());
+  await saveAction("save/import", {data}, "Remplacer la sauvegarde par ce fichier ?");
+}
+
+// ---- submarines ------------------------------------------------------------------------------------
+async function loadSubs() {
+  await guarded(async () => { subsData = await api("subs"); renderSubs(); });
+}
+function fmt(v) { return Number.isInteger(v) ? String(v) : String(Math.round(v * 1000) / 1000); }
+function renderSubs() {
+  $("#subs-file").textContent = subsData.file;
+  const main = subsData.fields.filter(f => !f.advanced);
+  const table = $("#subs-table");
+  table.replaceChildren(el("tr", {}, el("th", {}, "n°"), el("th", {}, "Sous-marin"),
+    ...main.map(f => el("th", {class: "num", title: f.help}, f.short))));
+  for (const s of subsData.subs) {
+    const row = el("tr", {class: "pick" + (selectedSub === s.n ? " sel" : ""),
+      onclick: () => { selectedSub = s.n; renderSubs(); $("#sub-editor").scrollIntoView({behavior: "smooth", block: "nearest"}); }},
+      el("td", {}, String(s.n)), el("td", {style: "white-space:nowrap"}, s.name),
+      ...main.map(f => el("td", {class: "num" + (s.mine[f.key] !== s.game[f.key] ? " changed" : "")},
+        s.mine[f.key] === undefined ? "—" : fmt(s.mine[f.key]))));
+    table.append(row);
+  }
+  renderSubEditor();
+}
+function renderSubEditor() {
+  const box = $("#sub-editor");
+  const s = subsData.subs.find(x => x.n === selectedSub);
+  if (!s) { box.replaceChildren(el("p", {class: "muted"}, "Choisissez un sous-marin dans la liste.")); return; }
+  const inputs = {};
+  const field = f => {
+    if (s.game[f.key] === undefined) return "";
+    const input = el("input", {type: "number", min: f.low, max: f.high, step: f.kind === "int" ? 1 : "any", value: s.mine[f.key]});
+    inputs[f.key] = input;
+    return el("div", {class: "field"}, el("label", {}, f.key + (s.mine[f.key] !== s.game[f.key] ? " ●" : "")), input,
+      el("div", {class: "hint"}, `${f.help} — jeu : ${fmt(s.game[f.key])}`));
+  };
+  box.replaceChildren(el("h2", {}, `n° ${s.n} ${s.name}`),
+    el("div", {class: "fields"}, ...subsData.fields.filter(f => !f.advanced).map(field)),
+    el("details", {}, el("summary", {}, "Réglages fins de la physique"),
+      el("div", {class: "fields"}, ...subsData.fields.filter(f => f.advanced).map(field))),
+    el("div", {class: "row", style: "margin-top:12px"},
+      el("button", {class: "btn primary", onclick: () => guarded(async () => {
+        const values = {};
+        for (const [k, input] of Object.entries(inputs)) values[k] = Number(input.value);
+        subsData = await api("subs/set", {body: {n: s.n, values}});
+        toast(`${s.name} enregistré. Installez le mod « Caractéristiques » pour l'appliquer.`);
+        renderSubs();
+      })}, "Enregistrer"),
+      el("button", {class: "btn", onclick: () => guarded(async () => {
+        subsData = await api("subs/reset", {body: {n: s.n}}); renderSubs(); })}, "Valeurs du jeu")));
+}
+$("#btn-subs-reset-all").addEventListener("click", () => guarded(async () => {
+  if (!confirm("Remettre les valeurs du jeu pour les 23 sous-marins ?")) return;
+  subsData = await api("subs/reset", {body: {}}); renderSubs();
+}));
+
+// ---- server ----------------------------------------------------------------------------------------
+let serverTimer = null;
+async function loadServer() {
+  clearTimeout(serverTimer);
+  await guarded(async () => {
+    const s = await api("server");
+    $("#srv-status").replaceChildren(el("span", {class: "dot " + (s.running ? "ok" : "")}),
+      el("span", {}, s.running ? "Le serveur tourne." : "Le serveur est arrêté."));
+    const realm = s.realms.find(r => r.name === "emulateur") || s.realms[0];
+    $("#srv-info").replaceChildren(
+      el("div", {}, "Adresse à donner aux amis sur votre réseau : ",
+        ...(s.addresses.length ? s.addresses.map(a => el("code", {}, a)) : [el("span", {class: "muted"}, "inconnue")]),
+        realm ? el("span", {}, ` (port ${realm.auth_port}, royaume « ${realm.name} »)`) : ""),
+      realm ? el("div", {class: "muted"}, `Joueurs humains par partie : ${realm.max_players} (des bots complètent les équipes) · tricheurs : `
+        + ({separes: "ils ne jouent qu'entre eux", autorises: "acceptés avec tout le monde", refuses: "refusés"}[realm.cheats] || realm.cheats)) : "",
+      el("div", {class: "muted"}, "Configuration : ", el("code", {}, s.config)));
+    const log = $("#srv-log");
+    log.textContent = s.lines.join("\n");
+    log.scrollTop = log.scrollHeight;
+    if (document.querySelector("#tab-serveur.active")) serverTimer = setTimeout(loadServer, 2000);
+  });
+}
+$("#btn-srv-start").addEventListener("click", () => guarded(async () => { await api("server/start", {body: {}}); loadServer(); }));
+$("#btn-srv-stop").addEventListener("click", () => guarded(async () => { await api("server/stop", {body: {}}); loadServer(); }));
+$("#btn-srv-config").addEventListener("click", () => guarded(async () => {
+  const s = await api("server"); await api("open", {body: {path: s.config.replace(/[\\/][^\\/]*$/, "")}}); }));
+
+// ---- start -----------------------------------------------------------------------------------------
+guarded(async () => {
+  await refresh();
+  const tab = location.hash.slice(1);
+  if (tab && document.getElementById("tab-" + tab)) showTab(tab);
+});
+</script>
+</body>
+</html>
