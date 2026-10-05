@@ -42,10 +42,13 @@ Chaque royaume a deux options de partie dans `serveur.toml` :
   `max_players = 2` fait toujours du un contre un, avec 3 bots de chaque côté. Le serveur ne peut pas jouer
   lui-même un bot (la bataille se joue entre les consoles), et le jeu exige au moins un joueur dans chaque
   équipe pour lancer le compte à rebours : il faut être au moins deux.
-* **`cheats`** : que faire des joueurs dont le mod contient [la triche](../mods/triche/mod.toml) (leur jeton
-  le déclare) : `"separes"` (par défaut : ils ne rencontrent que d'autres tricheurs), `"autorises"` (ils jouent
-  avec tout le monde) ou `"refuses"` (connexion refusée). La triche elle-même est dans le jeu, pas dans le
-  serveur ; un jeu modifié autrement peut toujours mentir, comme dans tout jeu en P2P.
+* **`cheats`** : que faire des joueurs dont le mod contient [la triche](../mods/triche/mod.toml) ou des
+  [caractéristiques de sous-marins modifiées](../mods/specs/mod.toml) (leur jeton le déclare : drapeaux
+  `triche` et `specs`) : `"separes"` (par défaut : ils ne rencontrent que d'autres tricheurs), `"autorises"`
+  (ils jouent avec tout le monde) ou `"refuses"` (connexion refusée). Le mod [`premium`](../mods/premium/mod.toml)
+  (drapeau `premium`) n'est pas de la triche : il donne ce que les joueurs premium avaient. La triche elle-même
+  est dans le jeu, pas dans le serveur ; un jeu modifié autrement peut toujours mentir, comme dans tout jeu
+  en P2P. Pour un serveur où tout le monde triche, mettre `cheats = "autorises"`.
 
 ## Héberger un serveur public
 

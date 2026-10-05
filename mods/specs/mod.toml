@@ -1,0 +1,24 @@
+# Mod « specs » : vos propres caractéristiques de sous-marins.
+#
+#   tools/subs.py export                              # crée votre fichier, avec les valeurs du jeu
+#   tools/subs.py set "Type VII" torpedoMax=10 maxTurn=9   # ou modifiez-le avec un éditeur de texte
+#   tools/mod.py build specs --install                # puis le mod (ou : build premium specs …)
+#
+# Le fichier (sous-marins.toml dans le dossier de réglages, « tools/subs.py --help ») donne, pour chacun des
+# 23 sous-marins, les valeurs de bxml/pscope_plyNN_stats.bxml : notes de virage, de vitesse, de résistance et
+# de plongée (1 à 10), torpilles, rechargement, cadence de tir, équipage, masqueur… Seules les valeurs
+# différentes de celles du jeu sont écrites. Les valeurs hors des limites que le jeu supporte sont refusées.
+#
+# Prévu pour jouer hors ligne. En ligne, le jeton du mod le dit au serveur (drapeau « specs ») : il est traité
+# comme le mod triche (server/serveur.toml, option cheats : séparé des autres joueurs par défaut).
+
+name = "Caractéristiques"
+description = "Vos propres caractéristiques de sous-marins (tools/subs.py) ; en ligne, comptées comme triche"
+token_flags = ["specs"]
+
+[params.fichier]
+help = "votre fichier de caractéristiques (« auto » : sous-marins.toml du dossier de réglages)"
+default = "auto"
+
+[[subs]]
+file = "${fichier}"

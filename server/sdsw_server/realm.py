@@ -39,8 +39,16 @@ ACCESS_KEY = "fb9537fe"             # gameServerLogin -> NgsFacade::Login(..., 0
 SECURE_PID = 2                       # principal id of the secure server in its station URL
 TICKET_LIFETIME = 3600
 
-CHEAT_FLAG = "triche"                # token flag of builds with the cheat mod (mods/triche)
+# Token flags of the builds that change the game in a player's favour: the cheat mod (mods/triche) and
+# hand-made submarine characteristics (mods/specs). Other flags ("premium": the full version that the
+# eShop used to sell) are only logged.
+CHEAT_FLAGS = frozenset({"triche", "specs"})
+CHEAT_POOL = "triche"                # matchmaking pool of the cheaters, with cheats = "separes"
 CHEAT_POLICIES = ("autorises", "separes", "refuses")
+
+
+def is_cheater(flags) -> bool:
+    return not CHEAT_FLAGS.isdisjoint(flags)
 
 # Protocol ids
 NAT_TRAVERSAL, TICKET_GRANTING, SECURE_CONNECTION, NOTIFICATION = 3, 10, 11, 14
@@ -95,9 +103,9 @@ class Realm:
         self.accounts.db.close()
 
     def pool(self, pid: int) -> str:
-        """Matchmaking pool: with cheats "separes", players with the cheat mod only meet each other."""
-        if self.config.cheats == "separes" and CHEAT_FLAG in self.flags.get(pid, ()):
-            return CHEAT_FLAG
+        """Matchmaking pool: with cheats "separes", players whose build cheats only meet each other."""
+        if self.config.cheats == "separes" and is_cheater(self.flags.get(pid, ())):
+            return CHEAT_POOL
         return ""
 
     # -- tickets -------------------------------------------------------------------------------
@@ -181,8 +189,9 @@ class AuthServer(PRUDPServer):
         except AccountError as e:
             self.log.warning("%s: login refused for %s: %s", conn, username, e)
             raise RMCError(rmc.RV_INVALID_PASSWORD, str(e))
-        if CHEAT_FLAG in flags and self.realm.config.cheats == "refuses":
-            self.log.warning("%s: pid %d refused, its build has the cheat mod", conn, pid)
+        if is_cheater(flags) and self.realm.config.cheats == "refuses":
+            self.log.warning("%s: pid %d refused, its build cheats (%s)", conn, pid,
+                             ", ".join(sorted(flags & CHEAT_FLAGS)))
             raise RMCError(rmc.RV_ACCOUNT_DISABLED, "cheats refused")
         conn.pid = pid
         conn.data["user_key"] = key

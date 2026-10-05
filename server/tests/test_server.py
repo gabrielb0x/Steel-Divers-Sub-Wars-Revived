@@ -143,6 +143,16 @@ class Options(unittest.TestCase):
         self.assertNotEqual(fair, cheater)
         self.assertEqual(cheater, other)
 
+    def test_changed_characteristics_count_as_cheating(self):
+        async def test(realm, port):
+            fair = await matchmade(port, 0x10000001, "premium")
+            specs = await matchmade(port, 0x10000002, "specs")
+            cheater = await matchmade(port, 0x10000003, "premium,triche")
+            return fair.id, specs.id, cheater.id
+        fair, specs, cheater = run_realm(test, cheats="separes")
+        self.assertNotEqual(fair, specs)
+        self.assertEqual(specs, cheater)
+
     def test_cheaters_allowed(self):
         async def test(realm, port):
             return (await matchmade(port, 0x10000001)).id, (await matchmade(port, 0x10000002, "triche")).id

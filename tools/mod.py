@@ -24,6 +24,9 @@ mod.toml:
   rename = { old = "new" }          # optional: renames attributes, keeping their place (applied before set)
   remove = true                     # optional: removes the selected nodes instead
 
+  [[subs]]                          # the characteristics of the submarines from a player's file
+  file = "${fichier}"               # (tools/subs.py; "auto": sous-marins.toml of the settings folder)
+
   [[amx]]                           # a Pawn script (amx/*.amx), addresses of decomp/scripts/asm/*.asm
   file = "amx/periscope_move.amx"
   at = 0x5D4C                       # a string literal of the data segment (or every one: no "at")
@@ -328,6 +331,16 @@ def build(names: list[str], out_root: Path, overrides: dict[str, str] | None = N
                     edit_bxml(files, file, entry.get("select", "."),
                               {k: fill(str(v), params) for k, v in entry.get("set", {}).items()},
                               entry.get("rename"), entry.get("remove", False))
+        for entry in mod.get("subs", []):
+            if enabled(entry, params):
+                import subs
+                try:
+                    edits = subs.changes(fill(entry["file"], params))
+                except subs.SubsError as e:
+                    raise ModError(str(e)) from e
+                for file, values in edits.items():
+                    edit_bxml(files, file, ".", values)
+                print(f"[+] caractéristiques de {len(edits)} sous-marin(s) modifiées")
         for entry in mod.get("amx", []):
             if enabled(entry, params):
                 edit_amx(scripts, entry)

@@ -11,7 +11,8 @@ nat_check = true                # détection du NAT de Pia : UDP 10025 et 10125 
 #   max_players  joueurs humains par partie, de 2 à 8. Le jeu complète toujours chaque équipe à 4 sous-marins
 #                avec des bots (sous-marins pilotés par la console hôte) : moins d'humains, plus de bots.
 #                2 = toujours un contre un, plus 3 bots de chaque côté.
-#   cheats       joueurs dont le mod contient la triche (mods/triche) :
+#   cheats       joueurs dont le mod triche : mods/triche, ou caractéristiques de sous-marins modifiées
+#                (mods/specs) ; le mod premium n'en fait pas partie.
 #                "autorises" (ils jouent avec tout le monde), "separes" (seulement entre eux) ou "refuses".
 
 [[realm]]

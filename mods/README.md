@@ -95,6 +95,7 @@ dans [../docs/formats.md](../docs/formats.md). Les modifications de scripts Pawn
 |---|---|
 | `premium` | version complète, les 23 sous-marins, motifs et équipage débloqués, sans l'eShop ([détails](../docs/premium.md)) |
 | `en-ligne` | jeu en ligne sur un serveur [Sub Wars Open Sourced](../server/README.md) |
+| `specs` | vos propres caractéristiques de sous-marins (`tools/subs.py`) ; en ligne, comptées comme triche |
 | `triche` | invincible, torpilles et air infinis, rechargement rapide, masqueur gratuit, moteur gonflé |
 | `texte-titre` | exemple : « Version gratuite » devient « Version moddée » sur l'écran titre |
 
@@ -113,6 +114,22 @@ pilote voit leur coque à la place (les autres joueurs ne voyaient de toute faç
 historiques). Le bouton Boutique recharge le menu. Retirer le mod ne bloque pas la sauvegarde ; une sauvegarde
 marquée « premium » par une autre version se répare avec `tools/save.py premium-off`. Fonctionnement :
 [../docs/premium.md](../docs/premium.md). En ligne, ce mod ne compte pas comme de la triche.
+
+## Changer les caractéristiques des sous-marins
+
+```sh
+.venv/bin/python tools/subs.py show                         # les 23 sous-marins et leurs caractéristiques
+.venv/bin/python tools/subs.py export                       # votre fichier, avec les valeurs du jeu
+.venv/bin/python tools/subs.py set "Type VII" torpedoMax=10 maxTurn=9    # ou éditez le fichier à la main
+.venv/bin/python tools/mod.py build premium specs --install
+```
+
+Le fichier (`sous-marins.toml`, dans `~/.config/sub-wars-open-sourced/` ; `%APPDATA%\sub-wars-open-sourced\`
+sous Windows) liste chaque sous-marin avec ses valeurs commentées : notes de virage, de vitesse en surface et en
+plongée, de résistance et de plongée (1 à 10, que le jeu traduit par ses tables `bxml/table_*`), torpilles,
+rechargement, cadence de tir, modèle de torpille, places d'équipage, air du masqueur, et quelques réglages fins de
+la physique. `tools/subs.py check` dit ce qui diffère du jeu ; les valeurs que le jeu ne supporte pas sont
+refusées. Prévu pour le jeu hors ligne : en ligne, le serveur le traite comme la triche.
 
 ## Tricher
 
