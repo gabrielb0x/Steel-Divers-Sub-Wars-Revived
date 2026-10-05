@@ -12,6 +12,7 @@ import struct
 from dataclasses import dataclass, field
 
 PAGE_SIZE = 0x1000
+GAME_TITLE_ID = 0x00040000000D7E00     # Steel Diver: Sub Wars, Europe (the version this project targets)
 
 # Size of signature + padding for each signature type (Ticket/TMD/certificates).
 _SIG_SIZES = {
@@ -192,3 +193,22 @@ class ExHeader:
     @property
     def bss_address(self) -> int:
         return self.data.address + self.data.size
+
+
+def title_id_of(path) -> int | None:
+    """Title id of a CIA (from its TMD), or None if the file is not a readable CIA."""
+    try:
+        with open(path, "rb") as f:
+            return CIA.parse(f).title_id
+    except (OSError, struct.error, KeyError, ValueError):
+        return None
+
+
+def find_game_cia(folder, title_id: int = GAME_TITLE_ID):
+    """The CIA of the game in a folder, chosen by title id: the folder may also hold the add-on content
+    (0004008C...), an update or other regions, in any alphabetical order."""
+    from pathlib import Path
+    for path in sorted(Path(folder).glob("*.cia")):
+        if title_id_of(path) == title_id:
+            return path
+    return None

@@ -21,6 +21,8 @@ mod.toml:
   file = "worlds/scope00_online_stage01.bxml"     # or files = "bxml/pscope_ply??_stats.bxml" (glob)
   select = "actor[@name='mode_settings']"   # ElementTree path from the root element
   set = { timeLimit = "2400.0" }    # values written as in the XML (2400.0 is a f32, 60 a s32)
+  rename = { old = "new" }          # optional: renames attributes, keeping their place (applied before set)
+  remove = true                     # optional: removes the selected nodes instead
 
   [[amx]]                           # a Pawn script (amx/*.amx), addresses of decomp/scripts/asm/*.asm
   file = "amx/periscope_move.amx"
@@ -46,7 +48,8 @@ mod.toml:
                                     # gives ${pid}, ${password} and ${token}
   token_flags = ["triche"]          # optional, top level: told to the online server in the token
 
-Any entry may have if = "${param}": it is applied only when the parameter is yes (oui, 1, true...).
+Any entry may have if = "${param}": it is applied only when the parameter is yes (oui, 1, true...),
+or unless = "${param}": only when it is no.
 
 Usage:  tools/mod.py build <name> [<name>...] [--set key=value ...] [--install] [--cxi]
         tools/mod.py list
@@ -73,6 +76,7 @@ from pathlib import Path
 import azahar
 from amx import AmxPatcher
 from bxml import Bxml, escape_string, from_xml
+from ctr import find_game_cia
 
 ROOT = Path(__file__).resolve().parent.parent
 MODS = ROOT / "mods"
@@ -87,7 +91,8 @@ class ModError(Exception):
 
 # ---- data -----------------------------------------------------------------------------------
 
-def edit_bxml(files: dict[str, ET.Element], file: str, select: str, values: dict[str, str]) -> int:
+def edit_bxml(files: dict[str, ET.Element], file: str, select: str, values: dict[str, str],
+              rename: dict[str, str] | None = None, remove: bool = False) -> int:
     if file not in files:
         path = ROMFS / file
         if not path.exists():
@@ -97,7 +102,22 @@ def edit_bxml(files: dict[str, ET.Element], file: str, select: str, values: dict
     nodes = [root] if select in (".", "") else root.findall(select)
     if not nodes:
         raise ModError(f"{file}: nothing matches {select!r}")
+    if remove:
+        parents = {child: parent for parent in root.iter() for child in parent}
+        for node in nodes:
+            if node is root:
+                raise ModError(f"{file}: cannot remove the root node")
+            parents[node].remove(node)
+        return len(nodes)
     for node in nodes:
+        if rename:
+            missing = set(rename) - set(node.attrib)
+            if missing:
+                raise ModError(f"{file}: {select!r} has no attribute {', '.join(sorted(missing))}")
+            # The game applies the attributes in order (Actor::readProperties): keep their place.
+            items = [(rename.get(k, k), v) for k, v in node.attrib.items()]
+            node.attrib.clear()
+            node.attrib.update(items)
         for name, value in values.items():
             node.set(name, str(value))
     return len(nodes)
@@ -108,12 +128,14 @@ NO = {"0", "non", "n", "no", "false", "faux", "off"}
 
 
 def enabled(entry: dict, params: dict[str, str]) -> bool:
-    if "if" not in entry:
-        return True
-    value = fill(entry["if"], params).strip().lower()
-    if value not in YES | NO:
-        raise ModError(f"{entry['if']} = {value!r}: expected oui/non")
-    return value in YES
+    for key, wanted in (("if", True), ("unless", False)):
+        if key in entry:
+            value = fill(entry[key], params).strip().lower()
+            if value not in YES | NO:
+                raise ModError(f"{entry[key]} = {value!r}: expected oui/non")
+            if (value in YES) != wanted:
+                return False
+    return True
 
 
 def bxml_files(entry: dict) -> list[str]:
@@ -223,7 +245,7 @@ def ips(patches: dict[int, bytes]) -> bytes:
 
 # ---- parameters and identity ----------------------------------------------------------------
 
-IDENTITY_FILE = Path(os.environ.get("XDG_CONFIG_HOME", Path.home() / ".config")) / "sub-wars-open-sourced" / "identites.json"
+IDENTITY_FILE = azahar.config_dir() / "identites.json"
 
 
 def user_key(pid: int, password: str) -> str:
@@ -304,7 +326,8 @@ def build(names: list[str], out_root: Path, overrides: dict[str, str] | None = N
             if enabled(entry, params):
                 for file in bxml_files(entry):
                     edit_bxml(files, file, entry.get("select", "."),
-                              {k: fill(str(v), params) for k, v in entry.get("set", {}).items()})
+                              {k: fill(str(v), params) for k, v in entry.get("set", {}).items()},
+                              entry.get("rename"), entry.get("remove", False))
         for entry in mod.get("amx", []):
             if enabled(entry, params):
                 edit_amx(scripts, entry)
@@ -339,9 +362,9 @@ def write_cxi(name: str, built: Path, params: dict[str, str]) -> Path:
         raise ModError("this mod has no code patch: nothing to put in a CXI")
     if (built / azahar.TITLE_ID / "romfs").exists():
         print("[!] the CXI only holds the code patch; the RomFS changes need the mod folder (--install)")
-    cia = next(iter(sorted((ROOT / "cia").glob("*.cia"))), None)
+    cia = find_game_cia(ROOT / "cia")
     if cia is None:
-        raise ModError("no .cia in cia/")
+        raise ModError(f"no CIA of the game ({azahar.TITLE_ID}) in cia/")
     code = bytearray(CODE_BIN.read_bytes())
     azahar.apply_ips(code, patch.read_bytes())
     label = name + (f"_{params['server']}" if "server" in params else "")

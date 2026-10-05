@@ -50,6 +50,8 @@ languages = ["EU_French"]                 # facultatif
 file = "worlds/scope00_online_stage01.bxml"
 select = "actor[@name='mode_settings']"   # chemin ElementTree depuis la racine
 set = { timeLimit = "2400.0" }            # valeurs écrites comme dans le XML : 2400.0 est un f32, 60 un s32
+# rename = { ancien = "nouveau" }         # renomme des attributs sans changer leur place (avant set)
+# remove = true                           # ou : supprime les nœuds choisis
 
 [[amx]]                                   # un script Pawn ; adresses de decomp/scripts/asm/<script>.asm
 file = "amx/periscope_move.amx"
@@ -77,7 +79,8 @@ Une identité est créée une fois par serveur et gardée dans `~/.config/sub-wa
 reconstruire le mod garde le même compte.
 
 Autres possibilités : `files = "bxml/pscope_ply??_stats.bxml"` (motif) au lieu de `file` dans `[[bxml]]` ;
-`if = "${option}"` sur n'importe quelle entrée (appliquée seulement si l'option vaut `oui`) ;
+`if = "${option}"` sur n'importe quelle entrée (appliquée seulement si l'option vaut `oui`), ou
+`unless = "${option}"` (seulement si elle vaut `non`) ;
 `token_flags = ["triche"]` en tête de recette (annoncé au serveur en ligne dans le jeton).
 
 **Plusieurs mods ensemble** : `tools/mod.py build en-ligne triche …` les construit dans un seul dossier
@@ -90,9 +93,26 @@ dans [../docs/formats.md](../docs/formats.md). Les modifications de scripts Pawn
 
 | Mod | Effet |
 |---|---|
+| `premium` | version complète, les 23 sous-marins, motifs et équipage débloqués, sans l'eShop ([détails](../docs/premium.md)) |
 | `en-ligne` | jeu en ligne sur un serveur [Sub Wars Open Sourced](../server/README.md) |
 | `triche` | invincible, torpilles et air infinis, rechargement rapide, masqueur gratuit, moteur gonflé |
 | `texte-titre` | exemple : « Version gratuite » devient « Version moddée » sur l'écran titre |
+
+## Premium
+
+```sh
+.venv/bin/python tools/mod.py build premium --install                                     # hors ligne
+.venv/bin/python tools/mod.py build en-ligne premium --set server=192.0.2.10 --install      # en ligne
+```
+
+La version complète (« premium ») et les cinq sous-marins historiques se vendaient sur l'eShop, fermé depuis
+2023. Tout leur contenu est dans le jeu de base, sauf la proue des sous-marins historiques : sans le DLC, leur
+pilote voit leur coque à la place (les autres joueurs ne voyaient de toute façon que la coque). Options :
+`debloquer` (`oui` : tous les sous-marins, motifs et membres d'équipage sont débloqués dans la sauvegarde) et
+`dlc` (`oui` seulement si votre propre DLC est installé dans Azahar : vrais modèles des sous-marins
+historiques). Le bouton Boutique recharge le menu. Retirer le mod ne bloque pas la sauvegarde ; une sauvegarde
+marquée « premium » par une autre version se répare avec `tools/save.py premium-off`. Fonctionnement :
+[../docs/premium.md](../docs/premium.md). En ligne, ce mod ne compte pas comme de la triche.
 
 ## Tricher
 

@@ -26,7 +26,7 @@ import struct
 import sys
 from pathlib import Path
 
-from ctr import CIA, _SIG_SIZES
+from ctr import CIA, _SIG_SIZES, find_game_cia
 
 ROOT = Path(__file__).resolve().parent.parent
 TITLE_ID = "00040000000D7E00"   # Steel Diver: Sub Wars, Europe
@@ -34,16 +34,43 @@ TMD_HEADER, INFO_RECORDS, CHUNK = 0xC4, 64 * 0x24, 0x30
 
 
 def azahar_dirs() -> list[Path]:
-    """User folders of Azahar: AZAHAR_DIR, the Flatpak one, the native one."""
+    """User folders of the emulator: AZAHAR_DIR, then Azahar (Flatpak, Linux, Windows, macOS), then its
+    predecessors Lime3DS and Citra, which use the same layout (load/mods/, sdmc/)."""
     candidates = []
     if os.environ.get("AZAHAR_DIR"):
         candidates.append(Path(os.environ["AZAHAR_DIR"]))
     home = Path.home()
-    candidates += [home / ".var/app/org.azahar_emu.Azahar/data/azahar-emu",
-                   home / ".local/share/azahar-emu"]
-    if os.environ.get("APPDATA"):
-        candidates.append(Path(os.environ["APPDATA"]) / "Azahar")
-    return [c for c in candidates if c.is_dir()]
+    data = Path(os.environ.get("XDG_DATA_HOME") or home / ".local/share")
+    appdata = Path(os.environ["APPDATA"]) if os.environ.get("APPDATA") else None
+    mac = home / "Library/Application Support"
+    for flatpak, folder, windows in (("org.azahar_emu.Azahar", "azahar-emu", "Azahar"),
+                                     ("io.github.lime3ds.Lime3DS", "lime3ds-emu", "Lime3DS"),
+                                     ("org.citra_emu.citra", "citra-emu", "Citra")):
+        candidates += [home / ".var/app" / flatpak / "data" / folder, data / folder, mac / windows]
+        if appdata:
+            candidates.append(appdata / windows)
+    found = []
+    for c in candidates:
+        if c.is_dir() and c not in found:
+            found.append(c)
+    return found
+
+
+def config_dir() -> Path:
+    """Folder of this project's settings on the player's computer (identities, save backups)."""
+    if os.name == "nt" and os.environ.get("APPDATA"):
+        return Path(os.environ["APPDATA"]) / "sub-wars-open-sourced"
+    return Path(os.environ.get("XDG_CONFIG_HOME") or Path.home() / ".config") / "sub-wars-open-sourced"
+
+
+def save_files(bases: list[Path] | None = None) -> list[Path]:
+    """The game's save files ("save" of its save data archive) in the emulators' virtual SD cards:
+    sdmc/Nintendo 3DS/<id0>/<id1>/title/00040000/000d7e00/data/00000001/save."""
+    high, low = TITLE_ID[:8].lower(), TITLE_ID[8:].lower()
+    found = []
+    for base in bases if bases is not None else azahar_dirs():
+        found += sorted((base / "sdmc" / "Nintendo 3DS").glob(f"*/*/title/{high}/{low}/data/*/save"))
+    return found
 
 
 def mods_dir(base: Path | None) -> Path:
@@ -238,9 +265,9 @@ def main() -> None:
     args = ap.parse_args()
 
     if args.command == "prepare":
-        src = args.cia or next(iter(sorted((ROOT / "cia").glob("*.cia"))), None)
+        src = args.cia or find_game_cia(ROOT / "cia")
         if src is None:
-            sys.exit("No .cia found in cia/.")
+            sys.exit(f"No CIA of the game ({TITLE_ID}) in cia/.")
         for old in ("SteelDiverSubWars.cia", "SteelDiverSubWars.cxi"):      # names before 2026-10
             (args.out / old).unlink(missing_ok=True)
         game_only_cia(src, args.out / "SteelDiverSubWars_original.cia")

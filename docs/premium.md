@@ -1,0 +1,104 @@
+# Version gratuite, premium et contenus additionnels
+
+Sub Wars était un jeu gratuit. La **version complète** (« premium », *enlist* dans le code : s'engager) et cinq
+sous-marins historiques se vendaient sur l'eShop sous forme de **contenus additionnels** (DLC). L'eShop ne vend plus
+rien depuis 2023 : le mod [`premium`](../mods/premium/mod.toml) débloque tout sans lui. Cette page explique comment
+le jeu décide de ce qui est acheté, et ce que le mod change.
+
+## Ce qu'il y a dans le jeu de base
+
+Tout le contenu premium est déjà dans le RomFS du jeu gratuit : les 7 zones de missions, les 18 sous-marins de base,
+les 32 motifs et les 32 membres d'équipage, et même les coques des 5 sous-marins historiques (`n2ply_x001` à
+`n2ply_x005`, que les joueurs gratuits voyaient chez les autres en ligne). L'achat n'ajoutait qu'un **droit**, plus,
+pour chaque sous-marin historique, une petite archive avec sa **proue** : le modèle détaillé que voit son propre
+pilote (`n2ply_x00N_prow`).
+
+| Sous-marin | Fichier | Coque (jeu de base) | Contenu |
+|---|---|---|---|
+| 19 | `bxml/pscope_ply19` | `n2ply_x002` | 1 |
+| 20 | `bxml/pscope_ply20` | `n2ply_x004` | 2 |
+| 21 | `bxml/pscope_ply21` | `n2ply_x001` | 3 |
+| 22 | `bxml/pscope_ply22` | `n2ply_x003` | 4 |
+| 23 | `bxml/pscope_ply23` | `n2ply_x005` | 5 |
+
+Les contenus additionnels forment le titre `0004008C000D7E00` (le jeu est `00040000000D7E00`), chaque achat étant
+un « contenu » numéroté de ce titre.
+
+## Comment le jeu vérifie les achats (`source/sys/dlc.cpp`)
+
+La classe `NsubShop` (un singleton, `getNsubShop()`) enveloppe la bibliothèque d'achat `nn::ec` :
+
+- `updateCondition()` demande à `nn::ec::CTR::DataTitle` la liste des contenus du titre de DLC et, pour chaque
+  contenu présent et acheté, met un bit à 1 dans un bitmap de 128 bits (`+0xFA0`, 4 mots) ;
+- `checkCondition(n)` lit le bit `n` : vrai si le contenu `n` est acheté ;
+- `checkPaidForFullVer()` lit le bit 27 du troisième mot (`+0xFA8`), c'est-à-dire le **contenu 91** : la version
+  complète ;
+- `mountContentArchive(n)` / `unmountContentArchive()` montent l'archive du contenu `n` sous `content:`
+  (`nn::fs::MountAddOnContent`) ;
+- le reste (`initializeEc`, `validateSession`, catalogue, `purchaseItem`, `redownloadItem`, solde…) sert la
+  boutique et l'écran d'achat, en parlant aux serveurs de l'eShop.
+
+Les scripts y accèdent par les natives `sysDLC*` d'`amxsys` ; `sysDLCCheckPaidForFullVer` et
+`sysDLCCheckCondition` sont deux mini-fonctions placées juste avant `checkPaidForFullVer` et `checkCondition`,
+dans lesquelles elles « tombent » après avoir chargé le singleton.
+
+**Sous-marins historiques** : leur fichier de propriétés (`bxml/pscope_ply19.bxml`…) contient
+`<mount_dlc_arc content_index="n"/>` et un attribut `model_mutable_dlc` au lieu de `model_mutable`.
+`Actor::readProperties` monte alors l'archive du contenu si `checkCondition(n)` est vrai, et
+`Actor::setAttributeString` ne charge `model_mutable_dlc` que si l'archive est montée (sinon le sous-marin n'a pas
+de proue). La coque, `modelship`, vient toujours du jeu de base : c'est elle qu'envoient les autres consoles
+(`@syncNetworkSpawn`).
+
+## Ce que la version gratuite limite (scripts Pawn)
+
+Tous les scripts de modes ont une copie de `isFullVersion()` (`return sysDLCCheckPaidForFullVer();`) :
+
+| Script | Version gratuite | Version complète |
+|---|---|---|
+| `mode_title` | écran titre au coucher du soleil, mention « Version gratuite » (volet `trial`), bouton « S'engager » | décor de jour, sans la mention ni le bouton |
+| `mode_select` | le bouton Boutique propose l'achat (`alert_salemessage02`, puis `mode_sale`) | il ouvre la boutique (`mode_shop`) |
+| `mode_mission_select` | seules les deux premières zones | les 7 zones, débloquées par le nombre de médailles |
+| `mode_customize` | seuls les sous-marins 1 et 2 (`sub_detail_unlock_not_enlist` sinon) | tous ceux débloqués |
+| `mode_lobby` | sous-marins 1 et 2 en ligne (`save.sub.unlock[2..22]` mis à 0) | tous ceux débloqués |
+
+Les sous-marins 19 à 23 suivent `sysDLCCheckCondition(n° − 18)` : au titre, un sous-marin historique choisi mais
+plus acheté est remplacé par le n° 1 (`save.sub.typenum`).
+
+## Déblocages et sauvegarde
+
+En version complète, les sous-marins, motifs et membres d'équipage se gagnent en mission : récompenses des
+missions (`mode_periscope`) et des médailles d'or (`medal.inc::updateAwardMedal`, à 3, 4, 8, 9, 15, 18 et 21
+médailles d'or). Ils sont gardés dans trois tableaux de la sauvegarde ([formats.md](formats.md#sauvegarde)) :
+
+- `save.sub.unlock[23]` : sous-marins (l'indice 0 est toujours débloqué) ;
+- `save.sub.pattern.unlock[32]` : motifs de coque (*decal*) ;
+- `save.sub.crew.unlock[32]` : membres d'équipage.
+
+**Le piège du drapeau premium** : au titre, la première fois que la version complète est présente, le jeu écrit
+`save.sub.enlist = 1`. Si plus tard ce drapeau est dans la sauvegarde mais que la version complète a disparu (DLC
+effacé), le bouton Start affiche l'erreur **098-0101** (`sysShowErrEULA(98101)`) et la partie ne démarre plus.
+
+## Le mod `premium`
+
+```sh
+.venv/bin/python tools/mod.py build premium --install
+```
+
+1. `checkPaidForFullVer` et `checkCondition` renvoient toujours vrai (deux patchs de 8 octets) : version complète
+   et cinq sous-marins historiques.
+2. `updateCondition` (le bitmap ne sert plus) est remplacée par une routine qui met à 1 les trois tableaux de
+   déblocage (option `debloquer`, activée par défaut) : les scripts l'appellent au titre, juste après le
+   chargement de la sauvegarde, et avant le salon et le hangar. Le jeu enregistre ensuite ces tableaux : les
+   déblocages restent même sans le mod, comme s'ils avaient été gagnés.
+3. Sans DLC (option `dlc=non`, par défaut), les sous-marins historiques prennent leur coque comme proue : plus
+   d'archive à monter (`mount_dlc_arc` retiré), `model_mutable_dlc="n2ply_x00N_prow"` devient
+   `model_mutable="n2ply_x00N"`. Avec `dlc=oui`, pour qui a installé dans Azahar le DLC qu'il a acheté, les
+   fichiers d'origine restent.
+4. Le bouton Boutique du menu recharge le menu : la boutique attendrait l'eShop dans des boucles sans fin.
+5. `save.sub.enlist` est écrit dans une globale `mode.sub.enlist`, que la sauvegarde ne garde pas : retirer le mod
+   ne déclenche pas l'erreur 098-0101. Une sauvegarde déjà marquée se répare avec `tools/save.py premium-off`.
+
+Les missions restent à jouer : elles se débloquent avec les médailles. Pour tout ouvrir d'un coup, l'éditeur de
+sauvegarde ([../tools/save.py](../tools/save.py)) sait aussi donner des médailles.
+
+En ligne, ce mod ne compte pas comme de la triche : il donne ce que les joueurs premium avaient.

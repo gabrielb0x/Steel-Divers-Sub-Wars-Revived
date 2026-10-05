@@ -27,16 +27,16 @@ from pyctr.fileio import SubsectionIO
 from pyctr.type.exefs import decompress_code
 from pyctr.type.ncch import NCCHReader, NCCHSection
 
-from ctr import CIA, ExHeader
+from ctr import CIA, GAME_TITLE_ID, ExHeader, find_game_cia
 
 ROOT = Path(__file__).resolve().parent.parent
 
 
 def find_cia() -> Path:
-    found = sorted((ROOT / "cia").glob("*.cia"))
-    if not found:
-        sys.exit("No .cia found in cia/ (pass a path explicitly).")
-    return found[0]
+    found = find_game_cia(ROOT / "cia")
+    if found is None:
+        sys.exit(f"No CIA of the game ({GAME_TITLE_ID:016X}) in cia/ (pass a path explicitly).")
+    return found
 
 
 def sha256_file(path: Path) -> str:
