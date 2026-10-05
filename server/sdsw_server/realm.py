@@ -85,6 +85,8 @@ class Realm:
         self.auth = AuthServer(self)
         self.secure = SecureServer(self)
         self.matchmaker = Matchmaker(self.notify, config.max_players)
+        self._bans: set[int] = set()
+        self._bans_mtime: float | None = None
 
     async def start(self) -> None:
         loop = asyncio.get_running_loop()
@@ -101,6 +103,38 @@ class Realm:
         self.auth.close()
         self.secure.close()
         self.accounts.db.close()
+
+    def status(self) -> dict:
+        """For the status page: counts only, no player id."""
+        online = list(self.secure.by_pid)
+        now = time.monotonic()
+        return {"name": self.config.name, "auth_port": self.config.auth_port, "players_online": len(online),
+                "cheaters_online": sum(1 for pid in online if is_cheater(self.flags.get(pid, ()))),
+                "accounts": self.accounts.count(), "max_players": self.config.max_players,
+                "cheats": self.config.cheats,
+                "matches": [{"players": len(s.participants), "max": s.info.max_participants,
+                             "open": bool(s.info.open_participation), "cheaters": s.pool == CHEAT_POOL,
+                             "minutes": int((now - s.created) // 60)}
+                            for s in self.matchmaker.sessions.values()]}
+
+    def banned(self, pid: int) -> bool:
+        """data/<realm>/bannis.txt: one principal id per line (# comments), read again when it changes."""
+        path = self.config.data_dir / "bannis.txt"
+        try:
+            mtime = path.stat().st_mtime
+        except OSError:
+            return False
+        if mtime != self._bans_mtime:
+            bans = set()
+            for line in path.read_text(encoding="utf-8").splitlines():
+                text = line.split("#", 1)[0].strip()
+                if text:
+                    try:
+                        bans.add(int(text, 0))
+                    except ValueError:
+                        self.log.warning("%s: not a player id: %r", path, text)
+            self._bans, self._bans_mtime = bans, mtime
+        return pid in self._bans
 
     def pool(self, pid: int) -> str:
         """Matchmaking pool: with cheats "separes", players whose build cheats only meet each other."""
@@ -189,6 +223,9 @@ class AuthServer(PRUDPServer):
         except AccountError as e:
             self.log.warning("%s: login refused for %s: %s", conn, username, e)
             raise RMCError(rmc.RV_INVALID_PASSWORD, str(e))
+        if self.realm.banned(pid):
+            self.log.warning("%s: pid %d refused, banned (bannis.txt)", conn, pid)
+            raise RMCError(rmc.RV_ACCOUNT_DISABLED, "banned")
         if is_cheater(flags) and self.realm.config.cheats == "refuses":
             self.log.warning("%s: pid %d refused, its build cheats (%s)", conn, pid,
                              ", ".join(sorted(flags & CHEAT_FLAGS)))

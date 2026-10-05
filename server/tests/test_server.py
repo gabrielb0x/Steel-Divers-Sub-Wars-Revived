@@ -6,6 +6,7 @@
 from __future__ import annotations
 
 import asyncio
+import json
 import logging
 import socket
 import struct
@@ -19,7 +20,14 @@ from sdsw_server.ddl import MatchmakeSession, criterion_matches
 from sdsw_server.natcheck import NatCheckService
 from sdsw_server.prudp import CONNECT, DATA, FLAG_NEED_ACK, FLAG_RELIABLE, Packet, Signer, decode_datagram, encode_packet
 from sdsw_server.realm import Realm, RealmConfig
+from sdsw_server.status import StatusServer
 from sdsw_server.streams import StationURL, StreamIn, StreamOut
+
+
+def free_tcp_port() -> int:
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+        s.bind(("127.0.0.1", 0))
+        return s.getsockname()[1]
 
 
 def free_udp_port() -> int:
@@ -152,6 +160,40 @@ class Options(unittest.TestCase):
         fair, specs, cheater = run_realm(test, cheats="separes")
         self.assertNotEqual(fair, specs)
         self.assertEqual(specs, cheater)
+
+    def test_banned_player_refused(self):
+        async def test(realm, port):
+            (realm.config.data_dir / "bannis.txt").write_text("# trouble makers\n0x10000002\n")
+            await matchmade(port, 0x10000001)
+            try:
+                await matchmade(port, 0x10000002)
+            except Exception:
+                return True
+            return False
+        self.assertTrue(run_realm(test))
+
+    def test_status(self):
+        async def test(realm, port):
+            await matchmade(port, 0x10000001)
+            await matchmade(port, 0x10000002)
+            await matchmade(port, 0x10000003, "triche")
+            status = StatusServer([realm])
+            web = free_tcp_port()
+            await status.start("127.0.0.1", web)
+            reader, writer = await asyncio.open_connection("127.0.0.1", web)
+            writer.write(b"GET /status.json HTTP/1.0\r\nHost: x\r\n\r\n")
+            answer = await reader.read()
+            writer.close()
+            page = status.page()
+            status.close()
+            return json.loads(answer.split(b"\r\n\r\n", 1)[1]), page
+        data, page = run_realm(test)
+        realm = data["realms"][0]
+        self.assertEqual(realm["players_online"], 3)
+        self.assertEqual(realm["cheaters_online"], 1)
+        self.assertEqual(sorted((m["players"], m["cheaters"]) for m in realm["matches"]), [(1, True), (2, False)])
+        self.assertNotIn("268435457", json.dumps(data))      # no player id (0x10000001)
+        self.assertIn("3</b> joueur(s)", page)
 
     def test_cheaters_allowed(self):
         async def test(realm, port):

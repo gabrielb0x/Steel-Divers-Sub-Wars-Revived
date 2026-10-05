@@ -204,10 +204,12 @@ class GameServer:
             realms = [{"name": r.get("name"), "auth_port": r.get("auth_port"), "cheats": r.get("cheats", "separes"),
                        "max_players": r.get("max_players", 8)} for r in data.get("realm", [])]
             public = data.get("server", {}).get("public_address", "")
-        except (OSError, tomllib.TOMLDecodeError):
-            public = ""
+            status_port = int(data.get("server", {}).get("status_port", 0))
+        except (OSError, tomllib.TOMLDecodeError, ValueError):
+            public, status_port = "", 0
         return {"running": self.running, "lines": list(self.lines)[-200:], "addresses": local_addresses(),
-                "config": str(config), "public_address": public, "realms": realms}
+                "config": str(config), "public_address": public, "realms": realms,
+                "status_page": f"http://127.0.0.1:{status_port}/" if status_port else None}
 
 
 def local_addresses() -> list[str]:

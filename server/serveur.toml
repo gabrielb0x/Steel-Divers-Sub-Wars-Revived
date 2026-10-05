@@ -6,6 +6,8 @@
 listen = "0.0.0.0"              # adresse d'écoute
 public_address = "127.0.0.1"    # adresse (IP ou nom) par laquelle les joueurs joignent cette machine
 nat_check = true                # détection du NAT de Pia : UDP 10025 et 10125 (ports fixés par le jeu)
+name = "Sub Wars Open Sourced"  # nom affiché sur la page d'état
+status_port = 0                 # page d'état (joueurs en ligne, parties) en HTTP sur ce port TCP ; 0 : aucune
 
 # Options de partie, par royaume :
 #   max_players  joueurs humains par partie, de 2 à 8. Le jeu complète toujours chaque équipe à 4 sous-marins
@@ -14,6 +16,8 @@ nat_check = true                # détection du NAT de Pia : UDP 10025 et 10125 
 #   cheats       joueurs dont le mod triche : mods/triche, ou caractéristiques de sous-marins modifiées
 #                (mods/specs) ; le mod premium n'en fait pas partie.
 #                "autorises" (ils jouent avec tout le monde), "separes" (seulement entre eux) ou "refuses".
+# Pour bannir un joueur : son identifiant (journal du serveur : « login pid … ») sur une ligne de
+# <data_dir>/bannis.txt ; le fichier est relu à chaque connexion, sans redémarrer le serveur.
 
 [[realm]]
 name = "emulateur"              # joueurs sur émulateur (mods/en-ligne)

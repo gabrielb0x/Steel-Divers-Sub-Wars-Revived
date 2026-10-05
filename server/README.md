@@ -50,6 +50,16 @@ Chaque royaume a deux options de partie dans `serveur.toml` :
   est dans le jeu, pas dans le serveur ; un jeu modifié autrement peut toujours mentir, comme dans tout jeu
   en P2P. Pour un serveur où tout le monde triche, mettre `cheats = "autorises"`.
 
+## Page d'état et bannissements
+
+* **Page d'état** : avec `status_port = 8730` (section `[server]` de `serveur.toml`), le serveur publie en HTTP
+  une page (`http://<adresse>:8730/`) et sa version JSON (`/status.json`) : joueurs connectés, comptes,
+  options, et les parties en cours (nombre de joueurs, ouverte ou commencée, partie de tricheurs, depuis
+  combien de temps). Aucun identifiant de joueur n'y figure. Ouvrir ce port TCP pour la rendre publique.
+* **Bannir un joueur** : son identifiant (le journal affiche `login pid …` à chaque connexion) sur une ligne de
+  `data/<royaume>/bannis.txt` (les lignes qui commencent par `#` sont des commentaires). Le fichier est relu à
+  chaque connexion : pas besoin de redémarrer, la connexion suivante de ce joueur est refusée.
+
 ## Héberger un serveur public
 
 1. Dans `serveur.toml`, mettre dans `public_address` l'adresse IP publique (ou le nom) de la machine : c'est
@@ -79,6 +89,7 @@ Aucune donnée de jeu n'est stockée : le jeu n'utilise pas de classements ni de
 | `sdsw_server/matchmaking.py` | salons, notifications |
 | `sdsw_server/natcheck.py` | détection de NAT de Pia (serveurs « nncs ») |
 | `sdsw_server/accounts.py` | comptes |
+| `sdsw_server/status.py` | page d'état (HTTP) |
 | `sdsw_server/testclient.py` | client qui se comporte comme le jeu, pour tester sans console |
 
 ## Tests

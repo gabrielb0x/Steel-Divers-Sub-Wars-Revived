@@ -603,6 +603,8 @@ async function loadServer() {
         realm ? el("span", {}, ` (port ${realm.auth_port}, royaume « ${realm.name} »)`) : ""),
       realm ? el("div", {class: "muted"}, `Joueurs humains par partie : ${realm.max_players} (des bots complètent les équipes) · tricheurs : `
         + ({separes: "ils ne jouent qu'entre eux", autorises: "acceptés avec tout le monde", refuses: "refusés"}[realm.cheats] || realm.cheats)) : "",
+      s.status_page ? el("div", {}, "Page d'état : ", el("a", {href: s.status_page, target: "_blank"}, s.status_page))
+        : el("div", {class: "muted"}, "Page d'état : désactivée (status_port dans la configuration)."),
       el("div", {class: "muted"}, "Configuration : ", el("code", {}, s.config)));
     const log = $("#srv-log");
     log.textContent = s.lines.join("\n");

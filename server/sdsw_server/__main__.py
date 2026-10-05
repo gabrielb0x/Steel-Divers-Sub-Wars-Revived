@@ -17,6 +17,7 @@ from pathlib import Path
 
 from .natcheck import NatCheckService
 from .realm import Realm, RealmConfig
+from .status import StatusServer
 
 HERE = Path(__file__).resolve().parent.parent
 
@@ -43,10 +44,16 @@ def load_config(path: Path, only: list[str] | None) -> tuple[dict, list[RealmCon
 
 async def run(server: dict, realms: list[RealmConfig]) -> None:
     natcheck = NatCheckService() if server.get("nat_check", True) else None
+    started = []
     for config in realms:
-        await Realm(config, natcheck).start()
+        realm = Realm(config, natcheck)
+        await realm.start()
+        started.append(realm)
     if natcheck:
         await natcheck.start(server.get("listen", "0.0.0.0"))
+    if int(server.get("status_port", 0)):
+        await StatusServer(started, server.get("name", "Sub Wars Open Sourced")).start(
+            server.get("listen", "0.0.0.0"), int(server["status_port"]))
     await asyncio.Event().wait()
 
 
