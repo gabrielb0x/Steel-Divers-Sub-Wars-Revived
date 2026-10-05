@@ -41,6 +41,15 @@ cd server && python3 -m sdsw_server                        # le serveur (royaume
 
   Le serveur règle le nombre de joueurs humains par partie (le jeu complète les équipes avec des bots) et
   décide quoi faire des tricheurs ([server/README.md](server/README.md)).
+- **Premium sans l'eShop** : le mod `premium` débloque la version complète, les 23 sous-marins (dont les 5
+  historiques vendus à part), les motifs et l'équipage ([docs/premium.md](docs/premium.md)).
+- **Éditeur de sauvegarde** : `tools/save.py` affiche et modifie la sauvegarde d'Azahar (déblocages, médailles,
+  n'importe quelle valeur, export JSON) ; format dans [docs/formats.md](docs/formats.md#sauvegarde).
+
+```sh
+.venv/bin/python tools/mod.py build premium --install       # version complète et tous les sous-marins
+.venv/bin/python tools/save.py show                         # la sauvegarde ; unlock all, set, export…
+```
 
 Détails : [docs/analyse-initiale.md](docs/analyse-initiale.md) · Plan : [docs/roadmap.md](docs/roadmap.md)
 

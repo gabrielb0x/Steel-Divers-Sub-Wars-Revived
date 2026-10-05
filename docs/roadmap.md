@@ -79,6 +79,9 @@ Le plan détaillé est dans [mods.md](mods.md) : on publie des recettes (`mods/`
 3. ~~**Jeu en ligne**~~ : mod `en-ligne` (patch des fonctions *friends* utilisées par `JobCTRLogin`, serveurs de
    détection de NAT redirigés, identité par joueur). Reste : une somme de version propre aux mods de gameplay.
 4. **60 fps** : affichage interpolé entre deux pas de simulation, d'abord dans le portage PC.
+5. ~~**Premium**~~ : mod `premium` (version complète et contenus additionnels sans l'eShop, déblocages,
+   sous-marins historiques avec leur coque), [premium.md](premium.md).
+6. ~~**Sauvegarde**~~ : format décodé, éditeur `tools/save.py`.
 
 ## Décisions
 

@@ -100,6 +100,44 @@ eux aussi.
 
 En-tête de 5 octets : u16 largeur, u16 hauteur, u8 format PICA200 (0xD = ETC1A4, …), puis les données de texture.
 
+### Sauvegarde
+
+Le jeu n'a qu'un fichier de sauvegarde, `data:/save`, dans l'archive de sauvegarde du titre (sous Azahar :
+`sdmc/Nintendo 3DS/<id0>/<id1>/title/00040000/000d7e00/data/00000001/save`). Il contient les **globales des
+scripts** dont le nom commence par `save` (`sysSetGlobal`, `sysSetGlobalArray`), écrites par `n_sysSaveDataSave`
+et relues par `n_sysSaveDataLoad` (`source/amx/amxsys.cpp`), le tout en petit-boutiste :
+
+```
+u32  CRC-32 de tout ce qui suit (generateCRC : le CRC-32 de zlib), ajouté par FlashMemory::performWrite
+u32  version : 27 (les scripts appellent sysSaveDataLoad("save", 27) ; une autre version est ignorée)
+u32  nombre de valeurs entières
+u32  nombre de tableaux
+     entier : nom (terminé par 0) + s32
+     tableau : nom (terminé par 0) + u32 nombre de cases + s32 × nombre
+```
+
+Les globales vivent dans deux tables de hachage de 4096 cases (entiers en `0x003B9054`, tableaux en `0x003BD054`,
+hachage `h = h * 33 + c` sur les 64 premiers caractères) : l'ordre du fichier est celui des cases. Un CRC faux fait
+reformater la sauvegarde (`amxEventLoadCorruptData`). Les flottants (meilleurs temps) sont rangés tels quels, en
+bits. Contenu principal (la liste complète : `tools/save.py list`) :
+
+| Globale | Rôle |
+|---|---|
+| `save.sub.typenum` | sous-marin choisi, de 1 à 23 |
+| `save.sub.unlock[23]`, `save.sub.pattern.unlock[32]`, `save.sub.crew.unlock[32]` | sous-marins, motifs et membres d'équipage débloqués |
+| `save.sub.typeN.pattern`, `save.sub.typeN.crew0..4` | motif et équipage (−1 : personne) de chaque sous-marin |
+| `save.sub.patternN.color0..2` | les trois couleurs (indices de `bxml/swatch_color`) de chaque motif ; celles d'un motif qu'on débloque viennent de `bxml/sub_color_set` |
+| `save.sub.pattern.new[32]`, `save.sub.crew.new[32]` | pastilles « nouveau » |
+| `save.single.stageS.medal[L]` | médaille de la mission L de la zone S : 0 aucune, 1 terminée, 2 or (temps sous l'objectif) |
+| `save.single.stageS.levelL.time` | meilleur temps (flottant, secondes) |
+| `save.sub.enlist` | la version complète a été vue (voir [premium.md](premium.md) et l'erreur 098-0101) |
+| `save.sub.filteredname[96]`, `save.multi.card000.*` | nom du joueur, sa carte (Mii, statistiques) |
+| `save.multi.*` | statistiques en ligne (parties, victoires, points, tirs…), cartes des autres joueurs rencontrés |
+| `save.sub.extraenabled`, `gyroenabled`, `yinverted`, `morsechatdisable` | réglages |
+
+L'éditeur [`tools/save.py`](../tools/save.py) lit et écrit ce format (affichage, déblocages, médailles, valeurs
+une à une, export et import en JSON), avec une copie de sécurité avant chaque écriture.
+
 ## Formats NintendoWare / SDK
 
 | Extension | Format |

@@ -1,0 +1,391 @@
+#!/usr/bin/env python3
+"""Save editor of Steel Diver: Sub Wars: the "save" file of the game's save data, in the emulator.
+
+  save.py show                       summary: submarine, unlocks, missions, online statistics
+  save.py unlock [what...]           subs, patterns, crew, missions (cleared), gold (gold medals), all
+  save.py premium-off                clears the premium flag (error 098-0101 when the full version is gone)
+  save.py get <name>                 one value (save.sub.typenum, save.single.stage1.medal[1]...)
+  save.py set <name> <value>         an integer, a float (best times) or, for an array, values separated by ","
+  save.py list                       every value of the save
+  save.py export <file.json>         the whole save as JSON, to edit by hand
+  save.py import <file.json>
+  save.py where                      the save files found
+
+The save file is found in the emulator (Azahar, Lime3DS, Citra; --file to choose another). Close the game
+before editing: it keeps its values in memory and would write them back. Every change first copies the
+current file to the backups folder (see `where`).
+
+Format (n_sysSaveDataLoad / n_sysSaveDataSave in source/amx/amxsys.cpp, SaveData::read, FlashMemory::
+performWrite), little endian:
+  u32 CRC-32 of everything after it (generateCRC: the CRC-32 of zlib)
+  u32 version (27), u32 number of integer values, u32 number of arrays
+  integers  name (NUL-terminated) + s32
+  arrays    name (NUL-terminated) + u32 count + s32[count]
+The values are the script globals whose name starts with "save" (sysSetGlobal / sysSetGlobalArray). Best
+times are floats stored as their bits.
+"""
+
+from __future__ import annotations
+
+import argparse
+import json
+import shutil
+import struct
+import sys
+import time
+import xml.etree.ElementTree as ET
+import zlib
+from dataclasses import dataclass, field
+from pathlib import Path
+
+import azahar
+
+ROOT = Path(__file__).resolve().parent.parent
+VERSION = 27                   # sysSaveDataLoad("save", 27) in mode_title (save.inc)
+SUBS, PATTERNS, CREW = 23, 32, 32
+STAGES, LEVELS = 7, 3          # single player: 7 areas of 3 missions
+MEDAL_CLEARED, MEDAL_GOLD = 1, 2
+
+
+class SaveError(Exception):
+    pass
+
+
+@dataclass
+class SaveData:
+    version: int = VERSION
+    ints: dict[str, int] = field(default_factory=dict)
+    arrays: dict[str, list[int]] = field(default_factory=dict)
+
+    @classmethod
+    def parse(cls, data: bytes) -> "SaveData":
+        if len(data) < 16:
+            raise SaveError("fichier trop court pour être une sauvegarde")
+        crc, = struct.unpack_from("<I", data)
+        if crc != zlib.crc32(data[4:]):
+            raise SaveError("CRC incorrect : ce n'est pas une sauvegarde de ce jeu, ou elle est abîmée")
+        version, n_ints, n_arrays = struct.unpack_from("<III", data, 4)
+        save, pos = cls(version), 16
+
+        def name() -> str:
+            nonlocal pos
+            end = data.index(b"\0", pos)
+            text = data[pos:end].decode("ascii")
+            pos = end + 1
+            return text
+        try:
+            for _ in range(n_ints):
+                key = name()
+                save.ints[key], = struct.unpack_from("<i", data, pos)
+                pos += 4
+            for _ in range(n_arrays):
+                key = name()
+                count, = struct.unpack_from("<I", data, pos)
+                save.arrays[key] = list(struct.unpack_from(f"<{count}i", data, pos + 4))
+                pos += 4 + 4 * count
+        except (ValueError, struct.error) as e:
+            raise SaveError(f"sauvegarde tronquée ({e})") from e
+        if pos != len(data):
+            raise SaveError(f"{len(data) - pos} octet(s) inattendu(s) à la fin")
+        return save
+
+    def to_bytes(self) -> bytes:
+        body = bytearray(struct.pack("<III", self.version, len(self.ints), len(self.arrays)))
+        for key, value in self.ints.items():
+            body += key.encode("ascii") + b"\0" + struct.pack("<i", value)
+        for key, values in self.arrays.items():
+            body += key.encode("ascii") + b"\0" + struct.pack(f"<I{len(values)}i", len(values), *values)
+        return struct.pack("<I", zlib.crc32(body)) + bytes(body)
+
+    # -- values ----------------------------------------------------------------------------------
+
+    def get(self, key: str) -> int | list[int] | None:
+        return self.arrays[key] if key in self.arrays else self.ints.get(key)
+
+    def set(self, key: str, value: int | list[int]) -> None:
+        check_name(key)
+        if isinstance(value, list):
+            self.ints.pop(key, None)
+            self.arrays[key] = [s32(v) for v in value]
+        else:
+            self.arrays.pop(key, None)
+            self.ints[key] = s32(value)
+
+    def array(self, key: str, size: int) -> list[int]:
+        values = list(self.arrays.get(key, []))
+        return values + [0] * (size - len(values))
+
+    def medal(self, stage: int, level: int) -> int:
+        return self.ints.get(f"save.single.stage{stage}.medal[{level}]", 0)
+
+    def best_time(self, stage: int, level: int) -> float | None:
+        bits = self.ints.get(f"save.single.stage{stage}.level{level}.time", 0)
+        return struct.unpack("<f", struct.pack("<i", bits))[0] if bits else None
+
+    # -- edits -----------------------------------------------------------------------------------
+
+    def unlock_subs(self) -> int:
+        old = self.array("save.sub.unlock", SUBS)
+        self.set("save.sub.unlock", [1] * SUBS)
+        return old.count(0)
+
+    def unlock_patterns(self, default_colours: dict[int, list[int]] | None = None) -> int:
+        old = self.array("save.sub.pattern.unlock", PATTERNS)
+        for pattern, colours in (default_colours or {}).items():
+            if not old[pattern]:                # what the game writes when it unlocks one (func_110c4)
+                for k, colour in enumerate(colours):
+                    self.set(f"save.sub.pattern{pattern}.color{k}", colour)
+        self.set("save.sub.pattern.unlock", [1] * PATTERNS)
+        return old.count(0)
+
+    def unlock_crew(self) -> int:
+        old = self.array("save.sub.crew.unlock", CREW)
+        self.set("save.sub.crew.unlock", [1] * CREW)
+        return old.count(0)
+
+    def award_medals(self, medal: int) -> int:
+        changed = 0
+        for stage in range(1, STAGES + 1):
+            for level in range(1, LEVELS + 1):
+                if self.medal(stage, level) < medal:
+                    self.set(f"save.single.stage{stage}.medal[{level}]", medal)
+                    changed += 1
+        return changed
+
+    def premium_off(self) -> bool:
+        was = bool(self.ints.get("save.sub.enlist"))
+        if "save.sub.enlist" in self.ints:
+            self.ints["save.sub.enlist"] = 0
+        return was
+
+
+def s32(value: int) -> int:
+    value = int(value)
+    if not -0x80000000 <= value <= 0xFFFFFFFF:
+        raise SaveError(f"{value} ne tient pas sur 32 bits")
+    return value - 0x100000000 if value > 0x7FFFFFFF else value
+
+
+def check_name(key: str) -> None:
+    if not key.startswith("save"):
+        raise SaveError(f"{key} : le jeu ne sauvegarde que les valeurs dont le nom commence par « save »")
+    if len(key) > 63 or not key.isascii() or "\0" in key:
+        raise SaveError(f"{key} : les noms sont en ASCII, 63 caractères au plus")
+
+
+def parse_value(text: str) -> int | list[int]:
+    """"12", "0x1F", "-3", "233.5" (a float, stored as its bits) or "1,0,1" (an array)."""
+    def one(item: str) -> int:
+        item = item.strip()
+        try:
+            return int(item, 0)
+        except ValueError:
+            return struct.unpack("<i", struct.pack("<f", float(item)))[0]
+    try:
+        return [one(t) for t in text.split(",")] if "," in text else one(text)
+    except ValueError as e:
+        raise SaveError(f"{text!r} : il faut un entier, un nombre à virgule ou des valeurs séparées par des virgules") from e
+
+
+# ---- game texts (optional: names of the submarines and crew) --------------------------------------
+
+def game_texts(language: str = "EU_French") -> dict[str, str]:
+    """Texts of the player's game files (make extract), to show names; empty without them."""
+    xml = ROOT / "extracted" / "xml" / "text" / f"{language}.xml"
+    try:
+        if xml.exists():
+            root = ET.parse(xml).getroot()
+        else:
+            from bxml import Bxml
+            root = ET.fromstring(Bxml((ROOT / "extracted" / "romfs" / "text" / f"{language}.bxml").read_bytes()).to_xml())
+    except (OSError, ET.ParseError, ValueError):
+        return {}
+    return {node.get("key"): node.get("text", "") for node in root.iter("string")}
+
+
+def default_pattern_colours() -> dict[int, list[int]]:
+    """bxml/sub_color_set: the colours given to pattern n (1..31) when it is unlocked (loadSubColours)."""
+    path = ROOT / "extracted" / "romfs" / "bxml" / "sub_color_set.bxml"
+    if not path.exists():
+        return {}
+    from bxml import Bxml
+    node = ET.fromstring(Bxml(path.read_bytes()).to_xml())
+    colours = {}
+    for pattern in range(1, PATTERNS):
+        value = node.get(f"pattern_{pattern - 1:02d}")
+        if value:
+            colours[pattern] = [int(v) for v in value.split()]
+    return colours
+
+
+def sub_name(texts: dict[str, str], index: int) -> str:
+    """Submarine of index 0..22 (save.sub.typenum is this index + 1)."""
+    return texts.get(f"sub_icon_name{index:02d}") or f"sous-marin {index + 1}"
+
+
+# ---- files ----------------------------------------------------------------------------------------
+
+def find_save(path: Path | None) -> Path:
+    if path:
+        if path.is_dir():
+            path = path / "save"
+        if not path.exists():
+            raise SaveError(f"{path} : fichier introuvable")
+        return path
+    found = azahar.save_files()
+    if not found:
+        raise SaveError("aucune sauvegarde du jeu trouvée dans Azahar (lancez le jeu une fois jusqu'à l'écran titre, "
+                        "ou indiquez-la avec --file)")
+    if len(found) > 1:
+        raise SaveError("plusieurs sauvegardes trouvées, choisissez-en une avec --file :\n  " + "\n  ".join(map(str, found)))
+    return found[0]
+
+
+def backup(path: Path) -> Path:
+    folder = azahar.config_dir() / "sauvegardes"
+    stamp = time.strftime("%Y%m%d-%H%M%S")
+    n = 0
+    while (folder / (stamp + (f"-{n}" if n else ""))).exists():
+        n += 1
+    dest = folder / (stamp + (f"-{n}" if n else "")) / "save"
+    dest.parent.mkdir(parents=True)
+    shutil.copy2(path, dest)
+    return dest
+
+
+def write(path: Path, save: SaveData) -> None:
+    copy = backup(path)
+    data = save.to_bytes()
+    SaveData.parse(data)                         # never write something the game could not read back
+    tmp = path.with_name(path.name + ".tmp")
+    tmp.write_bytes(data)
+    tmp.replace(path)
+    print(f"[+] sauvegarde écrite : {path}\n    copie de l'ancienne : {copy}")
+
+
+# ---- commands ------------------------------------------------------------------------------------
+
+def show(save: SaveData) -> None:
+    texts = game_texts()
+    typenum = save.ints.get("save.sub.typenum", 1)
+    name = bytes(v & 0xFF for v in save.arrays.get("save.sub.filteredname", [])).split(b"\0")[0]
+    print(f"Joueur : {name.decode('utf-8', 'replace') or '?'}    version de la sauvegarde : {save.version}")
+    print(f"Sous-marin choisi : n° {typenum} ({sub_name(texts, typenum - 1)})")
+    unlocked = save.array("save.sub.unlock", SUBS)
+    unlocked[0] = 1                               # the first one is always available (mode_lobby, mode_customize)
+    print(f"Sous-marins débloqués : {sum(1 for u in unlocked if u)}/{SUBS} "
+          f"(les n° 19 à 23 dépendent en plus du DLC ou du mod premium)")
+    for i in range(SUBS):
+        print(f"  {'x' if unlocked[i] else ' '} {i + 1:2d} {sub_name(texts, i)}")
+    patterns = save.array("save.sub.pattern.unlock", PATTERNS)
+    patterns[0] = 1
+    crew = save.array("save.sub.crew.unlock", CREW)
+    print(f"Motifs débloqués : {sum(1 for p in patterns if p)}/{PATTERNS}    "
+          f"équipage : {sum(1 for c in crew if c)}/{CREW}")
+    print("Missions (médaille : - aucune, o terminée, * or ; meilleur temps) :")
+    for stage in range(1, STAGES + 1):
+        cells = []
+        for level in range(1, LEVELS + 1):
+            medal = "-o*"[min(save.medal(stage, level), 2)]
+            t = save.best_time(stage, level)
+            cells.append(f"{stage}-{level} {medal} {f'{t:6.1f} s' if t else '       -'}")
+        print("  " + "    ".join(cells))
+    gold = sum(save.medal(s, l) >= MEDAL_GOLD for s in range(1, STAGES + 1) for l in range(1, LEVELS + 1))
+    print(f"  médailles d'or : {gold}/{STAGES * LEVELS}")
+    stats = {k: save.ints.get(f"save.multi.{k}", 0) for k in
+             ("games", "wins", "losses", "ties", "quits", "points", "kills", "killed", "hits", "shots")}
+    print("En ligne : {games} parties, {wins} victoires, {losses} défaites, {ties} nuls, {quits} abandons ; "
+          "{points} points ; {kills} coulés, {killed} fois coulé ; {hits} touches pour {shots} tirs".format(**stats))
+    if save.ints.get("save.sub.enlist"):
+        print("Drapeau premium : oui (sans la version complète ni le mod premium, Start affiche l'erreur 098-0101 ;"
+              " « save.py premium-off » le retire)")
+
+
+def main() -> None:
+    ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+    ap.add_argument("--file", type=Path, help="the save file (default: found in the emulator)")
+    sub = ap.add_subparsers(dest="command", required=True)
+    sub.add_parser("show", help="summary of the save")
+    p = sub.add_parser("unlock", help="unlock: subs, patterns, crew, missions, gold, all (default: all)")
+    p.add_argument("what", nargs="*", choices=["subs", "patterns", "crew", "missions", "gold", "all"],
+                   default=["all"])
+    sub.add_parser("premium-off", help="clear the premium flag of the save")
+    p = sub.add_parser("get", help="print a value")
+    p.add_argument("name")
+    p = sub.add_parser("set", help="change a value")
+    p.add_argument("name")
+    p.add_argument("value")
+    sub.add_parser("list", help="every value of the save")
+    p = sub.add_parser("export", help="write the save as JSON")
+    p.add_argument("json", type=Path)
+    p = sub.add_parser("import", help="replace the save by a JSON file (from export)")
+    p.add_argument("json", type=Path)
+    sub.add_parser("where", help="save files found, and the backups folder")
+    args = ap.parse_args()
+
+    try:
+        if args.command == "where":
+            for path in azahar.save_files():
+                print(path)
+            print(f"copies de sécurité : {azahar.config_dir() / 'sauvegardes'}")
+            return
+        path = find_save(args.file)
+        save = SaveData.parse(path.read_bytes())
+        if save.version != VERSION:
+            print(f"[!] version {save.version} : le jeu (v0) attend {VERSION} et ignorerait cette sauvegarde")
+        if args.command == "show":
+            print(f"{path}\n")
+            show(save)
+        elif args.command == "list":
+            for key, value in sorted(save.ints.items()):
+                print(f"{key} = {value}")
+            for key, values in sorted(save.arrays.items()):
+                print(f"{key}[{len(values)}] = {','.join(map(str, values))}")
+        elif args.command == "get":
+            value = save.get(args.name)
+            if value is None:
+                raise SaveError(f"{args.name} : absent de la sauvegarde (le jeu le lit comme 0)")
+            print(",".join(map(str, value)) if isinstance(value, list) else value)
+        elif args.command == "export":
+            args.json.write_text(json.dumps({"version": save.version, "ints": save.ints, "arrays": save.arrays},
+                                            indent=1) + "\n", encoding="utf-8")
+            print(f"[+] {args.json}")
+        else:
+            if args.command == "set":
+                save.set(args.name, parse_value(args.value))
+            elif args.command == "import":
+                data = json.loads(args.json.read_text(encoding="utf-8"))
+                save = SaveData(int(data.get("version", VERSION)))
+                for key, value in data.get("ints", {}).items():
+                    save.set(key, int(value))
+                for key, values in data.get("arrays", {}).items():
+                    save.set(key, [int(v) for v in values])
+            elif args.command == "premium-off":
+                if not save.premium_off():
+                    print("[=] pas de drapeau premium dans cette sauvegarde : rien à faire")
+                    return
+            elif args.command == "unlock":
+                what = set(args.what)
+                if "all" in what:
+                    what = {"subs", "patterns", "crew", "missions"}
+                if "subs" in what:
+                    print(f"[+] sous-marins : {save.unlock_subs()} débloqué(s)")
+                if "patterns" in what:
+                    colours = default_pattern_colours()
+                    print(f"[+] motifs : {save.unlock_patterns(colours)} débloqué(s)"
+                          + ("" if colours else " (couleurs par défaut inconnues sans les fichiers du jeu)"))
+                if "crew" in what:
+                    print(f"[+] équipage : {save.unlock_crew()} débloqué(s)")
+                if "gold" in what:
+                    print(f"[+] missions : {save.award_medals(MEDAL_GOLD)} médaille(s) d'or")
+                elif "missions" in what:
+                    print(f"[+] missions : {save.award_medals(MEDAL_CLEARED)} mission(s) marquée(s) terminée(s)")
+                print("    (les sous-marins 2 à 23 demandent la version complète : mod premium)")
+            write(path, save)
+            print("    Fermez le jeu dans l'émulateur avant de le relancer : il réécrirait l'ancienne sauvegarde.")
+    except SaveError as e:
+        sys.exit(f"[!] {e}")
+
+
+if __name__ == "__main__":
+    main()
