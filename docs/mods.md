@@ -37,13 +37,12 @@ Mii de la console. Elle sert de réserve, partagée ainsi entre les mods :
 | Plage | Mod | Contenu |
 |---|---|---|
 | 0x0014BC90-0x0014BD8F | `pseudo` | le pseudo de la console dans le Mii du joueur |
-| 0x0014BD90-0x0014BD9F | libre | |
-| 0x0014BDA0-0x0014C3DF | `60fps` | l'image intermédiaire (nnMain, interpolation des acteurs et de la caméra) |
-| 0x0014C3E0-0x0014C423 | libre | |
+| 0x0014BD90-0x0014C423 | libre | |
 
-Données : le code ajouté n'a pas de place réservée en mémoire vive. `60fps` alloue son bloc avec le
-`operator new` du jeu et garde son pointeur dans deux mots de `main.o` que seul l'initialiseur statique
-écrit (0x0038E630, 0x0038E634 ; aucune autre lecture ni écriture dans l'exécutable).
+Données : le code ajouté n'a pas de place réservée en mémoire vive. Il peut allouer un bloc avec le
+`operator new` du jeu (0x00254000) et garder son pointeur dans l'un des mots de `main.o` que seul
+l'initialiseur statique écrit (0x0038E628 à 0x0038E634 ; aucune autre lecture ni écriture dans l'exécutable),
+comme l'a fait l'essai 60 images/s.
 
 Dans les scripts Pawn, la place n'est pas un problème : `tools/amxasm.py` ajoute le code à la fin du
 script, et la mémoire du script grandit d'autant (le chargeur alloue `stp` + la pile demandée).
@@ -138,46 +137,37 @@ Ce que fait le moteur :
 
 Passer simplement à une image par VBlank ferait tourner tout le jeu deux fois plus vite, et doubler la fréquence
 de simulation demanderait de corriger tous les compteurs des 123 scripts (et désynchroniserait le jeu en ligne
-avec les joueurs à 30). Le mod **`60fps`** garde donc la simulation à 30 pas par seconde et dessine **une image
-de plus au milieu de chaque pas** :
+avec les joueurs à 30). La voie choisie : garder la simulation à 30 pas par seconde et dessiner **une image de
+plus au milieu de chaque pas**, acteurs et caméra à mi-chemin entre leur état précédent et l'état courant.
 
-1. Après la simulation d'un pas, au début du dessin (`nnMain` 0x00100ABC, à la place de `Fader::update`),
-   chaque acteur visible qui a bougé depuis le pas précédent (`Actor::matrix`, la matrice qu'
-   `Actor::updateMatrix` a copiée dans son nœud de scène, transformation en +0x4C, drapeau 0x800 en +0x88) est
-   placé à mi-chemin entre son état précédent et l'état courant ; la caméra du renderer 0 aussi (position et
-   cible de `gfxCameraLookAt`, appliquées par `Renderer::updateCamera`, où tombe `Renderer::preCullUpdate`,
-   un `nop` suivi de la fonction).
-2. La scène est recalculée par `Renderer::update` avec `System::s_paused` à 1 : `Scene::update` et
-   `Scene::updateModels` n'avancent alors ni les animations ni les particules, et les effets qui avancent avec le
-   temps (métaballes, distorsion, poissons, flou, fondus) attendent de même ; seuls les nœuds et la caméra
-   changent.
-3. La section de dessin de `nnMain` dessine cette image, sans les mises à jour d'une fois par pas
-   (`Renderer::updateDowntime`, `FaceSystem::update`, `ParticleManager::cleanupUnused` : crochet en 0x00100DF4),
-   puis l'image reste une VBlank à l'écran (crochet après `Graphics::runDraw`, 0x00100E54).
-4. L'état courant revient dans les nœuds et la caméra, et `nnMain` dessine l'image du pas comme d'habitude ; il
-   attend ensuite sa seconde VBlank.
+**Essai dans Azahar, abandonné pour l'instant** (mod `60fps`, commit bfac07c, retiré ensuite) : à l'écran titre
+il donnait bien 60 images par seconde d'émulation, mais en bataille le résultat était trop buggé pour être
+gardé. Ce que l'essai a établi sur le moteur, pour la suite :
 
-L'ordre d'affichage reste celui du jeu (une image de retard dans le pipeline de `Graphics::flip`, triple tampon) :
-l'image du milieu s'intercale simplement entre deux images du jeu. Pas d'image du milieu en pause, quand rien
-n'a bougé, pour un acteur nouveau, placé par autre chose que sa matrice (attaché à un os) ou qui a sauté de plus
-de 300 unités, pour une caméra qui saute ou tourne de plus de 60°, et quand la simulation du pas n'a pas tenu
-dans sa première VBlank. Un pas qui dépasse malgré tout ses deux VBlank met le mod en retrait 2 s, puis 4, 8…
-jusqu'à une minute. Les textes en surimpression (noms au-dessus des sous-marins, interface) et les particules
-gardent leur rythme de 30 images par seconde.
-
-Vérifié dans Azahar (écran titre, caméra en mouvement) : 60 images par seconde d'émulation, sans défaut visible.
-Avec le processeur émulé à 100 %, le jeu n'a pas toujours le temps de dessiner deux images par pas (le mod
-reste alors à 30) ; à 200 % (Émulation > Configurer > Débogage > Vitesse d'horloge du CPU) il tient 60.
+- Le dessin de `nnMain` (de `Fader::update`, 0x00100ABC, à `Graphics::runDraw`, 0x00100E50) ne dépend que de r0
+  et r1 : on peut le rejouer pour une seconde image ; `vblankAtStart` est dans r9 ; les crochets possibles sont
+  en 0x00100ABC, après `Graphics::stopDraw` (0x00100DF4) et après `Graphics::runDraw` (0x00100E54).
+- Chaque acteur garde sa matrice courante (`Actor::matrix`, +0xB8) qu'`Actor::updateMatrix` copie dans son nœud
+  de scène (transformation en +0x4C, drapeau « transformation changée » 0x800 en +0x88).
+- La caméra des scripts (`gfxCameraLookAt` : position +0xC4, cible +0xD0 du renderer) n'est appliquée au nœud
+  de caméra que par `Renderer::updateCamera`, où tombe `Renderer::preCullUpdate` (un `nop` suivi de la
+  fonction).
+- `Renderer::update` avec `System::s_paused` à 1 recalcule les matrices sans avancer animations, particules
+  ni effets (`Scene::update`, `Scene::updateModels` et les effets qui avancent avec le temps testent la pause).
+- Le rendu est en triple tampon (`Graphics::flip`), les listes de commandes en double (`Graphics::stopDraw`
+  attend la précédente) : deux images par pas gardent l'ordre d'affichage.
+- Avec le processeur émulé à 100 %, le jeu n'a pas toujours le temps de dessiner deux images par pas ; à 200 %
+  (Azahar : Émulation > Configurer > Débogage > Vitesse d'horloge du CPU) il les tient.
 
 **120 images par seconde** (ou 144, 165…) : impossible dans un émulateur. L'écran de la console émulée se
 rafraîchit à 59,83 Hz (`FRAME_TICKS` d'Azahar) et l'émulateur montre une image par rafraîchissement ;
 accélérer l'émulation à 200 % donnerait 120 images, mais aussi un son deux fois plus rapide et une horloge
-réseau faussée. Dans le **portage PC**, le même principe donnera n'importe quelle fréquence : simulation à 30 pas
-par seconde, et à chaque rafraîchissement de l'écran une image interpolée à la fraction de pas écoulée
-(1/4, 2/4, 3/4 à 120 Hz).
+réseau faussée. Le **portage PC** est le bon endroit pour 60, 120 images par seconde et plus : simulation à 30
+pas par seconde, et à chaque rafraîchissement de l'écran une image interpolée à la fraction de pas écoulée
+(1/4, 2/4, 3/4 à 120 Hz), avec un rendu qu'on maîtrise entièrement.
 
-En ligne, la question « à quelle fréquence faire tourner tout le monde » ne se pose pas : les consoles à 30 et à
-60 images par seconde font exactement les mêmes 30 pas de simulation par seconde, et restent synchronisées.
+En ligne, des consoles qui affichent à des fréquences différentes resteraient synchronisées tant que toutes
+font les mêmes 30 pas de simulation par seconde : c'est la simulation qui doit être commune, pas l'affichage.
 
 ## Menu de debug
 
