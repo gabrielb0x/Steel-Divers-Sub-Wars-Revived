@@ -3,19 +3,23 @@
     python3 -m unittest discover -s tools/tests
 """
 
+import socket
 import struct
+import subprocess
 import sys
 import tempfile
 import tomllib
 import unittest
 import zlib
 from pathlib import Path
+from unittest import mock
 
 TOOLS = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(TOOLS))
 
 import mod                                     # noqa: E402
 import shbin                                   # noqa: E402
+import webui                                   # noqa: E402
 from armasm import AsmError, assemble          # noqa: E402
 from save import SaveData, SaveError, parse_value   # noqa: E402
 
@@ -273,6 +277,64 @@ class Recipes(unittest.TestCase):
         self.assertIn("correctifs", mod.fixes())
         recipe = tomllib.loads((TOOLS.parent / "mods" / "correctifs" / "mod.toml").read_text(encoding="utf-8"))
         self.assertEqual({e["instruction"] for e in recipe["shader"]}, {0x061, 0x084})
+
+
+HOLD_PORTS = """
+import socket, sys, time
+socks = []
+for port in sys.argv[1].split(","):
+    s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    s.bind(("0.0.0.0", int(port)))
+    socks.append(s)
+print("ready", flush=True)
+time.sleep(60)
+"""
+
+
+def free_udp_ports(count: int) -> list[int]:
+    socks = [socket.socket(socket.AF_INET, socket.SOCK_DGRAM) for _ in range(count)]
+    for s in socks:
+        s.bind(("0.0.0.0", 0))
+    ports = [s.getsockname()[1] for s in socks]
+    for s in socks:
+        s.close()
+    return ports
+
+
+class Launcher(unittest.TestCase):
+    """« Lancer le serveur » stops a server started elsewhere that holds its ports, never another program."""
+
+    def hold(self, ports: list[int], marker: str) -> subprocess.Popen:
+        process = subprocess.Popen([sys.executable, "-c", HOLD_PORTS, ",".join(map(str, ports)), marker],
+                                   stdout=subprocess.PIPE, text=True)
+        self.addCleanup(lambda: (process.kill(), process.wait(), process.stdout.close()))
+        self.assertEqual(process.stdout.readline().strip(), "ready")
+        return process
+
+    def test_stops_a_server_started_elsewhere(self):
+        ports = free_udp_ports(2)
+        process = self.hold(ports, "-m sdsw_server")
+        if process.pid not in webui.udp_port_owners(set(ports)):
+            self.skipTest("this system does not tell which process holds a port")
+        server = webui.GameServer()
+        with mock.patch.object(webui.GameServer, "ports", classmethod(lambda cls: ports)):
+            self.assertEqual(list(server.others()), [process.pid])
+            server.stop_others()
+        self.assertIsNotNone(process.wait(5))
+        self.assertEqual(webui.busy_udp_ports(ports), [])
+
+    def test_never_stops_another_program(self):
+        ports = free_udp_ports(1)
+        process = self.hold(ports, "another-game")
+        if process.pid not in webui.udp_port_owners(set(ports)):
+            self.skipTest("this system does not tell which process holds a port")
+        server = webui.GameServer()
+        with mock.patch.object(webui.GameServer, "ports", classmethod(lambda cls: ports)):
+            self.assertEqual(server.others(), {})
+            with self.assertRaises(webui.UserError):
+                server.stop_others()
+            server.stop_others(strict=False)
+        self.assertIsNone(process.poll())
 
 
 if __name__ == "__main__":

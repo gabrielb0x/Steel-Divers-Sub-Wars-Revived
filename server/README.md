@@ -60,13 +60,63 @@ Chaque royaume a deux options de partie dans `serveur.toml` :
   `data/<royaume>/bannis.txt` (les lignes qui commencent par `#` sont des commentaires). Le fichier est relu à
   chaque connexion : pas besoin de redémarrer, la connexion suivante de ce joueur est refusée.
 
-## Héberger un serveur public
+## Jouer avec des amis éloignés
 
-1. Dans `serveur.toml`, mettre dans `public_address` l'adresse IP publique (ou le nom) de la machine : c'est
-   l'adresse du serveur sécurisé envoyée aux joueurs après l'authentification.
-2. Ouvrir (ou rediriger sur la box) en **UDP** : 61000-61001, 61010-61011 si le royaume PC sert, 10025 et 10125.
-3. Les joueurs construisent le mod avec cette adresse :
-   `tools/mod.py build en-ligne --set server=<adresse> --install`.
+Le plus simple : le lanceur (`python3 subwars.py`, onglet **Serveur**). « Lancer le serveur » arrête d'abord un
+serveur déjà lancé sur l'ordinateur (par un ancien lanceur, un terminal), puis affiche l'**adresse à donner aux
+amis**. Chaque ami entre cette adresse dans « Rejoindre le serveur d'un ami » (« Tester » vérifie que le serveur
+répond depuis chez lui), puis installe le mod **Jeu en ligne** avec elle. Celui qui héberge joue sur le même
+ordinateur avec l'adresse `127.0.0.1` (le réglage par défaut du mod).
+
+Ce que fait le serveur pour être joignable depuis Internet :
+
+* **Adresse publique** : `public_address = "auto"` (par défaut) demande son adresse Internet à la box (UPnP),
+  sinon à un serveur STUN public (Google, Cloudflare). On peut aussi l'écrire : une IP, ou un nom
+  (`monserveur.duckdns.org`, pratique si l'adresse change ; le jeu résout les noms).
+* **Ports ouverts sur la box** : avec `upnp = true` (par défaut), le serveur demande à la box de lui rediriger ses
+  ports UDP (61000-61001, 61010-61011, 10025, 10125, et le port TCP de la page d'état s'il y en a une), renouvelle
+  ces redirections tant qu'il tourne et les retire quand il s'arrête. Vérifié avec une box.
+* **Le joueur qui héberge** : sa console se connecte par `127.0.0.1`, une adresse qui ne veut rien dire pour un
+  ami. Or, pour rejoindre une partie, une console compare l'adresse publique de l'hôte à la sienne : la même,
+  elle passe par le réseau local ; une autre, par l'adresse publique. Le serveur présente donc les joueurs de son
+  propre réseau sous son adresse publique, et redirige sur la box le port de leur jeu (Pia, pris au hasard entre
+  49152 et 65534) le temps qu'ils sont connectés. Sans cette redirection, les box qui tournent sous Linux (la
+  plupart) font échouer la connexion directe : les premiers paquets de l'ami y créent une entrée qui force un
+  autre port pour la réponse.
+
+Sans UPnP (désactivé sur la box, ou `upnp = false`), il faut rediriger à la main vers l'ordinateur du serveur :
+UDP 61000-61001 (et 61010-61011 pour le royaume PC), 10025 et 10125, et, pour jouer soi-même sur cet ordinateur,
+la plage UDP 49152-65535 (le port du jeu change à chaque connexion). Le serveur réessaie l'UPnP toutes les 20 minutes.
+
+### Quand la box ne suffit pas
+
+* **IPv4 partagée** : la box n'a qu'une partie des ports (« IPv4 partagée » chez certains opérateurs) et refuse les redirections
+  hors de sa plage, ou elle est elle-même derrière le NAT de l'opérateur (certaines offres mobiles, satellite).
+  Le lanceur affiche les redirections refusées, et signale un « autre NAT devant la box » quand l'adresse de la
+  box n'est pas celle que voit Internet. Beaucoup d'opérateurs donnent une adresse IPv4 complète sur demande.
+* **Réseau privé virtuel** (ZeroTier, Tailscale, Radmin VPN…) : tous les joueurs rejoignent le même réseau, et
+  tout le monde, y compris celui qui héberge, construit le mod avec l'adresse du serveur **sur ce réseau**. Aucun
+  port à ouvrir. Le serveur donne à chacun l'adresse par laquelle il l'a joint.
+* **Serveur sur une machine louée** (VPS) : lancer `python3 -m sdsw_server` dessus et ouvrir ses ports UDP dans
+  son pare-feu ; tous les joueurs sont alors « éloignés », y compris celui qui le loue.
+
+La partie elle-même reste de console à console : si les deux NAT des joueurs sont stricts (symétriques), la
+connexion directe peut échouer même avec un serveur joignable.
+
+### Vérifier depuis chez un ami
+
+```sh
+cd server && python3 -m sdsw_server.testclient --probe <adresse>[:61000]
+```
+
+envoie ce qu'envoie la console avant de se connecter (début de connexion aux deux serveurs, détection de NAT) et
+dit si le serveur répond, et sous quelle adresse il voit l'ami. C'est le bouton « Tester » du lanceur.
+
+### Lancé par le lanceur
+
+Le serveur écrit `data/serveur.json` pendant qu'il tourne (processus, ports, adresse publique, redirections de la
+box), que le lanceur affiche ; `--exit-with-stdin` l'arrête proprement (redirections retirées) quand le lanceur
+qui l'a démarré disparaît, même tué : plus de serveur oublié qui garde les ports.
 
 ## Comptes
 
@@ -88,9 +138,11 @@ Aucune donnée de jeu n'est stockée : le jeu n'utilise pas de classements ni de
 | `sdsw_server/realm.py` | serveur d'authentification (TicketGranting) et serveur sécurisé (SecureConnection, NATTraversal, MatchMaking, MatchmakeExtension) |
 | `sdsw_server/matchmaking.py` | salons, notifications |
 | `sdsw_server/natcheck.py` | détection de NAT de Pia (serveurs « nncs ») |
+| `sdsw_server/internet.py` | adresse publique, redirections de la box, joueurs du réseau du serveur |
+| `sdsw_server/upnp.py`, `stun.py` | clients UPnP (box) et STUN, bibliothèque standard seule |
 | `sdsw_server/accounts.py` | comptes |
 | `sdsw_server/status.py` | page d'état (HTTP) |
-| `sdsw_server/testclient.py` | client qui se comporte comme le jeu, pour tester sans console |
+| `sdsw_server/testclient.py` | client qui se comporte comme le jeu, pour tester sans console ; `--probe` |
 
 ## Tests
 

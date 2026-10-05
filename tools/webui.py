@@ -19,6 +19,7 @@ import json
 import os
 import secrets
 import shutil
+import signal
 import socket
 import subprocess
 import sys
@@ -178,32 +179,165 @@ class Tasks:
 
 # ---- the online server, as a child process --------------------------------------------------------
 
+SERVER_DIR = ROOT / "server"
+SERVER_STATE = SERVER_DIR / "data" / "serveur.json"        # written by the server while it runs
+
+
+def server_command(cmdline: str) -> bool:
+    """A command line that runs our online server (python -m sdsw_server)."""
+    return "sdsw_server" in cmdline and "testclient" not in cmdline
+
+
+def udp_port_owners(ports: set[int]) -> dict[int, str]:
+    """pid -> command line of the processes that have one of these UDP ports open, as far as this user can
+    see them ({} when the system does not tell)."""
+    try:
+        if sys.platform.startswith("linux"):
+            return _owners_linux(ports)
+        if sys.platform == "darwin":
+            return _owners_lsof(ports)
+        if sys.platform.startswith("win"):
+            return _owners_windows(ports)
+    except (OSError, ValueError, subprocess.SubprocessError):
+        pass
+    return {}
+
+
+def _owners_linux(ports: set[int]) -> dict[int, str]:
+    inodes = set()
+    for table in ("/proc/net/udp", "/proc/net/udp6"):
+        with contextlib.suppress(OSError):
+            for line in Path(table).read_text().splitlines()[1:]:
+                fields = line.split()
+                if len(fields) > 9 and int(fields[1].rsplit(":", 1)[1], 16) in ports:
+                    inodes.add(f"socket:[{fields[9]}]")
+    owners = {}
+    if not inodes:
+        return owners
+    for proc in Path("/proc").iterdir():
+        if not proc.name.isdigit():
+            continue
+        with contextlib.suppress(OSError):
+            if any(os.readlink(fd) in inodes for fd in (proc / "fd").iterdir()):
+                owners[int(proc.name)] = (proc / "cmdline").read_bytes().replace(b"\0", b" ").decode(
+                    "utf-8", "replace").strip()
+    return owners
+
+
+def _owners_lsof(ports: set[int]) -> dict[int, str]:
+    args = ["lsof", "-nP", "-t"] + [f"-iUDP:{port}" for port in sorted(ports)]
+    pids = {int(line) for line in subprocess.run(args, capture_output=True, text=True, timeout=10).stdout.split()}
+    return {pid: subprocess.run(["ps", "-o", "command=", "-p", str(pid)], capture_output=True, text=True,
+                                timeout=10).stdout.strip() for pid in pids}
+
+
+def _owners_windows(ports: set[int]) -> dict[int, str]:
+    hidden = getattr(subprocess, "CREATE_NO_WINDOW", 0)
+    table = subprocess.run(["netstat", "-ano", "-p", "UDP"], capture_output=True, text=True, timeout=15,
+                           creationflags=hidden).stdout
+    pids = set()
+    for line in table.splitlines():
+        fields = line.split()
+        if len(fields) >= 4 and fields[0] == "UDP" and fields[1].rsplit(":", 1)[-1].isdigit():
+            if int(fields[1].rsplit(":", 1)[1]) in ports and fields[-1].isdigit():
+                pids.add(int(fields[-1]))
+    owners = {}
+    for pid in pids:
+        query = f"(Get-CimInstance Win32_Process -Filter 'ProcessId={pid}').CommandLine"
+        owners[pid] = subprocess.run(["powershell", "-NoProfile", "-Command", query], capture_output=True,
+                                     text=True, timeout=20, creationflags=hidden).stdout.strip()
+    return owners
+
+
+def busy_udp_ports(ports: list[int]) -> list[int]:
+    busy = []
+    for port in ports:
+        with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as probe:
+            try:
+                probe.bind(("0.0.0.0", port))
+            except OSError:
+                busy.append(port)
+    return busy
+
+
 class GameServer:
     def __init__(self) -> None:
         self.process: subprocess.Popen | None = None
         self.lines: deque[str] = deque(maxlen=500)
+        self._others: tuple[float, dict[int, str]] = (0.0, {})
 
     @property
     def running(self) -> bool:
         return self.process is not None and self.process.poll() is None
 
     def start(self) -> None:
-        if self.running:
-            return
+        """Starts the server, after stopping the one already running: ours (a restart), or one started
+        elsewhere (an earlier launcher, a terminal) that holds its ports."""
         if sys.version_info < (3, 11):
             raise UserError("le serveur demande Python 3.11 ou plus récent")
-        for port in self.ports():
-            with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as probe:
-                try:
-                    probe.bind(("0.0.0.0", port))
-                except OSError:
-                    raise UserError(f"Le port UDP {port} est déjà pris : un serveur tourne sans doute déjà sur cet "
-                                    "ordinateur (lancé ailleurs).") from None
         self.lines.clear()
-        self.process = subprocess.Popen([sys.executable, "-u", "-m", "sdsw_server", "-c", "serveur.toml"],
-                                        cwd=ROOT / "server", stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
-                                        text=True, encoding="utf-8", errors="replace")
+        if self.running:
+            self.lines.append("[redémarrage du serveur]")
+            self.stop()
+        self.stop_others()
+        self.process = subprocess.Popen([sys.executable, "-u", "-m", "sdsw_server", "-c", "serveur.toml",
+                                         "--exit-with-stdin"],
+                                        cwd=SERVER_DIR, stdin=subprocess.PIPE, stdout=subprocess.PIPE,
+                                        stderr=subprocess.STDOUT, text=True, encoding="utf-8", errors="replace")
         threading.Thread(target=self._read, args=(self.process,), daemon=True).start()
+
+    def stop_others(self, strict: bool = True) -> None:
+        """Stops the servers started elsewhere (an earlier launcher, a terminal) that hold our ports. When
+        another program holds one, strict refuses to go on."""
+        ports = self.ports()
+        busy = busy_udp_ports(ports)
+        if not busy:
+            return
+        owners = udp_port_owners(set(busy))
+        others = {pid: cmd for pid, cmd in owners.items() if not server_command(cmd)}
+        if strict and (others or not owners):
+            who = ", ".join(f"{(cmd.split() or ['?'])[0]} (PID {pid})" for pid, cmd in others.items())
+            raise UserError(f"Le port UDP {busy[0]} est pris par un autre programme"
+                            + (f" : {who}. Fermez-le" if who else ", introuvable. Fermez le programme qui l'occupe")
+                            + ", ou changez les ports dans serveur.toml.")
+        servers = [pid for pid in owners if pid not in others]
+        for pid in servers:
+            self.lines.append(f"[serveur lancé ailleurs (PID {pid}) : arrêté]")
+            try:
+                os.kill(pid, signal.SIGTERM)               # Windows: TerminateProcess
+            except ProcessLookupError:
+                pass
+            except PermissionError:
+                raise UserError(f"Un serveur lancé par un autre utilisateur (PID {pid}) occupe le port UDP "
+                                f"{busy[0]} : arrêtez-le depuis son compte.") from None
+        self._others = (0.0, {})
+        if not servers or self._wait_free(ports, 2 if others else 8):    # others: some ports stay busy
+            return
+        for pid in servers:                                # it did not stop cleanly
+            with contextlib.suppress(OSError):
+                os.kill(pid, getattr(signal, "SIGKILL", signal.SIGTERM))
+        if not self._wait_free(ports, 4) and strict:
+            raise UserError(f"Le serveur déjà lancé (PID {', '.join(map(str, servers))}) ne s'arrête pas.")
+
+    @staticmethod
+    def _wait_free(ports: list[int], seconds: float) -> bool:
+        deadline = time.monotonic() + seconds
+        while busy_udp_ports(ports):
+            if time.monotonic() > deadline:
+                return False
+            time.sleep(0.2)
+        return True
+
+    def others(self) -> dict[int, str]:
+        """Servers started elsewhere that hold our ports (checked every few seconds: on Windows and macOS,
+        finding them starts programs)."""
+        if self.running:
+            return {}
+        if time.monotonic() - self._others[0] > (3 if sys.platform.startswith("linux") else 10):
+            busy = busy_udp_ports(self.ports())
+            owners = udp_port_owners(set(busy)) if busy else {}
+            self._others = (time.monotonic(), {pid: cmd for pid, cmd in owners.items() if server_command(cmd)})
+        return self._others[1]
 
     def _read(self, process: subprocess.Popen) -> None:
         for line in process.stdout:
@@ -211,37 +345,75 @@ class GameServer:
         self.lines.append(f"[serveur arrêté, code {process.wait()}]")
 
     def stop(self) -> None:
+        """Closing its standard input stops the server cleanly (it removes its forwards on the router)."""
         if self.running:
-            self.process.terminate()
+            with contextlib.suppress(OSError):
+                self.process.stdin.close()
             try:
-                self.process.wait(5)
+                self.process.wait(8)
             except subprocess.TimeoutExpired:
-                self.process.kill()
+                self.process.terminate()
+                try:
+                    self.process.wait(5)
+                except subprocess.TimeoutExpired:
+                    self.process.kill()
 
     @staticmethod
-    def ports() -> list[int]:
-        """UDP ports the server will open: each realm's two, and the NAT check's (fixed by the game)."""
+    def config() -> dict:
         try:
-            data = tomllib.loads((ROOT / "server" / "serveur.toml").read_text(encoding="utf-8"))
+            return tomllib.loads((SERVER_DIR / "serveur.toml").read_text(encoding="utf-8"))
         except (OSError, tomllib.TOMLDecodeError):
+            return {}
+
+    @classmethod
+    def ports(cls) -> list[int]:
+        """UDP ports the server will open: each realm's two, and the NAT check's (fixed by the game)."""
+        data = cls.config()
+        if not data:
             return [61000, 61001, 10025, 10125]
         ports = [int(r[k]) for r in data.get("realm", []) for k in ("auth_port", "secure_port") if k in r]
         return ports + ([10025, 10125] if data.get("server", {}).get("nat_check", True) else [])
 
+    def state(self, pids: set[int]) -> dict | None:
+        """The state file of the running server (public address, router forwards), when it is one of pids
+        (or their child: the python.exe of a Windows virtual environment starts the real one)."""
+        with contextlib.suppress(OSError, ValueError):
+            state = json.loads(SERVER_STATE.read_text(encoding="utf-8"))
+            if state.get("pid") in pids or state.get("ppid") in pids:
+                return state
+        return None
+
     def json(self) -> dict:
-        config = ROOT / "server" / "serveur.toml"
-        realms = []
+        data = self.config()
+        realms = [{"name": r.get("name"), "auth_port": r.get("auth_port"), "cheats": r.get("cheats", "separes"),
+                   "max_players": r.get("max_players", 8)} for r in data.get("realm", [])]
+        settings = data.get("server", {})
         try:
-            data = tomllib.loads(config.read_text(encoding="utf-8"))
-            realms = [{"name": r.get("name"), "auth_port": r.get("auth_port"), "cheats": r.get("cheats", "separes"),
-                       "max_players": r.get("max_players", 8)} for r in data.get("realm", [])]
-            public = data.get("server", {}).get("public_address", "")
-            status_port = int(data.get("server", {}).get("status_port", 0))
-        except (OSError, tomllib.TOMLDecodeError, ValueError):
-            public, status_port = "", 0
+            status_port = int(settings.get("status_port", 0))
+        except ValueError:
+            status_port = 0
+        others = self.others()
+        pids = ({self.process.pid} if self.running else set()) | set(others)
         return {"running": self.running, "lines": list(self.lines)[-200:], "addresses": local_addresses(),
-                "config": str(config), "public_address": public, "realms": realms,
+                "config": str(SERVER_DIR / "serveur.toml"), "realms": realms,
+                "public_setting": str(settings.get("public_address", "auto")), "upnp": bool(settings.get("upnp")),
+                "others": [{"pid": pid, "command": cmd} for pid, cmd in others.items()],
+                "state": self.state(pids),
                 "status_page": f"http://127.0.0.1:{status_port}/" if status_port else None}
+
+
+def test_server(address: str) -> dict:
+    """From this computer, does a server answer? (what the game does before logging in)"""
+    host, _, port = address.strip().partition(":")
+    if not host:
+        raise UserError("Indiquez l'adresse du serveur.")
+    if len(host) > 31:
+        raise UserError("Adresse trop longue : le mod en ligne en accepte 31 caractères au plus.")
+    if str(SERVER_DIR) not in sys.path:
+        sys.path.insert(0, str(SERVER_DIR))
+    from sdsw_server.testclient import probe
+    result = probe(host, int(port) if port.isdigit() else 61000)
+    return result | {"host": host, "port": int(port) if port.isdigit() else 61000}
 
 
 def local_addresses() -> list[str]:
@@ -627,7 +799,10 @@ class LauncherServer(ThreadingHTTPServer):
             return self.game_server.json()
         if key == "POST server/stop":
             self.game_server.stop()
+            self.game_server.stop_others(strict=False)
             return self.game_server.json()
+        if key == "POST server/test":
+            return test_server(str(body.get("address", "")))
         if key == "POST open":
             open_folder(Path(body.get("path", "")))
             return {}

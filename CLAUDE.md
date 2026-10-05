@@ -66,6 +66,13 @@ Ghidra scripts are Java (`ghidra/scripts/`), compiled by Ghidra 12.1.4; check th
   with the real game: PRUDP v1, RC4 "CD&ML" before the Kerberos session key, aggregate ACKs (MULTI_ACK, substream 1).
   Azahar's frd:u lacks game authentication, hence the `en-ligne` mod. Pretendo's server (Go, AGPL-3.0) is cloned for
   reference in `build/ref/pretendo-sdsw`; Azahar sources (GPL, reference only) in `build/ref/azahar` (sparse).
+- Remote play: to join, Pia uses the host's private URL when the host's public IP equals its own, else the public
+  one (pia::inet::NexConnectStationJob::StartupImpl). The server (`internet.py`) shows consoles on its own network
+  (127.0.0.1, LAN) with its public address (Register, NAT check, URLs) and forwards their Pia port (random
+  49152-65534) by UPnP: without it, Linux NATs lose the hole-punching race (netns simulation, docs/online.md §7).
+  `public_address = "auto"` (UPnP, then STUN), `upnp = true`. The launcher stops any `sdsw_server` holding the
+  ports before starting its own, and starts it with `--exit-with-stdin`. Never `pkill -f` a pattern that also
+  matches the shell running the command.
 - Azahar crash "torpedo hits a sub underwater" = OOM kill, not a game bug: Azahar's x64 shader JIT clobbers the
   outer LOOP counter when a subroutine CALLed from a loop has its own LOOP (geometry shader of the oil metaballs,
   shaders/metaball.shbin) -> ~4e9 iterations emitting triangles. mods/correctifs (always = true, in every build)

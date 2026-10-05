@@ -1,6 +1,7 @@
 """A NEX client that logs in and matchmakes like the game does, to test a server without the game.
 
     cd server && python3 -m sdsw_server.testclient [--server 127.0.0.1:61000] [--pid N] [--players 2]
+    cd server && python3 -m sdsw_server.testclient --probe 192.0.2.10:61000     (is a server reachable?)
 
 It follows what the game's code does (see realm.py and prudp.py): PRUDP v1, LoginEx with an
 AuthenticationInfo token, RequestTicket, Kerberos CONNECT to the secure server, Register,
@@ -14,12 +15,15 @@ import asyncio
 import logging
 import os
 import random
+import socket
 import struct
 import sys
+import time
 
 from .accounts import TOKEN_PREFIX
 from .crypto import RC4, derive_user_key, kerberos_decrypt, kerberos_encrypt
 from .ddl import MatchmakeSession, RVConnectionData
+from .natcheck import PORTS as NAT_CHECK_PORTS
 from .prudp import (CONNECT, DATA, FLAG_ACK, FLAG_MULTI_ACK, FLAG_NEED_ACK, FLAG_RELIABLE, SYN, Packet,
                     Signer, decode_datagram, encode_packet)
 from .streams import StationURL, StreamIn, StreamOut
@@ -189,7 +193,8 @@ def authentication_info(token: str) -> StreamOut:
     return s
 
 
-async def login(host: str, port: int, pid: int, password: str, flags: str = "") -> tuple[PRUDPClient, int]:
+async def login(host: str, port: int, pid: int, password: str, flags: str = "",
+                local_url: str | None = None) -> tuple[PRUDPClient, int]:
     key = derive_user_key(pid, password)
     auth = await open_client(host, port)
     await auth.connect()
@@ -218,11 +223,12 @@ async def login(host: str, port: int, pid: int, password: str, flags: str = "") 
     if answer.buffer() != struct.pack("<I", (check + 1) & 0xFFFFFFFF):
         raise ClientError("bad check value")
     secure.set_key(session_key)
-    local = f"prudp:/address=192.168.1.{pid % 200 + 2};port=60000;natf=0;natm=0;pmp=0;sid=15;type=2;upnp=0"
+    local = local_url or f"prudp:/address=192.168.1.{pid % 200 + 2};port=60000;natf=0;natm=0;pmp=0;sid=15;type=2;upnp=0"
     params = StreamOut(); params.list([local], StreamOut.string)
     s = await secure.call(11, 1, params)
     result, cid, public = s.u32(), s.u32(), s.string()
     log.info("pid %d: registered cid %d, public %s", pid, cid, public)
+    secure.secure_url, secure.public_url = secure_url, StationURL.parse(public)
     return secure, cid
 
 
@@ -288,14 +294,71 @@ async def scenario(host: str, port: int, players: int) -> int:
     return 0 if ok else 1
 
 
+def _exchange(target: tuple[str, int], data: bytes, accept, timeout: float):
+    """Sends a datagram (twice at most) and returns the first answer accept() takes, else None."""
+    with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as s:
+        for _ in range(2):
+            try:
+                s.sendto(data, target)
+            except OSError:
+                return None
+            until = time.monotonic() + timeout / 2
+            while (left := until - time.monotonic()) > 0:
+                s.settimeout(left)
+                try:
+                    answer, addr = s.recvfrom(2048)
+                except OSError:                       # timeout, or "port unreachable" from the far end
+                    break
+                if addr[0] == target[0] and (found := accept(answer)) is not None:
+                    return found
+    return None
+
+
+def probe(host: str, port: int = 61000, timeout: float = 2.0) -> dict:
+    """What a console does first, without logging in: a PRUDP SYN to the authentication server and to the
+    secure server (usually the next port), and a NAT check, whose answer tells how the server sees us."""
+    out = {"address": None, "auth": False, "secure": False, "natcheck": False, "seen_as": None}
+    try:
+        ip = socket.gethostbyname(host)
+    except OSError as e:
+        out["error"] = f"cannot resolve {host}: {e}"
+        return out
+    out["address"] = ip
+    syn = encode_packet(Packet(src=0xAF, dst=0xA1, type=SYN, flags=FLAG_NEED_ACK, seq=0, supported_functions=3,
+                               conn_sig=bytes(16), max_substream_id=0), Signer(ACCESS_KEY), b"", b"")
+
+    def syn_ack(data: bytes):
+        try:
+            return any(p.type == SYN and p.flags & FLAG_ACK for p in decode_datagram(data)) or None
+        except ValueError:
+            return None
+    out["auth"] = bool(_exchange((ip, port), syn, syn_ack, timeout))
+    out["secure"] = bool(_exchange((ip, port + 1), syn, syn_ack, timeout))
+
+    def nat_answer(data: bytes):
+        if len(data) != 16:
+            return None
+        kind, seen_port, seen_ip, _ = struct.unpack(">IIII", data)
+        return f"{socket.inet_ntoa(struct.pack('>I', seen_ip))}:{seen_port}" if kind == 101 else None
+    seen = _exchange((ip, NAT_CHECK_PORTS[0]), struct.pack(">IIII", 101, 0, 0, 0), nat_answer, timeout)
+    out["natcheck"], out["seen_as"] = seen is not None, seen
+    return out
+
+
 def main() -> None:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--server", default="127.0.0.1:61000")
     ap.add_argument("--players", type=int, default=2)
+    ap.add_argument("--probe", metavar="HOST[:PORT]", help="only check that a server answers")
     ap.add_argument("-v", "--verbose", action="store_true")
     args = ap.parse_args()
     logging.basicConfig(level=logging.DEBUG if args.verbose else logging.INFO,
                         format="%(asctime)s %(name)-10s %(message)s", datefmt="%H:%M:%S")
+    if args.probe:
+        host, _, port = args.probe.partition(":")
+        result = probe(host, int(port or 61000))
+        print(result)
+        sys.exit(0 if result["auth"] and result["natcheck"] else 1)
     host, _, port = args.server.rpartition(":")
     sys.exit(asyncio.run(scenario(host, int(port), args.players)))
 

@@ -191,16 +191,28 @@ ol.steps { margin: 6px 0 0; padding-left: 20px; } ol.steps li { margin-bottom: 4
 <section class="tab" id="tab-serveur">
   <div class="card">
     <h2>Serveur en ligne</h2>
-    <p class="small muted">Pour jouer en ligne entre amis : lancez le serveur sur un ordinateur, et chaque joueur
-      installe le mod <b>Jeu en ligne</b> avec l'adresse de cet ordinateur. Sur le même réseau (Wi-Fi), l'adresse
-      locale suffit ; par Internet, il faut ouvrir les ports UDP sur la box (voir l'aide du serveur).</p>
+    <p class="small muted">Pour jouer en ligne entre amis, un joueur lance le serveur sur son ordinateur et chacun
+      installe le mod <b>Jeu en ligne</b> avec son adresse. Le serveur demande à la box d'ouvrir ses ports (UPnP) :
+      les amis peuvent jouer depuis chez eux, par Internet.</p>
     <div class="status" id="srv-status"></div>
     <div class="row" style="margin-top:8px">
       <button class="btn primary" id="btn-srv-start">Lancer le serveur</button>
       <button class="btn" id="btn-srv-stop">Arrêter</button>
       <button class="btn" id="btn-srv-config">Ouvrir sa configuration</button>
     </div>
-    <div id="srv-info" class="small" style="margin-top:10px"></div>
+  </div>
+  <div class="card" id="srv-public"></div>
+  <div class="card">
+    <h2>Rejoindre le serveur d'un ami</h2>
+    <p class="small muted">Entrez l'adresse qu'il vous donne (IP ou nom, avec <code>:port</code> s'il n'utilise
+      pas 61000). « Tester » vérifie depuis cet ordinateur que son serveur répond ; puis installez le mod
+      <b>Jeu en ligne</b> avec cette adresse.</p>
+    <div class="row">
+      <input type="text" id="srv-test-address" placeholder="ex. 203.0.113.7 ou monserveur.duckdns.org" size="34">
+      <button class="btn" id="btn-srv-test">Tester</button>
+      <button class="btn primary" id="btn-srv-use">Utiliser pour le mod Jeu en ligne</button>
+    </div>
+    <div id="srv-test-result" class="small" style="margin-top:8px"></div>
   </div>
   <div class="card"><h2>Journal</h2><div class="log" id="srv-log"></div></div>
 </section>
@@ -439,6 +451,19 @@ function renderMods() {
   }
 }
 function saveChoices() { localStorageSet("mods", JSON.stringify(modChoices)); }
+function setModParam(id, key, value) {
+  const choice = modChoices[id] || (modChoices[id] = {on: true, params: {}});
+  choice.on = true;
+  choice.params[key] = value;
+  saveChoices();
+  const card = $("#mod-" + id);
+  if (!card) return;
+  card.classList.add("on");
+  const box = $("input[data-mod]", card);
+  if (box) box.checked = true;
+  const input = $(`[data-param="${key}"]`, card);
+  if (input) input.value = value;
+}
 function selectedMods() {
   const names = [], params = {};
   for (const m of state.mods) {
@@ -601,32 +626,117 @@ $("#btn-subs-reset-all").addEventListener("click", () => guarded(async () => {
 
 // ---- server ----------------------------------------------------------------------------------------
 let serverTimer = null;
+const CHEATS = {separes: "ils ne jouent qu'entre eux", autorises: "acceptés avec tout le monde", refuses: "refusés"};
+function copyButton(text) {
+  return el("button", {class: "btn", onclick: () => guarded(async () => {
+    await navigator.clipboard.writeText(text); toast("Copié : " + text); })}, "Copier");
+}
 async function loadServer() {
   clearTimeout(serverTimer);
   await guarded(async () => {
     const s = await api("server");
-    $("#srv-status").replaceChildren(el("span", {class: "dot " + (s.running ? "ok" : "")}),
-      el("span", {}, s.running ? "Le serveur tourne." : "Le serveur est arrêté."));
-    const realm = s.realms.find(r => r.name === "emulateur") || s.realms[0];
-    $("#srv-info").replaceChildren(
-      el("div", {}, "Adresse à donner aux amis sur votre réseau : ",
-        ...(s.addresses.length ? s.addresses.map(a => el("code", {}, a)) : [el("span", {class: "muted"}, "inconnue")]),
-        realm ? el("span", {}, ` (port ${realm.auth_port}, royaume « ${realm.name} »)`) : ""),
-      realm ? el("div", {class: "muted"}, `Joueurs humains par partie : ${realm.max_players} (des bots complètent les équipes) · tricheurs : `
-        + ({separes: "ils ne jouent qu'entre eux", autorises: "acceptés avec tout le monde", refuses: "refusés"}[realm.cheats] || realm.cheats)) : "",
-      s.status_page ? el("div", {}, "Page d'état : ", el("a", {href: s.status_page, target: "_blank"}, s.status_page))
-        : el("div", {class: "muted"}, "Page d'état : désactivée (status_port dans la configuration)."),
-      el("div", {class: "muted"}, "Configuration : ", el("code", {}, s.config)));
+    const other = s.others.length ? s.others[0] : null;
+    $("#srv-status").replaceChildren(el("span", {class: "dot " + (s.running ? "ok" : other ? "warn" : "")}),
+      el("span", {}, s.running ? "Le serveur tourne."
+        : other ? `Un serveur lancé ailleurs tourne déjà (PID ${other.pid}) : « Relancer ici » l'arrête et en lance un nouveau.`
+        : "Le serveur est arrêté."));
+    $("#btn-srv-start").textContent = s.running ? "Relancer le serveur" : other ? "Relancer ici" : "Lancer le serveur";
+    renderPublic(s);
     const log = $("#srv-log");
-    log.textContent = s.lines.join("\n");
-    log.scrollTop = log.scrollHeight;
+    const atBottom = log.scrollTop + log.clientHeight >= log.scrollHeight - 4;
+    log.textContent = s.lines.length ? s.lines.join("\n")
+      : other ? "(le journal d'un serveur lancé ailleurs ne s'affiche pas ici : « Relancer ici » pour le suivre)" : "";
+    if (atBottom) log.scrollTop = log.scrollHeight;
     if (document.querySelector("#tab-serveur.active")) serverTimer = setTimeout(loadServer, 2000);
   });
 }
-$("#btn-srv-start").addEventListener("click", () => guarded(async () => { await api("server/start", {body: {}}); loadServer(); }));
+function renderPublic(s) {
+  const box = $("#srv-public");
+  const realm = s.realms.find(r => r.name === "emulateur") || s.realms[0];
+  const port = realm ? realm.auth_port : 61000;
+  const net = s.state && s.state.internet;
+  const parts = [el("h2", {}, "Jouer avec des amis éloignés")];
+  if (!s.running && !s.others.length) {
+    parts.push(el("p", {class: "small muted"}, "Lancez le serveur : il cherche son adresse publique et ouvre ses ports sur la box."));
+  } else if (!net || !net.ready) {
+    parts.push(el("p", {class: "small"}, el("span", {class: "spin"}), " Recherche de la box et de l'adresse publique…"));
+  } else {
+    const share = net.public_address && net.global ? net.public_address + (port !== 61000 ? ":" + port : "") : null;
+    parts.push(share
+      ? el("div", {class: "row"}, el("span", {}, "Adresse à donner à vos amis : "), el("code", {style: "font-size:15px"}, share), copyButton(share))
+      : el("p", {style: "color:var(--warn)"}, net.public_address
+          ? `Adresse « ${net.public_address} » : ce n'est pas une adresse Internet, seuls les joueurs de votre réseau peuvent venir.`
+          : "Adresse publique introuvable : seuls les joueurs de votre réseau peuvent venir (public_address dans la configuration)."));
+    const up = net.upnp;
+    const failed = Object.entries(up.failed || {});
+    const lan = net.lan_address || (s.addresses[0] || "cet ordinateur");
+    if (!up.enabled) {
+      parts.push(el("p", {class: "small"}, "UPnP désactivé (upnp dans la configuration) : redirigez à la main sur la box les ports UDP ",
+        el("code", {}, net.ports.map(p => p.split(" ")[1]).join(", ")), " vers ", el("code", {}, lan), "."));
+    } else if (!up.router) {
+      parts.push(el("p", {class: "small", style: "color:var(--warn)"}, "La box ne répond pas en UPnP : activez l'UPnP dans sa configuration ",
+        "(le serveur réessaie toutes les 20 minutes), ou redirigez à la main les ports UDP ",
+        el("code", {}, net.ports.map(p => p.split(" ")[1]).join(", ")), " vers ", el("code", {}, lan), "."));
+    } else {
+      parts.push(el("p", {class: "small"}, el("span", {style: "color:var(--ok)"}, "✓ "),
+        `Ports ouverts sur la box (${up.router}, UPnP) : ${up.forwarded.join(", ") || "aucun"}`
+        + (up.players ? ` · ${up.players} port(s) de joueur de votre réseau` : "") + "."));
+      if (failed.length) parts.push(el("p", {class: "small", style: "color:var(--bad)"},
+        "La box refuse : " + failed.map(([k, e]) => `${k} (${e})`).join(" ; ")
+        + ". Redirigez-les à la main, ou changez les ports dans la configuration."));
+    }
+    if (net.double_nat) parts.push(el("p", {class: "small", style: "color:var(--bad)"},
+      `La box a l'adresse ${net.router_address}, mais Internet vous voit en ${net.stun_address} : un autre NAT est devant la box `
+      + "(celui de l'opérateur, ou un second routeur). Les ports ouverts sur la box ne suffisent pas : demandez une adresse IPv4 "
+      + "complète à votre opérateur, ou jouez par un réseau privé virtuel (voir l'aide du serveur)."));
+    parts.push(el("p", {class: "small muted"}, "Pour jouer sur cet ordinateur, votre mod Jeu en ligne garde l'adresse ",
+      el("code", {}, "127.0.0.1"), " ; sur votre réseau local : ", el("code", {}, lan), "."));
+  }
+  if (realm) parts.push(el("div", {class: "small muted"}, `Royaume « ${realm.name} » : jusqu'à ${realm.max_players} joueurs humains par partie `
+    + `(des bots complètent les équipes) · tricheurs : ${CHEATS[realm.cheats] || realm.cheats}.`));
+  parts.push(s.status_page ? el("div", {class: "small"}, "Page d'état : ", el("a", {href: s.status_page, target: "_blank"}, s.status_page))
+    : el("div", {class: "small muted"}, "Page d'état : désactivée (status_port dans la configuration)."));
+  parts.push(el("div", {class: "small muted"}, "Configuration : ", el("code", {}, s.config)));
+  box.replaceChildren(...parts);
+}
+$("#btn-srv-start").addEventListener("click", () => guarded(async () => {
+  const button = $("#btn-srv-start");
+  button.disabled = true;
+  try { await api("server/start", {body: {}}); } finally { button.disabled = false; }
+  loadServer();
+}));
 $("#btn-srv-stop").addEventListener("click", () => guarded(async () => { await api("server/stop", {body: {}}); loadServer(); }));
 $("#btn-srv-config").addEventListener("click", () => guarded(async () => {
   const s = await api("server"); await api("open", {body: {path: s.config.replace(/[\\/][^\\/]*$/, "")}}); }));
+$("#btn-srv-test").addEventListener("click", () => guarded(async () => {
+  const out = $("#srv-test-result");
+  out.replaceChildren(el("span", {class: "spin"}), " Test en cours…");
+  try {
+    const r = await api("server/test", {body: {address: $("#srv-test-address").value}});
+    const line = (ok, text) => el("div", {}, el("b", {style: "color:var(--" + (ok ? "ok" : "bad") + ")"}, ok ? "✓ " : "✗ "), text);
+    if (r.error) { out.replaceChildren(line(false, `Adresse introuvable : ${r.host}`)); return; }
+    out.replaceChildren(
+      line(r.auth, `Connexion (UDP ${r.port})`),
+      line(r.secure, `Serveur sécurisé (UDP ${r.port + 1})`),
+      line(r.natcheck, "Détection de NAT (UDP 10025)" + (r.seen_as ? ` : le serveur vous voit en ${r.seen_as}` : "")),
+      el("div", {class: "muted", style: "margin-top:4px"}, r.auth && r.natcheck
+        ? "Le serveur répond : installez le mod Jeu en ligne avec cette adresse."
+        : "Pas de réponse : le serveur est-il lancé ? Ses ports UDP sont-ils ouverts sur sa box ? "
+          + "(Depuis l'ordinateur du serveur, tester son adresse publique passe par la box et peut échouer même quand tout va bien.)"));
+  } catch (e) { out.replaceChildren(); throw e; }
+}));
+$("#btn-srv-use").addEventListener("click", () => {
+  const text = $("#srv-test-address").value.trim();
+  if (!text) { toast("Entrez d'abord l'adresse du serveur.", true); return; }
+  const [host, port] = text.split(":");
+  if (host.length > 31) { toast("Adresse trop longue : 31 caractères au plus.", true); return; }
+  setModParam("en-ligne", "server", host);
+  setModParam("en-ligne", "port", port || "61000");
+  toast(`Mod Jeu en ligne réglé sur ${host}${port ? ":" + port : ""} : cliquez sur « Installer dans Azahar ».`);
+  showTab("mods");
+  const card = $("#mod-en-ligne");
+  if (card) card.scrollIntoView({behavior: "smooth", block: "center"});
+});
 
 // ---- start -----------------------------------------------------------------------------------------
 guarded(async () => {

@@ -64,9 +64,12 @@ se jouent en P2P via Pia. Aucune bibliothèque NEX de classement ou de stockage 
    `max_players` (plus de bots) et `cheats` (tricheurs acceptés, séparés ou refusés).
 3. ~~**Validation avec le jeu**~~ : deux Azahar avec le mod `en-ligne` se connectent, se trouvent et jouent une
    bataille ensemble.
-4. **À suivre** : essais entre machines distantes derrière de vrais NAT (le serveur n'a qu'une adresse IP, voir
-   la détection de NAT dans [online.md](online.md)) ; relais pour les NAT stricts si besoin ; migration d'hôte et
-   départs en cours de partie à éprouver.
+4. ~~**Serveur public**~~ : adresse publique trouvée (box, STUN), ports ouverts par UPnP (vérifié avec une
+   box), joueurs du réseau du serveur présentés sous l'adresse publique et port de leur jeu redirigé
+   ([online.md](online.md#7-joueurs-éloignés--adresses-publiques-et-privées)) ; validé par simulation (deux NAT
+   Linux dans des espaces de noms réseau) ; lanceur : arrêt d'un serveur déjà lancé, adresse à partager, test.
+5. **À suivre** : une vraie partie entre deux maisons ; relais pour les NAT stricts si besoin ; migration d'hôte
+   et départs en cours de partie à éprouver.
 
 ## Volet 4 — Mods (Azahar, puis portage PC)
 

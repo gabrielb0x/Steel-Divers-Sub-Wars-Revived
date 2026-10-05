@@ -44,7 +44,9 @@ class StatusServer:
                 f"<tr><td>{m['players']} / {m['max']}</td><td>{'ouverte' if m['open'] else 'en cours'}</td>"
                 f"<td>{'tricheurs' if m['cheaters'] else ''}</td><td>{m['minutes']} min</td></tr>" for m in matches)
             parts.append(
-                f"<h2>Royaume « {html.escape(realm['name'])} » <small>(port UDP {realm['auth_port']})</small></h2>"
+                f"<h2>Royaume « {html.escape(realm['name'])} » <small>("
+                + (f"adresse {html.escape(realm['address'])}, " if realm.get("address") else "")
+                + f"port UDP {realm['auth_port']})</small></h2>"
                 f"<p><b>{realm['players_online']}</b> joueur(s) connecté(s), {realm['accounts']} compte(s). "
                 f"Jusqu'à {realm['max_players']} joueurs humains par partie (des bots complètent les équipes) ; "
                 f"les tricheurs {POLICIES.get(realm['cheats'], realm['cheats'])}.</p>"

@@ -16,10 +16,8 @@ Login, as the game performs it (JobCTRLogin, JobBackEndServicesLogin, JobTicketM
 from __future__ import annotations
 
 import asyncio
-import ipaddress
 import logging
 import os
-import socket
 import struct
 import time
 from dataclasses import dataclass
@@ -30,6 +28,7 @@ from .accounts import AccountError, Accounts, parse_token
 from .crypto import KerberosError, kerberos_decrypt, kerberos_encrypt
 from .ddl import (AuthenticationInfo, MatchmakeSession, NotificationEvent, RVConnectionData,
                   SearchCriteria)
+from .internet import Internet
 from .matchmaking import Matchmaker
 from .prudp import Connection, PRUDPServer
 from .rmc import RMCDispatcher, RMCError
@@ -75,9 +74,10 @@ class RealmConfig:
 
 
 class Realm:
-    def __init__(self, config: RealmConfig, natcheck=None) -> None:
+    def __init__(self, config: RealmConfig, natcheck=None, internet: Internet | None = None) -> None:
         self.config = config
         self.natcheck = natcheck                   # NatCheckService, to learn the public port of Pia
+        self.internet = internet or Internet(config.public_address)     # public address, players at home
         self.log = logging.getLogger(config.name)
         self.accounts = Accounts(config.data_dir / "accounts.sqlite3")
         self.ticket_key = self.accounts.secret("ticket key")
@@ -93,9 +93,8 @@ class Realm:
         await loop.create_datagram_endpoint(lambda: self.auth, local_addr=(self.config.listen, self.config.auth_port))
         await loop.create_datagram_endpoint(lambda: self.secure,
                                             local_addr=(self.config.listen, self.config.secure_port))
-        self.log.info("realm %s: authentication UDP %d, secure UDP %d, public address %s, %d account(s)",
-                      self.config.name, self.config.auth_port, self.config.secure_port,
-                      self.config.public_address, self.accounts.count())
+        self.log.info("realm %s: authentication UDP %d, secure UDP %d, %d account(s)", self.config.name,
+                      self.config.auth_port, self.config.secure_port, self.accounts.count())
         self.log.info("realm %s: up to %d human players per match (AI subs fill the teams), cheats %s",
                       self.config.name, self.config.max_players, self.config.cheats)
 
@@ -109,6 +108,8 @@ class Realm:
         online = list(self.secure.by_pid)
         now = time.monotonic()
         return {"name": self.config.name, "auth_port": self.config.auth_port, "players_online": len(online),
+                "address": (self.config.public_address if self.config.public_address != "auto"
+                            else self.internet.public_name or self.internet.public_ip),
                 "cheaters_online": sum(1 for pid in online if is_cheater(self.flags.get(pid, ()))),
                 "accounts": self.accounts.count(), "max_players": self.config.max_players,
                 "cheats": self.config.cheats,
@@ -145,21 +146,10 @@ class Realm:
     # -- tickets -------------------------------------------------------------------------------
 
     def secure_address(self, client: tuple[str, int]) -> str:
-        """Address of the secure server for this client: the public address, except for clients on the
-        server's own network (or machine), which get the local address that routes to them, so they do
-        not depend on the router sending them back their own public address (hairpinning)."""
-        try:
-            ip = ipaddress.ip_address(client[0])
-        except ValueError:
-            return self.config.public_address
-        if not (ip.is_private or ip.is_loopback) or ip.is_global:
-            return self.config.public_address
-        with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as s:
-            try:
-                s.connect(client)
-                return s.getsockname()[0]
-            except OSError:
-                return self.config.public_address
+        """Address of the secure server for this client: the public address for a client from the internet;
+        clients on the server's machine, network or VPN get this machine's address on the way to them, so
+        they do not depend on the router sending them back their own public address (hairpinning)."""
+        return self.internet.secure_address(client[0], self.config.public_address)
 
     def secure_url(self, client: tuple[str, int]) -> StationURL:
         return StationURL("prudps", {"address": self.secure_address(client), "port": str(self.config.secure_port),
@@ -328,6 +318,8 @@ class SecureServer(PRUDPServer):
         cid = conn.data.get("cid")
         if cid is not None and self.by_cid.get(cid) is conn:
             del self.by_cid[cid]
+        if "forwarded" in conn.data:
+            self.realm.internet.release_player(conn.data.pop("forwarded"))
 
     # -- SecureConnection ----------------------------------------------------------------------
 
@@ -345,8 +337,7 @@ class SecureServer(PRUDPServer):
         self.by_cid[cid] = conn
         local = [self._station(conn, u) for u in urls]
         public = (urls[0].copy() if urls else StationURL("prudp", {}))
-        public["address"] = conn.addr[0]
-        public["port"] = conn.addr[1]
+        public["address"], public["port"] = self.realm.internet.seen_as(conn.addr)
         public["type"] = 3
         public = self._station(conn, public)
         conn.data["urls"] = local + [public]
@@ -362,7 +353,8 @@ class SecureServer(PRUDPServer):
         """Pia calls this once its NAT detection is done (NatTraverser::updateLocalStationInfo): the
         private URL gets the port of Pia's own socket and the NAT type. The public URL from Register
         still has the port of the NEX socket, so it is updated too: the port our NAT check saw for
-        this address (the public port of Pia's socket), else the private port."""
+        this address (the public port of Pia's socket), else the private port. For a console at home
+        (on the server's network) that port is forwarded on the router, if it does UPnP."""
         old, new = s.url(), s.url()
         urls = conn.data.setdefault("urls", [])
         station = self._station(conn, new) if "cid" in conn.data else new
@@ -372,7 +364,11 @@ class SecureServer(PRUDPServer):
                 break
         else:
             urls.insert(0, station)
-        public_port = self.realm.natcheck.public_port(conn.addr[0]) if self.realm.natcheck else None
+        local_port = new.get_int("port") or None
+        public_port = self.realm.natcheck.public_port(conn.addr[0], local_port) if self.realm.natcheck else None
+        if local_port and "forwarded" not in conn.data:
+            if self.realm.internet.forward_player(conn.addr[0], local_port, new.get("address")):
+                conn.data["forwarded"] = local_port
         for u in urls:
             if u.get_int("type") & 2:
                 u["port"] = public_port or new.get("port")

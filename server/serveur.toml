@@ -4,7 +4,9 @@
 
 [server]
 listen = "0.0.0.0"              # adresse d'écoute
-public_address = "127.0.0.1"    # adresse (IP ou nom) par laquelle les joueurs joignent cette machine
+public_address = "auto"         # adresse (IP ou nom) par laquelle les joueurs d'Internet joignent cette machine ;
+                                # "auto" : celle que donne la box (UPnP), sinon celle que voit un serveur STUN
+upnp = true                     # demander à la box d'ouvrir les ports du serveur (UPnP), tant qu'il tourne
 nat_check = true                # détection du NAT de Pia : UDP 10025 et 10125 (ports fixés par le jeu)
 name = "Sub Wars Open Sourced"  # nom affiché sur la page d'état
 status_port = 0                 # page d'état (joueurs en ligne, parties) en HTTP sur ce port TCP ; 0 : aucune

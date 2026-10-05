@@ -51,7 +51,8 @@ Les mêmes outils existent en ligne de commande : `tools/mod.py`, `tools/save.py
   ([mods/README.md](mods/README.md), [docs/mods.md](docs/mods.md)).
 - **Le jeu en ligne refonctionne** : serveur maison ([server/](server/README.md), Python sans dépendance) et mod
   `en-ligne` pour Azahar. Deux émulateurs se connectent, se trouvent par le matchmaking et jouent une bataille
-  ensemble. Protocole reconstitué : [docs/online.md](docs/online.md).
+  ensemble. Entre deux maisons, le serveur ouvre lui-même ses ports sur la box (UPnP) et le lanceur donne
+  l'adresse à partager. Protocole reconstitué : [docs/online.md](docs/online.md).
 
 ```sh
 cd server && python3 -m sdsw_server                        # le serveur (royaumes « emulateur » et « pc »)

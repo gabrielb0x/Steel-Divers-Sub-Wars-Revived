@@ -16,6 +16,7 @@ instances d'Azahar se connectent, se retrouvent dans un salon et lancent une bat
 | 4. type de NAT | serveurs « nncs » (UDP 10025/10125) | messages `NATCheckMessage` de 16 octets |
 | 5. recherche de partie | serveur sécurisé | `MatchmakeExtension`, `MatchMaking`, `NATTraversal` |
 | 6. la bataille | de console à console | Pia (P2P) : le serveur n'y participe pas |
+| 7. joueurs éloignés | serveur, box | adresse publique, redirections UPnP, joueurs du réseau du serveur |
 
 ## 1. Connexion : `gameServerLogin` et `JobCTRLogin`
 
@@ -171,3 +172,36 @@ Ce que décide le jeu lui-même (scripts `mode_lobby` et `mode_periscope`) :
 * **Invincibilité** : le drapeau `player.muteki` (mode test des développeurs) annule les dégâts reçus
   (`pscope_player`), le décompte des torpilles et la perte d'air (`periscope_move`). Les dégâts sont appliqués
   par la console qui les subit : la triche marche aussi en ligne, d'où l'option `cheats` du serveur.
+
+## 7. Joueurs éloignés : adresses publiques et privées
+
+Pour rejoindre l'hôte, Pia reçoit ses URL (`GetSessionURLs`, une ou deux, sinon erreur :
+`NexFacade::ConvertNexStationURLToStationConnectionInfo`), classe l'une comme publique (bit 2 du paramètre `type` :
+`NexFacade::IsPublic` ; bit 1 = derrière un NAT) et l'autre comme privée, puis
+(`NexConnectStationJob::StartupImpl`) :
+
+* si l'adresse IP publique de l'hôte est **la sienne** (même réseau derrière la même box), il vise l'adresse
+  **privée** ;
+* sinon il vise l'adresse **publique**, et la traversée de NAT de NEX (`RequestProbeInitiationExt`, `InitiateProbe`)
+  fait sonder chacun par l'autre.
+
+Sa propre adresse publique vient de l'URL que `SecureConnection::Register` lui a rendue
+(`JobBackEndServicesLogin::CompleteLogin` l'ajoute à ses URL locales ; `NatTraverser::updateLocalStationInfo` la
+reprend). Une console sur la machine du serveur s'y connecte par `127.0.0.1` : le serveur la verrait sous cette
+adresse et la donnerait aux autres, injoignable. Quand le serveur a une adresse Internet, il présente donc les
+consoles de son propre réseau (boucle locale, ou réseau local derrière la même box) sous **son adresse publique**,
+partout où le jeu l'apprend : réponse de `Register`, réponses de la détection de NAT, URL publique transmise aux
+autres (`server/sdsw_server/internet.py`).
+
+La socket de Pia prend un port au hasard entre 49152 et 65534 (`NatDetecter::bindRandomPort`,
+`GetDifferentPortNumber`, différent de celui de NEX). Le serveur l'apprend par `ReplaceURL` et le fait rediriger
+par la box (UPnP) vers la console à domicile tant qu'elle est connectée. C'est nécessaire avec les box sous Linux
+(simulation : deux NAT `nftables` « masquerade » dans des espaces de noms réseau, le serveur et l'hôte derrière
+l'un, un ami derrière l'autre) : les premières sondes de l'ami arrivent sur la box de l'hôte avant que l'hôte ait
+écrit à l'ami, y créent une entrée de suivi de connexion, et la réponse de l'hôte sort alors par un autre port, que
+le NAT de l'ami rejette. Avec la redirection, l'échange passe dans les deux sens, que l'hôte de la partie soit
+l'ami ou le joueur à domicile ; sans elle, dans aucun.
+
+Les noms sont résolus : `nn::nex::InetAddress::SetAddress` appelle `GetHostByName` quand l'adresse n'est pas
+numérique (drapeau `0x00399D1F`, à 1 dans l'exécutable), et Pia résout les noms des serveurs de détection de NAT.
+Le mod accepte donc un nom (DNS dynamique) à la place d'une IP.

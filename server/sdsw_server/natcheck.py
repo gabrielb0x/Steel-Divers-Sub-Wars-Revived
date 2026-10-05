@@ -14,6 +14,9 @@ destination, the common case. 102 is answered from the other port.
 
 NEX's own check (JobPerformNATCheck, types 1 to 5) is answered the same way: 2 from the other port
 (filtering test), 3 from the other port, the rest from the port that received them.
+
+A console on the server's machine or network is told the server's public address instead of its local one
+(internet.Internet.seen_as): the address under which the players far away see it.
 """
 
 from __future__ import annotations
@@ -53,16 +56,20 @@ class NatCheckPort(asyncio.DatagramProtocol):
 
 
 class NatCheckService:
-    def __init__(self) -> None:
+    def __init__(self, internet=None) -> None:
+        self.internet = internet                         # internet.Internet: public address of local players
         self.ports: dict[int, NatCheckPort] = {}
-        self.observed: dict[str, tuple[int, float]] = {}   # public IP -> last port seen, time
+        self.observed: dict[str, dict[int, float]] = {}   # IP -> port seen -> time, recent ones
 
-    def public_port(self, ip: str, max_age: float = 120.0) -> int | None:
-        """Port of the last NAT check from this address: the public port of the client's Pia socket."""
-        seen = self.observed.get(ip)
-        if seen and time.monotonic() - seen[1] < max_age:
-            return seen[0]
-        return None
+    def public_port(self, ip: str, local_port: int | None = None, max_age: float = 120.0) -> int | None:
+        """Public port of a client's Pia socket: the port its NAT checks came from. Several consoles behind
+        one address (one home, one machine) are told apart by their local port, which a NAT usually keeps;
+        otherwise the latest port."""
+        now = time.monotonic()
+        seen = {port: t for port, t in self.observed.get(ip, {}).items() if now - t < max_age}
+        if local_port in seen:
+            return local_port
+        return max(seen, key=seen.get) if seen else None
 
     async def start(self, host: str) -> None:
         loop = asyncio.get_running_loop()
@@ -79,16 +86,24 @@ class NatCheckService:
 
     def answer(self, port: int, type_: int, addr, extra: int) -> None:
         other = PORTS[1] if port == PORTS[0] else PORTS[0]
+        seen = self.internet.seen_as(addr) if self.internet else addr
         try:
-            reply = message(type_, addr, extra)
+            reply = message(type_, seen, extra)
         except ipaddress.AddressValueError:
             return
-        log.debug("type %d from %s:%d on %d", type_, addr[0], addr[1], port)
+        log.debug("type %d from %s:%d on %d%s", type_, addr[0], addr[1], port,
+                  f" (answered as {seen[0]})" if seen != addr else "")
         if type_ in (1, 101):
-            self.observed[addr[0]] = (addr[1], time.monotonic())
+            now = time.monotonic()
+            if len(self.observed) > 4096:                # forget the addresses not seen for a while
+                self.observed = {ip: ports for ip, ports in self.observed.items() if now - max(ports.values()) < 600}
+            ports = self.observed.setdefault(addr[0], {})
+            ports[addr[1]] = now
+            if len(ports) > 16:
+                del ports[min(ports, key=ports.get)]
         if type_ in (2, 3, 102):
             self.send(other, reply, addr)
         else:
             self.send(port, reply, addr)
         if type_ == 101:
-            self.send(port, message(103, addr, extra), addr)
+            self.send(port, message(103, seen, extra), addr)

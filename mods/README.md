@@ -221,6 +221,9 @@ make extract                                               # une fois : les fich
 
 `server` est l'adresse du serveur (IP ou nom, 31 caractères au plus ; `127.0.0.1` par défaut, pour un serveur sur
 la même machine) et `port` son port d'authentification (61000 par défaut, le royaume des joueurs sur émulateur).
+Pour un serveur chez un ami, son adresse publique : le lanceur de l'ami l'affiche (onglet Serveur), et
+`python3 -m sdsw_server.testclient --probe <adresse>` (dans `server/`) vérifie qu'il répond
+([../server/README.md](../server/README.md#jouer-avec-des-amis-éloignés)).
 Ensuite, dans le jeu : *Multiplayer > Internet Battle*. Le jeu n'a pas besoin d'être modifié : Azahar applique le
 patch (`exefs/code.ips`) au lancement.
 
