@@ -104,6 +104,8 @@ ol.steps { margin: 6px 0 0; padding-left: 20px; } ol.steps li { margin-bottom: 4
   <h1>Steel Diver: Sub Wars — Open Sourced</h1>
   <p>Le lanceur : votre jeu, ses mods, votre sauvegarde. Tout reste sur cet ordinateur.</p>
   <div class="chips" id="chips"></div>
+  <div id="restart" class="small" style="display:none;color:var(--warn);margin-bottom:8px">Le lanceur a été mis à
+    jour : fermez la fenêtre où il tourne et relancez <code>subwars.py</code>.</div>
   <nav id="nav">
     <button data-tab="jeu" class="active">Jeu</button>
     <button data-tab="mods">Mods</button>
@@ -323,6 +325,7 @@ async function refresh() {
     el("span", {}, emu.dirs.length ? ["Dossier d'Azahar : ", el("code", {}, emu.dirs[0])]
       : "Dossier d'Azahar introuvable : lancez Azahar une fois. " + "(Ou définissez la variable AZAHAR_DIR.)"),
     g.prepared ? el("span", {class: "muted small"}, " — jeu préparé dans build/azahar/") : "");
+  $("#restart").style.display = state.restart ? "block" : "none";
   renderMods();
   if (state.task && !state.task.done) followTask(state.task);
 }

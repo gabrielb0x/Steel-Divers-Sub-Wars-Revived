@@ -13,6 +13,7 @@ only to requests addressed to 127.0.0.1 or localhost (no other site, no DNS rebi
 from __future__ import annotations
 
 import contextlib
+import importlib
 import io
 import json
 import os
@@ -49,6 +50,37 @@ STATE_FILE = "lanceur.json"
 
 class UserError(Exception):
     """A message for the player."""
+
+
+# The tools, in import order. The launcher keeps running while the project is updated (git pull, a new
+# version unpacked over it): their code is reloaded when their files change, between two tasks.
+TOOL_MODULES = ["ctr", "ncch", "armasm", "bxml", "amx", "azahar", "extract_cia", "save", "subs", "mod"]
+TOOLS = Path(__file__).resolve().parent
+
+
+class CodeWatcher:
+    def __init__(self) -> None:
+        self.tools = self._stamp(TOOLS / f"{name}.py" for name in TOOL_MODULES)
+        self.launcher = self._stamp([Path(__file__), ROOT / "subwars.py"])
+
+    @staticmethod
+    def _stamp(paths) -> tuple:
+        return tuple(p.stat().st_mtime_ns if p.exists() else 0 for p in paths)
+
+    def refresh(self) -> bool:
+        """Reloads the tools if one of them changed; True when it did."""
+        now = self._stamp(TOOLS / f"{name}.py" for name in TOOL_MODULES)
+        if now == self.tools:
+            return False
+        for name in TOOL_MODULES:
+            if name in sys.modules:
+                importlib.reload(sys.modules[name])
+        self.tools = now
+        return True
+
+    def outdated(self) -> bool:
+        """The launcher itself changed: only a restart takes it into account."""
+        return self._stamp([Path(__file__), ROOT / "subwars.py"]) != self.launcher
 
 
 class ThreadOutput(io.TextIOBase):
@@ -488,13 +520,16 @@ class LauncherServer(ThreadingHTTPServer):
         self.token = secrets.token_urlsafe(24)
         self.tasks = Tasks()
         self.game_server = GameServer()
+        self.code = CodeWatcher()
 
     def api(self, method: str, route: str, query: dict, body: dict):
         key = f"{method} {route}"
+        if not (self.tasks.current and not self.tasks.current.done):     # never in the middle of a task
+            self.code.refresh()
         if key == "GET state":
             return {"game": game_state(), "emulator": emulator_state(), "mods": mods_list(),
                     "task": self.tasks.current.json() if self.tasks.current else None,
-                    "server": {"running": self.game_server.running}}
+                    "server": {"running": self.game_server.running}, "restart": self.code.outdated()}
         if route.startswith("task/") and method == "GET":
             task = self.tasks.known.get(route[5:])
             if task is None:
