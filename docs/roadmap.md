@@ -15,6 +15,8 @@ Fait :
 - [x] Scripts Pawn : désassembleur + décompilateur (`tools/amx.py`, `tools/amxdec.py`), 123 scripts en pseudo-Pawn ;
       647 natives retrouvées et typées dans Ghidra, types de paramètres déduits du C++ (`tools/native_types.py`)
 - [x] Classes `World` et `AMXLoader` (vtable) typées ; faux « no-return » de Ghidra corrigés (378 → 41)
+- [x] Boutique et contenus additionnels (`decomp/src/sys/dlc.cpp`, classe `NsubShop` typée), sauvegarde
+      (`decomp/src/sys/savedata.cpp`, globales et natives de sauvegarde dans `decomp/src/amx/amxsys.cpp`)
 
 À faire :
 1. **Types** : reconstituer les classes du jeu (`Actor`, `World`, `Session`, `Connection`, `Model`…) dans Ghidra à

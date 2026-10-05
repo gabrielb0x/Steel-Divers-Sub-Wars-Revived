@@ -175,3 +175,36 @@ data 0x0038ebf0 System::s_initTick : s64
 0x002e24ac Actor::setStasisScript : void f(Actor * self, char * name)
 0x0023b88c Actor::readProperties : int f(Actor * self, char * name)
 0x0024dc88 Actor::updateMatrix : void f(Actor * self)
+
+# --- Shop and add-on contents (dlc.o; decomp/src/sys/dlc.cpp, docs/premium.md) ---
+# armcc signed division: quotient in r0, remainder in r1 (the high word of the result).
+0x0023a01c __aeabi_idivmod : s64 f(s32 numerator, s32 denominator)
+0x00235644 getNsubShop : NsubShop * f(void)
+0x0013a098 NsubShop::updateCondition : void f(NsubShop * self)
+# Content n bought and on the console; sysDLCCheckCondition (0x0013A054) runs into it.
+0x0013a06c NsubShop::checkCondition : int f(NsubShop * self, u32 content)
+# Content 91; sysDLCCheckPaidForFullVer (0x002F1EE4) runs into it.
+0x002f1ef4 NsubShop::checkPaidForFullVer : int f(NsubShop * self)
+0x0013a220 NsubShop::mountContentArchive : int f(NsubShop * self, u32 content)
+0x0013a384 NsubShop::unmountContentArchive : int f(NsubShop * self)
+0x002f1528 NsubShop::initializeEc : void f(NsubShop * self)
+0x002f15ec NsubShop::purchaseItem : int f(NsubShop * self, s32 item)
+0x002f1744 NsubShop::redownloadItem : int f(NsubShop * self, s32 item)
+0x002f17ec NsubShop::checkLastResult : int f(NsubShop * self)
+0x002f1944 NsubShop::validateSession : int f(NsubShop * self)
+0x002f1650 NsubShop::createCatalog : void f(NsubShop * self)
+0x002f1ff0 NsubShop::exec : void f(NsubShop * self)
+
+# --- Save data (savedata.o, flashmemory.o, amxsys.o; decomp/src/sys/savedata.cpp) ---
+# CRC-32 of zlib (reflected, 0xEDB88320); the other generateCRC (0x0023BDF0) hashes a C string.
+0x0023f53c generateCRC : u32 f(u8 * data, u32 size)
+0x002f34a8 SaveData::read : int f(char * name, u8 ** data, u32 * size)
+0x002f313c SaveData::writeandclose : int f(char * name, u8 * data, u32 size)
+0x00179870 FlashMemory::performWrite : int f(char * name, u8 * data, u32 size)
+0x001da344 amxSysSetGlobalArray : void f(char * name, cell * values, s32 count)
+0x002539c4 amxSysSetGlobal : void f(char * name, cell value)
+data 0x0038eb40 SaveData::s_busy : u8
+data 0x0038eb41 SaveData::s_mounted : u8
+data 0x0038eb42 SaveData::s_dirty : u8
+data 0x003b9054 g_globalIntegers : void *[4096]
+data 0x003bd054 g_globalArrays : void *[4096]

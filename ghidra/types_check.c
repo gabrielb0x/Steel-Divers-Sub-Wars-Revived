@@ -87,3 +87,24 @@ CHECK(offsetof(ActorData, collResults) == 0x1020);      /* CollResult array cons
 CHECK(offsetof(ActorData, positionSim) == 0x11e0);
 CHECK(offsetof(ActorData, visibleSim) == 0x11f8);
 CHECK(offsetof(ActorData, customSim) == 0x11fc);
+
+CHECK(offsetof(NsubShop, busy) == 0x4);                 /* NsubShop::getBalanceAsync */
+CHECK(offsetof(NsubShop, request) == 0x10);             /* NsubShop::exec */
+CHECK(offsetof(NsubShop, lastResult) == 0x14);          /* NsubShop::checkLastResult */
+CHECK(offsetof(NsubShop, applet) == 0x1c);              /* NsubShop::purchaseItem */
+CHECK(offsetof(NsubShop, session) == 0x20);             /* NsubShop::validateSession */
+CHECK(offsetof(NsubShop, server) == 0x24);              /* NsubShop::_getBalance */
+CHECK(offsetof(NsubShop, eshopId) == 0x28);             /* NsubShop::initializeEc */
+CHECK(offsetof(NsubShop, dataTitle) == 0x30);           /* NsubShop::updateCondition */
+CHECK(offsetof(NsubShop, metaData) == 0x40);            /* NsubShop::finalizeMetaDataReader */
+CHECK(offsetof(NsubShop, catalog) == 0x90);             /* NsubShop::createCatalog */
+CHECK(offsetof(NsubShop, items) == 0xa0);               /* NsubShop::purchaseItem: item * 0x300 + 0xA0 */
+CHECK(offsetof(NsubShop, owned) == 0xfa0);              /* NsubShop::checkCondition */
+CHECK(offsetof(NsubShop, balance) == 0xfb0);            /* NsubShop::_getBalance */
+CHECK(offsetof(NsubShop, balanceText) == 0xfd0);
+CHECK(offsetof(NsubShop, deleteIndex) == 0x1050);       /* NsubShop::deleteItemAsync */
+CHECK(offsetof(NsubShop, contentArchiveMemory) == 0x1054);   /* NsubShop::mountContentArchive */
+CHECK(offsetof(NsubShop, contentArchiveMounted) == 0x1058);
+CHECK(offsetof(NsubShop, serverTime) == 0x1060);        /* NsubShop::exec */
+CHECK(offsetof(NsubShop, filter) == 0x1068);            /* NsubShop::_getContentSetList */
+CHECK(offsetof(NsubShop, filterMode) == 0x11a8);

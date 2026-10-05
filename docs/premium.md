@@ -66,9 +66,16 @@ plus acheté est remplacé par le n° 1 (`save.sub.typenum`).
 
 ## Déblocages et sauvegarde
 
-En version complète, les sous-marins, motifs et membres d'équipage se gagnent en mission : récompenses des
-missions (`mode_periscope`) et des médailles d'or (`medal.inc::updateAwardMedal`, à 3, 4, 8, 9, 15, 18 et 21
-médailles d'or). Ils sont gardés dans trois tableaux de la sauvegarde ([formats.md](formats.md#sauvegarde)) :
+En version complète, les sous-marins et les motifs se gagnent par des **récompenses** (`bxml/reward_data` :
+`decalNN` pour un motif, `lobby_sub_nameNN` pour un sous-marin, appliquées par `unlockReward`) :
+
+- en solo, aux 3, 4, 8, 9, 15, 18 et 21 médailles d'or (`medal.inc::updateAwardMedal`, `reward100` à `reward106`) :
+  les sous-marins 2 et 3 et cinq motifs ;
+- **en ligne, à chaque niveau de rang** (`reward02` à `reward42`) : les sous-marins 4 à 18 et la plupart des motifs.
+  Sans serveur en ligne, ils étaient devenus impossibles à obtenir.
+
+Les membres d'équipage se trouvent dans les missions (`crew.get`, `saveFoundCrew`). Le tout est gardé dans trois
+tableaux de la sauvegarde ([formats.md](formats.md#sauvegarde)) :
 
 - `save.sub.unlock[23]` : sous-marins (l'indice 0 est toujours débloqué) ;
 - `save.sub.pattern.unlock[32]` : motifs de coque (*decal*) ;

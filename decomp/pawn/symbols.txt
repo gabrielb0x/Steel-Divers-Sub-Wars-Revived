@@ -85,6 +85,17 @@ mode_title:0x5cc0 btnsupActivateButton(button[], sound)
 mode_title:0x5d64 btnsupCheckButtonTouchEnd(button[])
 mode_title:0x5e18 isFullVersion()                                               # premium version bought
 
+# ---- premium, unlocks and rewards (docs/premium.md) ----
+mode_title:0x5e30 isEnlisted()                                                  # "save.sub.enlist": the save has seen the full version
+mode_title:0x5e50 setEnlisted()
+mode_customize:0xead8 isFreeSub(sub)                                            # the two submarines of the free version
+mode_lobby:0x16964 isSubAvailable(sub)                                          # 0..17: save.sub.unlock, 18..22: add-on contents 1..5
+mode_periscope:0x110c4 unlockPattern(const reward[], bool:lock)                 # "decalNN", with its default colours (sub_color_set)
+mode_periscope:0x11380 unlockSub(const reward[], bool:lock)                     # "lobby_sub_nameNN"
+mode_periscope:0x11510 unlockReward(const reward[], bool:lock)                  # a reward of bxml/reward_data (getReward)
+mode_periscope:0x11970 countGoldMedals()  [medal.inc]
+mode_periscope:0x16700 saveFoundCrew()                                          # "crew.get" of the mission -> save.sub.crew.unlock
+
 # ---- small helpers found in most scripts ----
 camera_internet:0x0ce4 actorNeverIdle(actor)                                   # idle distance 0: always updated
 camera_scope:0x0278 degToRad(degrees)

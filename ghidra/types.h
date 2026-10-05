@@ -304,3 +304,42 @@ typedef struct World {
     u8 unknownA5F74[0xC];
 } World;
 
+
+/* ---- Shop and add-on contents (source/sys/dlc.cpp; decomp/src/sys/dlc.cpp, docs/premium.md) ----
+ * One instance (getNsubShop: 0x005920B8). Item n of the add-on content title is content n: 91 is the
+ * full version, 1..5 the historical submarines. */
+typedef struct NsubShopItem {
+    u8 data[0x300];                  /* name, description, price, dates... for the shop scripts (sysDLCGetItem*) */
+} NsubShopItem;
+
+typedef struct NsubShop {
+    void *vtable;                    /* 0x00376B10 */
+    u8 busy;                         /* +0x04 an asynchronous request runs (sysDLCWaitThread) */
+    u8 _pad05[3];
+    u32 thread[2];                   /* +0x08 nn::os::Thread running exec() (NsubThread::callFromThread) */
+    s32 request;                     /* +0x10 1 content set list, 2 balance, 3 delete an item, 4 server time */
+    u32 lastResult[2];               /* +0x14 nn::ec::CTR::ResultError (sysDLCCheckLastResult) */
+    u32 applet;                      /* +0x1C nn::ec::CTR::EcApplet */
+    u32 session;                     /* +0x20 nn::ec::CTR::Session */
+    u32 server;                      /* +0x24 nn::ec::CTR::Server */
+    u32 eshopId[2];                  /* +0x28 {unique id, 0x2F0002} (initializeEc) */
+    u32 dataTitle[2];                /* +0x30 {unique id, 0x2F0000}: the add-on content title */
+    u8 _pad38[8];
+    u8 metaData[0x50];               /* +0x40 nn::ec::CTR::MetaDataReader (+0x40/+0x44: mounted) */
+    void *catalog;                   /* +0x90 nn::ec::CTR::ContentSetCatalog (createCatalog) */
+    void *catalogMemory;             /* +0x94 1 MB */
+    void *filterMemory;              /* +0x98 4 KB */
+    s32 catalogOffset;               /* +0x9C */
+    NsubShopItem items[5];           /* +0xA0 */
+    u32 owned[4];                    /* +0xFA0 bitmap of the owned contents 0..127 (updateCondition) */
+    u8 balance[0x20];                /* +0xFB0 nn::ec::CTR::Server::GetBalance */
+    char balanceText[0x80];          /* +0xFD0 ConvertPrice */
+    s32 deleteIndex;                 /* +0x1050 deleteItemAsync */
+    void *contentArchiveMemory;      /* +0x1054 mountContentArchive */
+    u8 contentArchiveMounted;        /* +0x1058 "content:" is mounted */
+    u8 _pad1059[7];
+    u8 serverTime[8];                /* +0x1060 nn::fs::DateTime (getServerTimeAsync) */
+    char filter[4][0x40];            /* +0x1068 "==", "string", "ITEM_TYPE", the item type */
+    u8 _pad1168[0x40];
+    s32 filterMode;                  /* +0x11A8 sysDLCSetFilterMode*: which item type the shop lists */
+} NsubShop;
