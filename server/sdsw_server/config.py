@@ -45,8 +45,11 @@ REALM_OPTIONS = (
     Option("max_players", "int", 8, "Joueurs humains par partie", "2 à 8 ; des bots complètent les équipes",
            low=2, high=8),
     Option("cheats", "choice", "separes", "Tricheurs",
-           "separes : entre eux ; autorises : avec tout le monde ; refuses : connexion refusée",
-           choices=("separes", "autorises", "refuses")),
+           "separes : entre eux ; autorises : avec tout le monde ; refuses : connexion refusée. Sauf autorises, "
+           "l'anti-triche du mod exclut de la bataille un joueur qui triche", choices=("separes", "autorises", "refuses")),
+    Option("anticheat_ban", "int", 30, "Exclusion d'un tricheur",
+           "minutes pendant lesquelles un joueur pris à tricher ne joue qu'avec les tricheurs (separes) ou ne peut "
+           "plus jouer (refuses) ; 0 : seulement exclu de la bataille", low=0, high=10080),
     Option("bots", "bool", True, "Bots pour un joueur seul",
            "un joueur seul dans une partie joue contre des bots au bout du délai"),
     Option("bots_delay", "int", 60, "Délai avant les bots", "secondes seul dans la partie", low=5, high=3600),

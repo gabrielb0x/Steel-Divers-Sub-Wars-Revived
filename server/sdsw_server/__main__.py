@@ -51,6 +51,7 @@ def load_config(path: Path, only: list[str] | None) -> tuple[dict, list[RealmCon
                                   auth_port=int(entry["auth_port"]), secure_port=int(entry["secure_port"]),
                                   data_dir=data_dir, max_players=int(entry.get("max_players", 8)),
                                   cheats=str(entry.get("cheats", "separes")),
+                                  anticheat_ban=int(entry.get("anticheat_ban", 30)),
                                   bots=BotSettings.from_config(entry, entry["name"])))
     return server, realms
 

@@ -221,10 +221,11 @@ journaux retirés de la version finale) : il garde les trois notifications que l
 | 999002 | `nom=valeur` | — | `amxSysSetGlobalArray(nom, 96 cellules)` : une chaîne, comme `sysSetGlobalString` |
 
 Le texte d'une notification arrive en UTF-16 (`nn::nex::String`, tampon en +4) ; le patch le convertit en
-UTF-8 avec la fonction du jeu (`convertUTF16toUTF8`). NEX distribue les notifications sur le fil principal,
-pendant `Network::dispatch()`, là où tournent les scripts.
+UTF-8 avec la fonction du jeu (`convertUTF16toUTF8`). Seuls les noms qui commencent par `server.` sont
+acceptés : un serveur ne peut toucher ni à la sauvegarde (`save.*`) ni aux variables du jeu. NEX distribue
+les notifications sur le fil principal, pendant `Network::dispatch()`, là où tournent les scripts.
 
-Variables utilisées (`server/sdsw_server/matchmaking.py`, `mods/en-ligne/bots_*.pasm`) :
+Variables utilisées (`server/sdsw_server/matchmaking.py` et `realm.py`, `mods/en-ligne/*.pasm`) :
 
 | Variable | Sens |
 |---|---|
@@ -234,3 +235,12 @@ Variables utilisées (`server/sdsw_server/matchmaking.py`, `mods/en-ligne/bots_*
 | `server.bots.level` | 1 normal, 2 difficile, 3 expert : tous les bots des parties en ligne |
 | `server.bots.countdown`, `server.bots.duration` | compte à rebours (ms) et durée de la bataille (s) |
 | `server.bots.name<k>`, `sub<k>`, `lv<k>` | le bot k (1 à 7) : nom, sous-marin (1 à 23), niveau affiché |
+| `server.anticheat` | 1 : les jeux de cette partie se surveillent eux-mêmes (envoyé à chaque recherche ; 0 avec `cheats = "autorises"` et entre tricheurs) |
+
+Dans l'autre sens, le jeu n'a que sa recherche de partie pour parler au serveur : le mod met dans
+l'attribut 4 des critères (`inetSetAttribute(4, …)`, à côté de la somme de version en 3) le rapport de
+l'anti-triche, `0x100` (un jeu qui se surveille) | ce qu'il a vu à son dernier renvoi (bits 0-7 : 1 dégâts
+annulés, 2 torpilles infinies, 4 tirs trop rapprochés, 8 vitesse impossible) | le numéro de ce renvoi
+(bits 16-30). Le jeu garde son dernier renvoi dans la sauvegarde (`save.sdsw.cheat`, `save.sdsw.kick`) et le
+répète à chaque recherche ; le serveur ne traite qu'une fois chaque numéro (`exclusions.json`). Les
+attributs 4 et 5 ne servent pas à apparier les joueurs.

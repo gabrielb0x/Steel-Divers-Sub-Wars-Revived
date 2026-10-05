@@ -204,6 +204,16 @@ arm = """
     add r0, sp, #4
     add r2, sp, #8
     bl 0x0023B380               @ convertUTF16toUTF8(&texte, fin, &utf8, fin utf8, 1)
+    add r0, sp, #0x10           @ seulement les variables du serveur (server.*) : ni la sauvegarde, ni le jeu
+    adr r1, prefix
+    mov r2, #7
+prefix_loop:
+    ldrb r3, [r0], #1
+    ldrb r12, [r1], #1
+    cmp r3, r12
+    bne done
+    subs r2, r2, #1
+    bne prefix_loop
     cmp r5, #0
     bne string_global
     add r0, sp, #0x10
@@ -251,6 +261,8 @@ unregistered:
     .word 109000
 set_global:
     .word 999001
+prefix:
+    .ascii "server."
 """
 
 # -- Parties contre les bots du serveur (bots_*.pasm, assembleur Pawn de tools/amxasm.py) -------------
@@ -291,3 +303,83 @@ asm_file = "bots_partie.pasm"
 [[amx]]
 file = "amx/surface_sub.amx"
 asm_file = "bots_ia.pasm"
+
+# -- Anti-triche (anti_triche_*.pasm), quand le serveur n'autorise pas la triche (server.anticheat) --------
+# Chaque console surveille son propre sous-marin en bataille : dégâts annulés sans raison du jeu,
+# torpilles qui ne baissent pas, tirs trop rapprochés, vitesse qu'aucun sous-marin n'a. Au premier signe, elle
+# quitte la bataille (comme le bouton « quitter » du jeu) et garde ce renvoi dans la sauvegarde
+# (save.sdsw.cheat : ce qu'elle a vu, save.sdsw.kick : son numéro) ; à chaque recherche de partie, elle le dit
+# au serveur (attribut 4 de la recherche), qui traite chaque renvoi une fois : avec les tricheurs ou tenu à
+# l'écart pendant anticheat_ban minutes (serveur.toml). Un jeu dont on a retiré ce mod échappe à la
+# surveillance : c'est la limite de tout anti-triche dans un jeu en P2P.
+[[amx]]
+file = "amx/pscope_player.amx"
+asm_file = "anti_triche_joueur.pasm"
+
+[[amx]]
+file = "amx/periscope_move.amx"
+asm_file = "anti_triche_tir.pasm"
+
+[[amx]]
+file = "amx/mode_internet_menu.amx"     # joinSession, après inetSetAttribute(3, somme de version)
+asm = """
+.hook 0xb8f0
+    push.c 0
+    call @acReport
+    .original
+    .return
+
+; acReport(): attribute 4 of the search: 0x100 (this game watches itself) | what it caught at its last kick
+; (save.sdsw.cheat, bits 0-7) | the number of that kick (save.sdsw.kick, bits 16-30); see anti_triche_tir.pasm.
+acReport:
+    proc
+    push.c "save.sdsw.kick"
+    sysreq.n sysGetGlobal, 1
+    shl.c.pri 16
+    push.pri
+    push.c "save.sdsw.cheat"
+    sysreq.n sysGetGlobal, 1
+    const.alt 0xff
+    and
+    pop.alt
+    or
+    const.alt 0x100
+    or
+    push.pri
+    push.c 4
+    sysreq.n inetSetAttribute, 2
+    zero.pri
+    retn
+"""
+
+[[amx]]
+file = "amx/mode_peri_result.amx"       # joinSession (« continuer en ligne »), au même endroit
+asm = """
+.hook 0xcd88
+    push.c 0
+    call @acReport
+    .original
+    .return
+
+; acReport(): attribute 4 of the search: 0x100 (this game watches itself) | what it caught at its last kick
+; (save.sdsw.cheat, bits 0-7) | the number of that kick (save.sdsw.kick, bits 16-30); see anti_triche_tir.pasm.
+acReport:
+    proc
+    push.c "save.sdsw.kick"
+    sysreq.n sysGetGlobal, 1
+    shl.c.pri 16
+    push.pri
+    push.c "save.sdsw.cheat"
+    sysreq.n sysGetGlobal, 1
+    const.alt 0xff
+    and
+    pop.alt
+    or
+    const.alt 0x100
+    or
+    push.pri
+    push.c 4
+    sysreq.n inetSetAttribute, 2
+    zero.pri
+    retn
+"""

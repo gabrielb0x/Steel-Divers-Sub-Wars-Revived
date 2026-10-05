@@ -108,13 +108,14 @@ class Formats(unittest.TestCase):
         self.assertEqual((q.supported_functions, q.conn_sig, q.max_substream_id), (3, b"s" * 16, 0))
 
 
-def run_realm(test, max_players=8, cheats="separes", bots=None):
+def run_realm(test, max_players=8, cheats="separes", bots=None, anticheat_ban=30):
     """Starts a realm on free ports, runs test(realm, port) inside the event loop."""
     async def main():
         with tempfile.TemporaryDirectory() as tmp:
             config = RealmConfig(name="test", listen="127.0.0.1", public_address="127.0.0.1",
                                  auth_port=free_udp_port(), secure_port=free_udp_port(), data_dir=Path(tmp),
-                                 max_players=max_players, cheats=cheats, bots=bots or BotSettings(enabled=False))
+                                 max_players=max_players, cheats=cheats, anticheat_ban=anticheat_ban,
+                                 bots=bots or BotSettings(enabled=False))
             realm = Realm(config, NatCheckService())
             await realm.start()
             try:
@@ -148,6 +149,70 @@ class Clock:
         return self.now
 
 
+class AntiCheat(unittest.TestCase):
+    """Games that caught themselves cheating say so (attribute 4) at their next search for a match."""
+
+    def test_watching_only_where_cheats_are_not_allowed(self):
+        async def test(realm, port):
+            secure, _ = await testclient.login("127.0.0.1", port, 0x10000001, "password")
+            await testclient.matchmake(secure, 3, report=0x100)
+            await asyncio.sleep(0.2)
+            return secure.game_globals().get("server.anticheat")
+        self.assertEqual(run_realm(test, cheats="refuses"), 1)
+        self.assertEqual(run_realm(test, cheats="separes"), 1)
+        self.assertEqual(run_realm(test, cheats="autorises"), 0)
+
+    def test_caught_cheating_is_kept_out(self):
+        async def test(realm, port):
+            secure, _ = await testclient.login("127.0.0.1", port, 0x10000001, "password")
+            with self.assertRaises(testclient.ClientError):
+                await testclient.matchmake(secure, 3, report=0x100 | 8 | 1 << 16)   # kick 1: impossible speed
+            try:
+                await testclient.login("127.0.0.1", port, 0x10000001, "password")
+                again = True
+            except testclient.ClientError:
+                again = False
+            other, _ = await testclient.login("127.0.0.1", port, 0x10000002, "password")
+            return again, realm.status()["caught_cheating"]
+        again, caught = run_realm(test, cheats="refuses")
+        self.assertFalse(again)                     # excluded for anticheat_ban minutes
+        self.assertEqual(caught, 1)
+
+    def test_each_kick_is_dealt_with_once(self):
+        async def test(realm, port):
+            secure, _ = await testclient.login("127.0.0.1", port, 0x10000001, "password")
+            counts = []
+            for kick in (1, 1, 2):                  # the save keeps the last kick: reported at every search
+                await testclient.matchmake(secure, 3, report=0x100 | 2 | kick << 16)
+                counts.append(realm.status()["caught_cheating"])
+            return counts
+        self.assertEqual(run_realm(test, cheats="refuses", anticheat_ban=0), [1, 1, 2])
+
+    def test_caught_cheating_with_the_cheaters(self):
+        async def test(realm, port):
+            fair = await matchmade(port, 0x10000001)
+            secure, _ = await testclient.login("127.0.0.1", port, 0x10000002, "password")
+            caught = await testclient.matchmake(secure, 3, report=0x100 | 2 | 1 << 16)
+            cheater = await matchmade(port, 0x10000003, "triche")
+            again = await testclient.matchmake(secure, 3, report=0x100 | 2 | 1 << 16)
+            return fair.id, caught.id, cheater.id, again.id, realm.status()["caught_cheating"]
+        fair, caught, cheater, again, count = run_realm(test, cheats="separes")
+        self.assertNotEqual(fair, caught)
+        self.assertEqual(caught, cheater)
+        self.assertEqual(again, cheater)            # still with the cheaters for anticheat_ban minutes
+        self.assertEqual(count, 1)
+
+    def test_reports_are_not_criteria(self):
+        async def test(realm, port):
+            a, _ = await testclient.login("127.0.0.1", port, 0x10000001, "password")
+            b, _ = await testclient.login("127.0.0.1", port, 0x10000002, "password")
+            first = await testclient.matchmake(a, 3, report=0x100)
+            second = await testclient.matchmake(b, 3)                 # a game without the online mod's report
+            return first.id, second.id
+        first, second = run_realm(test, cheats="autorises")
+        self.assertEqual(first, second)
+
+
 class Bots(unittest.TestCase):
     """A player alone in a match for bots_delay seconds is told to play against bots."""
 
@@ -173,7 +238,7 @@ class Bots(unittest.TestCase):
         self.assertEqual(first, [])
         self.assertEqual(len(second), 1)
         bots = {k: v for k, v in values.items() if k[12:15] in ("nam", "sub") or k.startswith("server.bots.lv")}
-        others = {k: v for k, v in values.items() if k not in bots}
+        others = {k: v for k, v in values.items() if k not in bots and k.startswith("server.bots")}
         self.assertEqual(others, {"server.bots": 1, "server.bots.mine": 1, "server.bots.other": 4,
                                   "server.bots.stage": 14, "server.bots.level": 3, "server.bots.countdown": 15000,
                                   "server.bots.duration": 300})

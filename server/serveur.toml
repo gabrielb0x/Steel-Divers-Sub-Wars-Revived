@@ -18,6 +18,12 @@ status_port = 0                 # page d'état (joueurs en ligne, parties) en HT
 #   cheats       joueurs dont le mod triche : mods/triche, ou caractéristiques de sous-marins modifiées
 #                (mods/specs) ; le mod premium n'en fait pas partie.
 #                "autorises" (ils jouent avec tout le monde), "separes" (seulement entre eux) ou "refuses".
+#                Sauf avec "autorises", l'anti-triche du mod en-ligne surveille chaque sous-marin en bataille
+#                (dégâts annulés, torpilles infinies, tirs trop rapprochés, vitesse impossible) : le tricheur
+#                quitte la bataille, puis il est mis avec les tricheurs ("separes") ou tenu à l'écart ("refuses").
+#   anticheat_ban  minutes pendant lesquelles un joueur pris à tricher ne joue qu'avec les tricheurs
+#                ("separes") ou ne peut plus se connecter ("refuses") ; 0 : seulement exclu de la bataille.
+#                La liste : <data_dir>/exclusions.json (chaque renvoi n'est sanctionné qu'une fois)
 #   bots         true : un joueur resté seul dans une partie joue contre des bots au bout de bots_delay
 #                secondes (il faut le mod en-ligne à jour). Les autres options des bots :
 #   bots_delay      secondes d'attente seul avant les bots (60)
@@ -39,6 +45,7 @@ secure_port = 61001             # serveur sécurisé (UDP)
 data_dir = "data/emulateur"     # comptes (sqlite), relatif à ce fichier
 max_players = 8
 cheats = "separes"
+anticheat_ban = 30
 bots = true
 bots_delay = 60
 bots_format = "4v4"
@@ -53,6 +60,7 @@ secure_port = 61011
 data_dir = "data/pc"
 max_players = 8
 cheats = "separes"
+anticheat_ban = 30
 bots = true
 bots_delay = 60
 bots_format = "4v4"

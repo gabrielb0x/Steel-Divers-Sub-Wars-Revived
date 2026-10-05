@@ -17,6 +17,7 @@ from __future__ import annotations
 
 import asyncio
 import contextlib
+import json
 import logging
 import os
 import struct
@@ -46,6 +47,15 @@ CHEAT_FLAGS = frozenset({"triche", "specs"})
 CHEAT_POOL = "triche"                # matchmaking pool of the cheaters, with cheats = "separes"
 CHEAT_POLICIES = ("autorises", "separes", "refuses")
 
+# Anti-cheat of the online mod (mods/en-ligne/anti_triche_*.pasm): when the server does not allow cheats, it
+# sets server.anticheat in the players' games; each game then watches its own submarine in battle, leaves
+# the battle at the first cheat it sees (the "kick") and keeps the last kick in its save. It tells the server
+# at each search for a match, in matchmaking attribute 4: 0x100 (a game that watches itself) | what it saw
+# (bits 0-7) | the number of that kick (bits 16-30). Each kick is dealt with once (exclusions.json keeps the
+# number of the last one), so a save that keeps it does not bring a new sanction at every search.
+CHEAT_SEEN = {1: "dégâts annulés", 2: "torpilles infinies", 4: "tirs trop rapprochés", 8: "vitesse impossible"}
+REPORT_ATTRIBUTE = 4                 # attributes 4 and 5 are reports, not matchmaking criteria
+
 
 def is_cheater(flags) -> bool:
     return not CHEAT_FLAGS.isdisjoint(flags)
@@ -66,6 +76,7 @@ class RealmConfig:
     build_name: str = "Sub Wars Open Sourced server"
     max_players: int = 8              # human players per match; the game fills each team up to 4 with AI subs
     cheats: str = "separes"           # players whose build declares the cheat mod: autorises/separes/refuses
+    anticheat_ban: int = 30           # minutes a player caught cheating is kept out ("refuses") or apart ("separes")
     bots: BotSettings = field(default_factory=BotSettings)    # a player alone in a match plays bots
 
     def __post_init__(self) -> None:
@@ -73,6 +84,8 @@ class RealmConfig:
             raise ValueError(f"realm {self.name}: max_players must be between 2 and 8")
         if self.cheats not in CHEAT_POLICIES:
             raise ValueError(f"realm {self.name}: cheats must be one of {', '.join(CHEAT_POLICIES)}")
+        if not 0 <= self.anticheat_ban <= 7 * 24 * 60:
+            raise ValueError(f"realm {self.name}: anticheat_ban must be between 0 and 10080 minutes")
 
 
 class Realm:
@@ -90,6 +103,7 @@ class Realm:
         self._bans: set[int] = set()
         self._bans_mtime: float | None = None
         self._ticker: asyncio.Task | None = None
+        self.kicks = 0                                  # kicks dealt with during this run of the server
 
     async def start(self) -> None:
         loop = asyncio.get_running_loop()
@@ -128,7 +142,7 @@ class Realm:
                             else self.internet.public_name or self.internet.public_ip),
                 "cheaters_online": sum(1 for pid in online if is_cheater(self.flags.get(pid, ()))),
                 "accounts": self.accounts.count(), "max_players": self.config.max_players,
-                "cheats": self.config.cheats,
+                "cheats": self.config.cheats, "caught_cheating": self.kicks,
                 "bots": ({"delay": self.config.bots.delay, "format": self.config.bots.format,
                           "map": self.config.bots.map, "level": self.config.bots.level}
                          if self.config.bots.enabled else None),
@@ -157,10 +171,57 @@ class Realm:
         return pid in self._bans
 
     def pool(self, pid: int) -> str:
-        """Matchmaking pool: with cheats "separes", players whose build cheats only meet each other."""
-        if self.config.cheats == "separes" and is_cheater(self.flags.get(pid, ())):
+        """Matchmaking pool: with cheats "separes", players whose build cheats (or who were caught cheating)
+        only meet each other."""
+        if self.config.cheats == "separes" and (is_cheater(self.flags.get(pid, ())) or self._caught(pid)):
             return CHEAT_POOL
         return ""
+
+    # -- anti-cheat ----------------------------------------------------------------------------
+
+    @property
+    def _exclusions_path(self) -> Path:
+        return self.config.data_dir / "exclusions.json"
+
+    def _exclusions(self) -> dict[str, dict]:
+        """pid -> {"kick": number of its last kick, "until": end of the sanction, "reasons": [...]}; kept after
+        the sanction, for the number of the kick."""
+        with contextlib.suppress(OSError, ValueError):
+            return dict(json.loads(self._exclusions_path.read_text(encoding="utf-8")))
+        return {}
+
+    def _caught(self, pid: int) -> dict | None:
+        """The sanction of a player caught cheating, while it lasts (data/<realm>/exclusions.json)."""
+        entry = self._exclusions().get(str(pid))
+        return entry if entry and entry.get("until", 0) > time.time() else None
+
+    def excluded(self, pid: int) -> dict | None:
+        """Kept out: caught cheating less than anticheat_ban minutes ago, on a server that refuses cheaters."""
+        return self._caught(pid) if self.config.cheats == "refuses" else None
+
+    def caught_cheating(self, pid: int, seen: int, kick: int) -> bool:
+        """A game reported its last kick: what it saw of itself, and the number of the kick. A kick not dealt
+        with yet sends the player among the cheaters ("separes") or keeps them out ("refuses") for
+        anticheat_ban minutes. Returns whether the kick is new."""
+        data = self._exclusions()
+        entry = data.get(str(pid))
+        if entry and entry.get("kick") == kick:
+            return False
+        reasons = [text for bit, text in CHEAT_SEEN.items() if seen & bit] or [f"{seen:#x}"]
+        until = int(time.time() + 60 * self.config.anticheat_ban)
+        data[str(pid)] = {"kick": kick, "until": until, "reasons": reasons}
+        with contextlib.suppress(OSError):
+            self._exclusions_path.parent.mkdir(parents=True, exist_ok=True)
+            self._exclusions_path.write_text(json.dumps(data, indent=1, ensure_ascii=False) + "\n", encoding="utf-8")
+        self.kicks += 1
+        self.log.warning("pid %d caught cheating (%s): %s for %d min", pid, ", ".join(reasons),
+                         "with the cheaters" if self.config.cheats == "separes" else "kept out",
+                         self.config.anticheat_ban)
+        return True
+
+    def anticheat_on(self, pid: int) -> bool:
+        """The games of this match watch themselves: cheats are not allowed here."""
+        return self.config.cheats != "autorises" and self.pool(pid) != CHEAT_POOL
 
     # -- tickets -------------------------------------------------------------------------------
 
@@ -238,6 +299,12 @@ class AuthServer(PRUDPServer):
         if self.realm.banned(pid):
             self.log.warning("%s: pid %d refused, banned (bannis.txt)", conn, pid)
             raise RMCError(rmc.RV_ACCOUNT_DISABLED, "banned")
+        exclusion = self.realm.excluded(pid)
+        if exclusion:
+            self.log.warning("%s: pid %d refused, caught cheating (%s) until %s", conn, pid,
+                             ", ".join(exclusion.get("reasons", [])),
+                             time.strftime("%H:%M", time.localtime(exclusion["until"])))
+            raise RMCError(rmc.RV_ACCOUNT_DISABLED, "excluded")
         if is_cheater(flags) and self.realm.config.cheats == "refuses":
             self.log.warning("%s: pid %d refused, its build cheats (%s)", conn, pid,
                              ", ".join(sorted(flags & CHEAT_FLAGS)))
@@ -493,8 +560,17 @@ class SecureServer(PRUDPServer):
             raise RMCError(rmc.CORE_INVALID_ARGUMENT, f"gathering class {name}")
         proposal = MatchmakeSession.decode(data)
         self.log.debug("%s: auto matchmake, criteria %s, proposal %s", conn, criteria, proposal)
+        report = 0
+        with contextlib.suppress(IndexError, ValueError):
+            report = int(criteria[0].attributes[REPORT_ATTRIBUTE] or 0)
+        seen, kick = report & 0xFF, report >> 16 & 0x7FFF
+        if seen and self.realm.config.cheats != "autorises":
+            self.realm.caught_cheating(conn.pid, seen, kick)
+            if self.realm.excluded(conn.pid):
+                raise RMCError(rmc.RV_ACCOUNT_DISABLED, "caught cheating")
         session = self.realm.matchmaker.auto_matchmake(conn.pid, criteria, proposal, message,
                                                        self.realm.pool(conn.pid))
+        self.realm.matchmaker.set_globals(conn.pid, {"server.anticheat": int(self.realm.anticheat_on(conn.pid))})
         out = StreamOut()
         out.anydata(MatchmakeSession.CLASS_NAME, session)
         return out

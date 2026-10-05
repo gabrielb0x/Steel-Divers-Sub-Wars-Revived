@@ -192,7 +192,7 @@ class Matchmaker:
             return False
         if not criterion_matches(c.max_participants, info.max_participants):
             return False
-        for n, text in enumerate(c.attributes):
+        for n, text in enumerate(c.attributes[:4]):     # 4 and 5: reports of the online mod, not criteria
             value = info.attributes[n] if n < len(info.attributes) else 0
             if not criterion_matches(text, value):
                 return False

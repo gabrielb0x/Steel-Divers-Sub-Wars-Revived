@@ -253,24 +253,25 @@ async def login(host: str, port: int, pid: int, password: str, flags: str = "",
     return secure, cid
 
 
-def game_criteria(level: int) -> StreamOut:
-    """setupCriteriaList / joinSession: continent 2 (Europe), lobby type 1, level, version checksum."""
+def game_criteria(level: int, report: int | None = None) -> StreamOut:
+    """setupCriteriaList / joinSession: continent 2 (Europe), lobby type 1, level, version checksum, and
+    with the online mod the anti-cheat report (attribute 4)."""
     s = StreamOut()
     s.u32(1)
     c = StreamOut()
-    c.list(["2", "1", str(level), str(0xB95D7F2B), "", ""], StreamOut.string)
+    c.list(["2", "1", str(level), str(0xB95D7F2B), "" if report is None else str(report), ""], StreamOut.string)
     c.string("1000"); c.string(""); c.string(""); c.string("1")
     c.bool(True); c.bool(True); c.bool(False); c.u32(0); c.u16(1)
     s.u8(0); s.u32(len(c.data)); s.write(c.get())
     return s
 
 
-async def matchmake(secure: PRUDPClient, level: int) -> MatchmakeSession:
+async def matchmake(secure: PRUDPClient, level: int, report: int | None = None) -> MatchmakeSession:
     proposal = MatchmakeSession(min_participants=1, max_participants=8, flags=0x10, description="Steel Matcher",
-                                game_mode=1000, attributes=[2, 1, level, 0xB95D7F2B, 0, 0],
+                                game_mode=1000, attributes=[2, 1, level, 0xB95D7F2B, report or 0, 0],
                                 matchmake_system_type=1, application_buffer=b"\x01\x02\x03")
     params = StreamOut()
-    params.write(game_criteria(level).get())
+    params.write(game_criteria(level, report).get())
     params.anydata("MatchmakeSession", proposal)
     params.string("Steel Diver 2 Auto matchmake")
     s = await secure.call(109, 15, params)

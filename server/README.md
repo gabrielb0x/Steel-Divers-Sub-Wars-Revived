@@ -67,6 +67,19 @@ Chaque royaume a ses options de partie dans `serveur.toml` (le lanceur les affic
   (drapeau `premium`) n'est pas de la triche : il donne ce que les joueurs premium avaient. La triche elle-même
   est dans le jeu, pas dans le serveur ; un jeu modifié autrement peut toujours mentir, comme dans tout jeu
   en P2P. Pour un serveur où tout le monde triche, mettre `cheats = "autorises"`.
+* **Anti-triche** (sauf avec `cheats = "autorises"`, et pas dans les parties de tricheurs) : le serveur
+  demande au mod `en-ligne` de chaque joueur de surveiller son propre sous-marin en bataille — dégâts
+  annulés sans raison du jeu (invincibilité), torpilles qui ne baissent pas, tirs à moins d'une seconde
+  d'intervalle (aucun sous-marin ne tire plus vite que toutes les 2,8 s), vitesse au-delà de 20 unités par
+  image pendant 3 secondes (le plus rapide plafonne à 14,2). Au premier signe, le jeu **quitte la bataille**
+  comme avec le bouton « quitter » du jeu (le tricheur disparaît de la partie des autres) et garde ce renvoi
+  dans sa sauvegarde ; à sa recherche de partie suivante, il le dit au serveur, qui le met avec les
+  tricheurs (`separes`) ou le tient à l'écart (`refuses`) pendant `anticheat_ban` minutes (30 par défaut ;
+  liste dans `data/<royaume>/exclusions.json`, chaque renvoi n'est sanctionné qu'une fois). Cela attrape
+  les codes de triche d'Azahar et les mods de triche dont on a caché le drapeau ; un jeu dont on a retiré la
+  surveillance y échappe, comme dans tout jeu en P2P sans serveur de partie. Dans Azahar sans les fichiers
+  système de la console, le jeu ne peut pas afficher le code d'erreur d'un joueur tenu à l'écart : sa
+  recherche revient simplement au menu.
 
 ## Page d'état et bannissements
 
