@@ -2,6 +2,8 @@
 
 ## `raw/` — sortie brute de Ghidra (générée, non versionnée)
 
+*Avancement estimé : 100 % — toutes les fonctions exportées, rangées par fichier objet d'origine.*
+
 `make export` (ou `ghidra/export.sh`) décompile toutes les fonctions et range chacune dans le fichier objet d'où
 elle vient, d'après la table des symboles du linker (`romfs:/map`) :
 
@@ -16,10 +18,14 @@ Chaque fonction est précédée de son adresse et de sa taille dans le map.
 
 ## `scripts/` — scripts Pawn décompilés (générés, non versionnés)
 
+*Avancement estimé : 100 % — les 123 scripts décompilés ; leur lisibilité dépend des noms de `pawn/`.*
+
 `make scripts` désassemble (`scripts/asm/*.asm`) et décompile (`scripts/*.p`) les 123 scripts `romfs:/amx/*.amx`.
 Voir [../docs/scripts-pawn.md](../docs/scripts-pawn.md).
 
 ## `pawn/` — connaissances sur les scripts (versionné)
+
+*Avancement estimé : 35 % — 343 natives prototypées sur 647 ; 236 noms de fonctions et de globales, environ 1 400 groupes de fonctions restent à nommer.*
 
 - `pawn/natives.inc` : prototypes Pawn des natives (noms de paramètres, `Float:`, références) et énumérations
   (`UID`, `BUTTON`), écrits à partir des implémentations C++ ;
@@ -27,6 +33,8 @@ Voir [../docs/scripts-pawn.md](../docs/scripts-pawn.md).
   s'applique à toutes les copies de la fonction dans les autres scripts.
 
 ## Améliorer le pseudo-code
+
+*Avancement estimé : 15 % — classes reconstituées : `World`, `Actor`, `AMXLoader`, `NsubShop`… ; la plupart des classes du jeu restent à typer.*
 
 La base Ghidra est jetable (`make analyze` la recrée). Tout ce qu'on comprend va dans deux fichiers versionnés,
 réappliqués à chaque export :
@@ -40,6 +48,8 @@ Piège connu : `armlink` fusionne les fonctions au code identique. Un appel peut
 fonction (par ex. un `printf` de debug vidé qui apparaît comme `Renderer::getActiveMask("source/main.cpp", …)`).
 
 ## `src/` — code nettoyé (versionné)
+
+*Avancement estimé : 8 % — 152 fonctions du jeu réécrites sur 2 126 (environ 10 % du code du jeu, hors bibliothèques Nintendo).*
 
 Le C++ réécrit à la main à partir du pseudo-code, avec la même arborescence que `raw/source/` :
 

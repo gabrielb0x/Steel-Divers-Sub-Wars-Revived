@@ -2,7 +2,11 @@
 
 ## Formats maison (Vitei)
 
+*Avancement estimé : 90 % — tous décodés sauf les données des textures brutes.*
+
 ### BXML — XML binaire (`.bxml`, 490 fichiers)
+
+*Avancement estimé : 100 % — lecture et écriture, identiques à l'octet près.*
 
 Lu par `source/sys/binxml.cpp` (`BXML::load`, `BXML::initFromData`, `BXML::adjustPointerOffsets`).
 Converti en XML par `tools/bxml.py` (`make data` → `extracted/xml/`).
@@ -46,6 +50,8 @@ polices, textures, et `bxml/buildinfo` (révision du build : **31308**). Dans le
 
 ### Niveaux (`worlds/*.bxml`)
 
+*Avancement estimé : 90 % — tous les éléments lus par `World::readXML` ; les propriétés propres à chaque script d'acteur restent à lister.*
+
 Lus par `World::load` / `World::readXML` (`decomp/src/game/world.cpp`) quand un script appelle
 `worldLoad("nom", masque)`. Racine `<world>` (attribut `no_idle` : aucun acteur n'est mis en veille loin de la
 caméra), puis trois passes sur ses enfants :
@@ -65,6 +71,8 @@ Tout élément peut porter `map_mask` : il n'est lu que si `map_mask` vaut 0 ou 
 
 ### Collision : `.hmap` (`hmaps/`, 57 fichiers)
 
+*Avancement estimé : 100 %.*
+
 `CollShapeHeightMap::load` : malgré le nom, un maillage de triangles indexé par un quadtree construit au chargement.
 Format vérifié sur les 57 fichiers (taille exacte, indices < V, normales de longueur 1).
 
@@ -76,6 +84,8 @@ Format vérifié sur les 57 fichiers (taille exacte, indices < V, normales de lo
 | 0x24 | V × f32[3] sommets, puis T × u32[3] indices de triangles, puis T × f32[3] normales unitaires |
 
 ### Collision : `.edge` (`edges/`, 58 fichiers, inutilisés)
+
+*Avancement estimé : 100 %.*
 
 `CollShapeEdges::load` : contours 2D dans le plan XY de l'acteur (vue de côté), plus une grille de colonnes pour
 trouver vite les segments proches. **Aucun niveau ni script de Sub Wars ne s'en sert** (aucune forme de collision
@@ -98,9 +108,13 @@ eux aussi.
 
 ### Textures brutes (`textures/*.bin`)
 
+*Avancement estimé : 50 % — en-tête connu ; pas encore de conversion en image.*
+
 En-tête de 5 octets : u16 largeur, u16 hauteur, u8 format PICA200 (0xD = ETC1A4, …), puis les données de texture.
 
 ### Sauvegarde
+
+*Avancement estimé : 100 % — format complet, éditeur `tools/save.py`.*
 
 Le jeu n'a qu'un fichier de sauvegarde, `data:/save`, dans l'archive de sauvegarde du titre (sous Azahar :
 `sdmc/Nintendo 3DS/<id0>/<id1>/title/00040000/000d7e00/data/00000001/save`). Il contient les **globales des
@@ -139,6 +153,8 @@ L'éditeur [`tools/save.py`](../tools/save.py) lit et écrit ce format (affichag
 une à une, export et import en JSON), avec une copie de sécurité avant chaque écriture.
 
 ## Formats NintendoWare / SDK
+
+*Avancement estimé : 20 % — identifiés ; nos outils ne lisent que les shaders (`tools/shbin.py`) et les scripts ; modèles, layouts, polices et sons restent à décoder (portage PC).*
 
 | Extension | Format |
 |---|---|

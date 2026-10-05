@@ -10,6 +10,8 @@ contient donc jamais de données du jeu, et un mod se partage en partageant sa r
 
 ## Préparer le jeu pour Azahar
 
+*Avancement estimé : 100 %.*
+
 Le CIA de l'eShop contient aussi le manuel électronique, resté chiffré : Azahar refuse alors toute l'installation
 (« Blocked unauthorized encrypted CIA installation » dans son journal). Le jeu lui-même n'est pas chiffré :
 
@@ -28,6 +30,8 @@ dit à quoi sert chaque fichier. Ce sont des copies du jeu : elles ne se partage
 
 ## Construire et installer un mod
 
+*Avancement estimé : 100 %.*
+
 ```sh
 .venv/bin/python tools/mod.py list                       # mods disponibles
 .venv/bin/python tools/mod.py build texte-titre          # -> build/mods/texte-titre/
@@ -43,6 +47,8 @@ Chaque construction inclut les **correctifs** du jeu (`mods/correctifs`, `always
 `tools/mod.py build correctifs --install` les installe seuls.
 
 ## Écrire une recette : `mods/<nom>/mod.toml`
+
+*Avancement estimé : 100 %.*
 
 ```toml
 name = "Mon mod"
@@ -113,6 +119,8 @@ dans [../docs/formats.md](../docs/formats.md).
 
 ### Code Pawn (`.pasm`)
 
+*Avancement estimé : 90 % — tout le jeu d'instructions ; pas de compilateur Pawn de haut niveau.*
+
 `tools/amxasm.py` assemble du code Pawn (mnémoniques de `decomp/scripts/asm/`) et l'ajoute à la fin d'un
 script : rien de ce qui existe ne bouge. `.hook <adresse>` remplace la ou les instructions à cette adresse (8
 octets au moins) par un saut vers le code qui suit ; `.original` les rejoue, `.return` revient après elles.
@@ -136,6 +144,8 @@ entre guillemets (gardées dans les données du script), les globales du script 
 
 ## Mods disponibles
 
+*Avancement estimé : 100 % — liste à jour.*
+
 | Mod | Effet |
 |---|---|
 | `correctifs` | toujours inclus : corrige le plantage d'Azahar quand une torpille touche un sous-marin sous l'eau |
@@ -151,6 +161,8 @@ entre guillemets (gardées dans les données du script), les globales du script 
 
 ## Pseudo de la console
 
+*Avancement estimé : 100 % — vérifié dans Azahar.*
+
 Inclus dans tous les mods. En ligne comme en local, le jeu affiche pour chaque joueur le nom de son Mii, que
 chaque console envoie aux autres. Sous émulateur, personne n'a de Mii à soi : l'émulateur donne le même à
 tout le monde, « Citra ». Le mod remplace ce nom par le **pseudo de la console**, celui que vous réglez dans
@@ -159,6 +171,8 @@ Mandarine, Borked3DS), 10 caractères au plus. Le visage du Mii ne change pas ; 
 Mii. Vérifié dans Azahar : le salon affiche le pseudo de la console au lieu de « Citra ».
 
 ## Correctifs
+
+*Avancement estimé : 100 %.*
 
 Inclus dans tous les mods. Sans eux, dans Azahar, une torpille qui touche un sous-marin sous l'eau fige le
 jeu, puis Azahar se ferme : il remplit la mémoire (5 Go de RAM et 4 Go d'échange sur une machine de 7 Go)
@@ -177,6 +191,8 @@ Si vous ne voulez aucun mod, décocher « Enable Shader JIT » dans Azahar (Ému
 
 ## Toutes les missions
 
+*Avancement estimé : 100 %.*
+
 ```sh
 .venv/bin/python tools/mod.py build missions --install
 .venv/bin/python tools/mod.py build premium missions --install
@@ -190,6 +206,8 @@ le menu comme avant ; pour marquer les missions terminées pour de bon : `tools/
 
 ## Vitesse du sous-marin
 
+*Avancement estimé : 100 %.*
+
 ```sh
 .venv/bin/python tools/mod.py build vitesse --set facteur=5 --install        # 2, 3, 5, 10 ou 15
 .venv/bin/python tools/mod.py build premium triche vitesse --set facteur=15 --install
@@ -202,6 +220,8 @@ multiplie les deux tables qui traduisent les notes de vitesse en accélération 
 image). En ligne, le serveur le compte comme de la triche.
 
 ## Premium
+
+*Avancement estimé : 100 %.*
 
 ```sh
 .venv/bin/python tools/mod.py build premium --install                                     # hors ligne
@@ -219,6 +239,8 @@ marquée « premium » par une autre version se répare avec `tools/save.py prem
 
 ## Changer les caractéristiques des sous-marins
 
+*Avancement estimé : 100 %.*
+
 ```sh
 .venv/bin/python tools/subs.py show                         # les 23 sous-marins et leurs caractéristiques
 .venv/bin/python tools/subs.py export                       # votre fichier, avec les valeurs du jeu
@@ -235,6 +257,8 @@ refusées. Prévu pour le jeu hors ligne : en ligne, le serveur le traite comme 
 
 ## Tricher
 
+*Avancement estimé : 100 %.*
+
 ```sh
 .venv/bin/python tools/mod.py build triche --install                                  # hors ligne
 .venv/bin/python tools/mod.py build en-ligne triche --set server=192.0.2.10 --install   # en ligne
@@ -250,6 +274,8 @@ torpilles qui ne diminuent pas, coque intacte sous les bombes. En ligne, le serv
 selon sa configuration, ne vous fait jouer qu'avec d'autres tricheurs.
 
 ## Jouer en ligne
+
+*Avancement estimé : 90 % — reste : des bots qui jouent vraiment comme des joueurs.*
 
 ```sh
 make extract                                               # une fois : les fichiers du dump

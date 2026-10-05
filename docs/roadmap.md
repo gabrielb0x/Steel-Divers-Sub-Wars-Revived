@@ -2,6 +2,8 @@
 
 ## Volet 1 — Pseudo-code source (`decomp/`)
 
+*Avancement estimé : 20 % — tout est exporté et les scripts décompilés, mais 8 % seulement du code du jeu est réécrit proprement.*
+
 But : un code C++ lisible qui montre comment le jeu était écrit.
 
 Fait :
@@ -31,6 +33,8 @@ Fait :
 
 ## Volet 2 — Portage PC (`port/`)
 
+*Avancement estimé : 0 % — stratégie choisie, rien d'écrit.*
+
 Approche recommandée : **recompilation statique + HLE, puis remplacement progressif par le code décompilé**
 (la méthode de Zelda64Recomp ou Unleashed Recompiled).
 
@@ -54,6 +58,8 @@ au final, mais rien ne tourne avant que tout soit terminé.
 
 ## Volet 3 — Serveur online (`server/`)
 
+*Avancement estimé : 85 % — reste : bots qui jouent comme des joueurs, une vraie partie entre deux maisons.*
+
 Constat : le serveur ne gère que l'authentification, le matchmaking et le NAT traversal ; les parties elles-mêmes
 se jouent en P2P via Pia. Aucune bibliothèque NEX de classement ou de stockage n'est liée au jeu.
 
@@ -74,10 +80,12 @@ se jouent en P2P via Pia. Aucune bibliothèque NEX de classement ou de stockage 
    règle le jeu par des notifications à lui (variables de script, [online.md](online.md#8-serveur--jeu--les-variables-du-mod)).
    Options du serveur affichées et modifiables dans le lanceur.
 6. **À suivre** : des bots qui jouent vraiment comme des joueurs (collisions entre eux, combats entre bots,
-   déplacements naturels) ; une vraie partie entre deux maisons ; relais pour les NAT stricts si besoin ;
+   déplacements naturels ; pour une IA apprise, estimation dans [ia.md](ia.md)) ; une vraie partie entre deux maisons ; relais pour les NAT stricts si besoin ;
    migration d'hôte et départs en cours de partie à éprouver.
 
 ## Volet 4 — Mods (Azahar, puis portage PC)
+
+*Avancement estimé : 75 % — reste : 60 images/s (portage PC), pseudo-Pawn recompilable, menu de debug, somme de version des mods de gameplay.*
 
 Le plan détaillé est dans [mods.md](mods.md) : on publie des recettes (`mods/`), jamais un CIA modifié.
 
@@ -104,6 +112,8 @@ Le plan détaillé est dans [mods.md](mods.md) : on publie des recettes (`mods/`
    « Citra » pour tout le monde (mod `pseudo`, inclus partout).
 
 ## Décisions
+
+*Avancement estimé : 100 %.*
 
 - **Version du jeu** : la version de lancement (v0, Europe), celle du dump. Pas de mise à jour disponible (pas de
   3DS pour la dumper) : tout vise cette version.

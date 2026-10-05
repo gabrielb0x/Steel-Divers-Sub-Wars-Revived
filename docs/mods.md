@@ -6,6 +6,8 @@ où les mods seront plus simples encore. La 3DS elle-même n'est pas une cible.
 
 ## Distribuer le mod, jamais le jeu
 
+*Avancement estimé : 100 %.*
+
 Un `.cia` modifié contient le jeu entier : le distribuer revient à distribuer le jeu de Nintendo, ce qui est illégal et
 contraire à la règle du dépôt (aucune donnée du jeu n'est publiée). On distribue **uniquement le mod**, sous forme de
 recette ([../mods/README.md](../mods/README.md)) : une liste de changements que `tools/mod.py` applique aux fichiers
@@ -28,6 +30,8 @@ les recettes peuvent vérifier les octets d'origine (`expect`).
 
 ## Place libre dans le code
 
+*Avancement estimé : 100 % — une réserve de 1 940 octets, 1 684 encore libres.*
+
 Pour ajouter du code ARM, il faut de la place dans l'exécutable : soit une fonction que le patch rend
 inutile (la réécrire en plus court laisse sa fin libre), soit du code que le jeu n'appelle jamais.
 `SEQ_WRITELIST_Write` (0x0014BC90, 1940 octets, bibliothèque Mii `libcfl`) n'est référencée nulle part :
@@ -49,6 +53,8 @@ script, et la mémoire du script grandit d'autant (le chargeur alloue `stp` + la
 
 ## Ce qu'on sait déjà modifier
 
+*Avancement estimé : 80 % — données, code ARM et scripts Pawn ; pas encore les modèles, textures et sons.*
+
 - **Données** : niveaux, statistiques des sous-marins et de l'équipage, textes, réglages ; recettes `[[text]]` et
   `[[bxml]]`. Formats dans [formats.md](formats.md), dont celui des niveaux.
 - **Code C++** : recettes `[[code]]` (octets ou assembleur ARM), en connaissant les fonctions grâce à la table des
@@ -59,6 +65,8 @@ script, et la mémoire du script grandit d'autant (le chargeur alloue `stp` + la
   recompilable avec le compilateur Pawn 3.3.
 
 ## Jeu en ligne sur notre serveur
+
+*Avancement estimé : 90 % — reste une vraie partie entre deux maisons.*
 
 Comment le jeu trouve son serveur (`source/net/connectionInternet.cpp`, `JobCTRLogin` de la bibliothèque NEX) :
 
@@ -86,6 +94,8 @@ Le matchmaking ne réunit que des consoles qui annoncent la même somme de versi
 attribut 3) : un mod qui change le gameplay doit changer cette valeur pour ne pas rencontrer de joueurs sans le mod.
 
 ## Correctifs
+
+*Avancement estimé : 100 % — le plantage connu est corrigé, aucun autre n'est connu.*
 
 Le mod [`correctifs`](../mods/correctifs/mod.toml) fait partie de toutes les constructions (`always = true`).
 
@@ -124,6 +134,8 @@ l'huile s'affiche normalement. Le bug mériterait d'être signalé à Azahar (sa
 autour de chaque `CALL`, ou les garder dans l'état du shader comme l'interpréteur).
 
 ## 60 et 120 images par seconde
+
+*Avancement estimé : 10 % — moteur compris, essai dans Azahar abandonné ; à refaire dans le portage PC.*
 
 Ce que fait le moteur :
 
@@ -170,6 +182,8 @@ En ligne, des consoles qui affichent à des fréquences différentes resteraient
 font les mêmes 30 pas de simulation par seconde : c'est la simulation qui doit être commune, pas l'affichage.
 
 ## Menu de debug
+
+*Avancement estimé : 5 % — ce qu'il en reste est analysé ; sa logique et son affichage sont à réécrire.*
 
 Les scripts des modes contiennent encore la console de debug des développeurs (`consoleSystemMenu` dans
 `mode_title`, voir [scripts-pawn.md](scripts-pawn.md)) : invincibilité, `godmode`, `killThemAll`, désactivation des

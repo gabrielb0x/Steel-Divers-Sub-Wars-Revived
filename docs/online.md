@@ -8,6 +8,8 @@ instances d'Azahar se connectent, se retrouvent dans un salon et lancent une bat
 
 ## Vue d'ensemble
 
+*Avancement estimé : 100 %.*
+
 | Étape | Qui | Protocole |
 |---|---|---|
 | 1. adresse du serveur de jeu, jeton | module « friends » de la console → NASC | remplacé par le mod `en-ligne` |
@@ -20,6 +22,8 @@ instances d'Azahar se connectent, se retrouvent dans un salon et lancent une bat
 | 8. réglages du serveur | serveur → jeu | notifications à nous, variables de script (mod `en-ligne`) |
 
 ## 1. Connexion : `gameServerLogin` et `JobCTRLogin`
+
+*Avancement estimé : 100 %.*
 
 `ConnectionInternet::matchmakerLogin` → `gameServerLogin(ngsFacade, …)` :
 
@@ -41,6 +45,8 @@ délai de 60 s. `GetMyFriendKey` (d'où vient le principal ID) rend 0 pour tout 
 `GetGameAuthenticationData` : seule fonction appelante pour les deux dernières, `JobCTRLogin`.
 
 ## 2. Transport : PRUDP version 1
+
+*Avancement estimé : 100 %.*
 
 Les flux de type 10 (RVSecure) utilisent la **version 1** de PRUDP : le constructeur de `PRUDPStream` prend la
 version dans une variable globale de NEX initialisée à 1 (octet 0x00399D2E). `PRUDPMessageSelector` accepte aussi
@@ -72,6 +78,8 @@ EA D0 | version 1 | taille des options | taille des données (u16) | source | de
 
 ## 3. Authentification et connexion sécurisée
 
+*Avancement estimé : 100 %.*
+
 Serveur d'authentification : `prudp:/address=<adresse>;port=<port>;stream=10;sid=1;type=2`
 (`JobBackEndServicesLoginWithData::ConnectToAuthenticationService`).
 
@@ -96,6 +104,8 @@ Serveur d'authentification : `prudp:/address=<adresse>;port=<port>;stream=10;sid
 
 ## 4. Détection de NAT (Pia)
 
+*Avancement estimé : 100 %.*
+
 `NatTraverser::updateNatServerAddress` déclare à NEX deux serveurs, `nncs1` et `nncs2.app.nintendowifi.net`
 (chaînes UTF-16 lues via les pointeurs 0x003B0940/0x003B0944), chacun sur les ports UDP 10025 et 10125. Messages
 `NATCheckMessage` de 16 octets gros-boutistes : type, port, adresse, extra ; la réponse renvoie le type et l'adresse
@@ -112,6 +122,8 @@ et n'envoie pas 103 ; le serveur répond 103 en même temps que 101 (Pia ne rega
 ce qui décrit un NAT dont l'association ne dépend pas de la destination, le cas courant.
 
 ## 5. Recherche de partie
+
+*Avancement estimé : 95 % — reste à l'éprouver avec beaucoup de joueurs à la fois.*
 
 `ConnectionInternet::automatchOpen` :
 
@@ -158,6 +170,8 @@ param2, texte, param3) :
 
 ## 6. Le salon et la bataille
 
+*Avancement estimé : 85 % — reste à éprouver la migration d'hôte et les départs en cours de partie.*
+
 Entièrement en P2P (Pia : sessions, horloge, flux fiables et non fiables, migration d'hôte) entre les sockets de
 Pia des consoles. Le serveur n'intervient plus, sauf pour `CloseParticipation` et les départs.
 
@@ -175,6 +189,8 @@ Ce que décide le jeu lui-même (scripts `mode_lobby` et `mode_periscope`) :
   par la console qui les subit : la triche marche aussi en ligne, d'où l'option `cheats` du serveur.
 
 ## 7. Joueurs éloignés : adresses publiques et privées
+
+*Avancement estimé : 85 % — validé en simulation et sur le réseau local, pas encore entre deux vraies maisons ; pas de relais pour les NAT stricts.*
 
 Pour rejoindre l'hôte, Pia reçoit ses URL (`GetSessionURLs`, une ou deux, sinon erreur :
 `NexFacade::ConvertNexStationURLToStationConnectionInfo`), classe l'une comme publique (bit 2 du paramètre `type` :
@@ -208,6 +224,8 @@ numérique (drapeau `0x00399D1F`, à 1 dans l'exécutable), et Pia résout les n
 Le mod accepte donc un nom (DNS dynamique) à la place d'une IP.
 
 ## 8. Serveur → jeu : les variables du mod
+
+*Avancement estimé : 100 %.*
 
 Le serveur n'a aucun moyen d'agir sur une bataille, qui se joue de console à console. Pour régler les
 parties contre des bots (et plus tard d'autres choses), le mod `en-ligne` réécrit

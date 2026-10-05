@@ -12,6 +12,8 @@ se connectent, se retrouvent dans le même salon et lancent une bataille ensembl
 
 ## Lancer le serveur
 
+*Avancement estimé : 100 %.*
+
 ```sh
 cd server
 python3 -m sdsw_server            # les deux royaumes de serveur.toml + la détection de NAT
@@ -19,6 +21,8 @@ python3 -m sdsw_server --realm emulateur -v      # un seul royaume, journal dét
 ```
 
 ## Deux royaumes : émulateur et PC
+
+*Avancement estimé : 90 % — le royaume PC est prêt côté serveur mais attend le portage PC.*
 
 Le fichier [`serveur.toml`](serveur.toml) décrit deux « royaumes » totalement séparés (comptes, salons) :
 
@@ -33,6 +37,8 @@ le port qu'il vise change. Pour faire jouer tout le monde ensemble, il suffirait
 `emulateur`.
 
 ## Bots et triche
+
+*Avancement estimé : 70 % — anti-triche et séparation des tricheurs faits ; bots à rendre plus humains (collisions entre eux, combats entre bots, déplacements naturels).*
 
 Chaque royaume a ses options de partie dans `serveur.toml` (le lanceur les affiche et les modifie, onglet
 **Serveur**, « Configuration du serveur ») :
@@ -83,6 +89,8 @@ Chaque royaume a ses options de partie dans `serveur.toml` (le lanceur les affic
 
 ## Page d'état et bannissements
 
+*Avancement estimé : 100 %.*
+
 * **Page d'état** : avec `status_port = 8730` (section `[server]` de `serveur.toml`), le serveur publie en HTTP
   une page (`http://<adresse>:8730/`) et sa version JSON (`/status.json`) : joueurs connectés, comptes,
   options, et les parties en cours (nombre de joueurs, ouverte ou commencée, partie de tricheurs, depuis
@@ -92,6 +100,8 @@ Chaque royaume a ses options de partie dans `serveur.toml` (le lanceur les affic
   chaque connexion : pas besoin de redémarrer, la connexion suivante de ce joueur est refusée.
 
 ## Jouer avec des amis éloignés
+
+*Avancement estimé : 85 % — UPnP et STUN vérifiés ; pas encore de vraie partie entre deux maisons ni de relais pour les NAT stricts.*
 
 Le plus simple : le lanceur (`python3 subwars.py`, onglet **Serveur**). « Lancer le serveur » arrête d'abord un
 serveur déjà lancé sur l'ordinateur (par un ancien lanceur, un terminal), puis affiche l'**adresse à donner aux
@@ -151,6 +161,8 @@ qui l'a démarré disparaît, même tué : plus de serveur oublié qui garde les
 
 ## Comptes
 
+*Avancement estimé : 100 %.*
+
 Pas d'inscription : sur 3DS, le mot de passe venait des serveurs de comptes de Nintendo. Le mod donne à chaque
 joueur un identifiant (principal ID) et un mot de passe aléatoires, créés quand il construit le mod ; le jeton
 d'authentification contient la clé Kerberos dérivée du mot de passe. Le serveur enregistre l'identifiant à sa
@@ -159,6 +171,8 @@ première connexion et exige ensuite la même clé (`data/<royaume>/accounts.sql
 Aucune donnée de jeu n'est stockée : le jeu n'utilise pas de classements ni de stockage côté serveur.
 
 ## Organisation du code
+
+*Avancement estimé : 100 %.*
 
 | Fichier | Rôle |
 |---|---|
@@ -177,6 +191,8 @@ Aucune donnée de jeu n'est stockée : le jeu n'utilise pas de classements ni de
 | `sdsw_server/testclient.py` | client qui se comporte comme le jeu, pour tester sans console ; `--probe` |
 
 ## Tests
+
+*Avancement estimé : 90 % — 40 tests automatiques ; les essais avec le vrai jeu restent manuels.*
 
 ```sh
 cd server

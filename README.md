@@ -11,6 +11,8 @@ Projet de rétro-ingénierie de **Steel Diver: Sub Wars** (Nintendo / Vitei, 3DS
 
 ## Pour les joueurs : le lanceur
 
+*Avancement estimé : 85 % — vérifié sous Linux ; reste à l'essayer sur de vraies machines Windows et macOS.*
+
 Il faut [Python 3.11 ou plus récent](https://www.python.org/downloads/) (rien d'autre), un émulateur
 3DS de la famille de Citra — [Azahar](https://azahar-emu.org/) de préférence, ou Lime3DS, Citra, Borked3DS — et
 **votre** copie du jeu européen, déchiffrée (`.cia`, `.cxi` ou `.3ds`). Windows, macOS et Linux.
@@ -34,6 +36,8 @@ Les mêmes outils existent en ligne de commande : `tools/mod.py`, `tools/save.py
 ([mods/README.md](mods/README.md)). Ils fonctionnent sous Windows, macOS et Linux avec Python seul.
 
 ## État actuel
+
+*Avancement estimé du projet : pseudo-code source 20 %, portage PC 0 %, serveur en ligne 85 %, mods 75 % (détail par section dans chaque page).*
 
 - Extraction complète du CIA (EUR, `00040000000D7E00`, v0), déjà déchiffré : aucune clé de console n'est nécessaire.
 - **Table des symboles du linker trouvée dans le RomFS** (`romfs:/map`) : 9431 fonctions avec leur vrai nom, leur
@@ -84,9 +88,12 @@ cd server && python3 -m sdsw_server                        # le serveur (royaume
 .venv/bin/python tools/save.py show                         # la sauvegarde ; unlock all, set, export…
 ```
 
-Détails : [docs/analyse-initiale.md](docs/analyse-initiale.md) · Plan : [docs/roadmap.md](docs/roadmap.md)
+Détails : [docs/analyse-initiale.md](docs/analyse-initiale.md) · Plan : [docs/roadmap.md](docs/roadmap.md) · IA
+aussi forte qu'un joueur, combien de parties : [docs/ia.md](docs/ia.md)
 
 ## Arborescence
+
+*Avancement estimé : 100 % — à jour.*
 
 ```
 cia/               ton dump .cia (ignoré par git)
@@ -105,6 +112,8 @@ docs/              notes de rétro-ingénierie
 
 ## Installation
 
+*Avancement estimé : 90 % — la chaîne de rétro-ingénierie (Ghidra) n'est décrite et vérifiée que sous Linux.*
+
 Pour jouer, Python 3.11 suffit (voir plus haut). Pour la rétro-ingénierie : Linux, Python 3.11+, Java 21+,
 [Ghidra 12](https://github.com/NationalSecurityAgency/ghidra/releases) extrait dans un chemin **sans accents**
 (par ex. `~/tools/`, le chargement de Ghidra échoue sinon).
@@ -119,6 +128,8 @@ make                # extraction -> ELF -> analyse Ghidra -> pseudo-code C++ -> 
 Pour explorer dans l'interface : lancer Ghidra et ouvrir `ghidra/project/SteelDiver.gpr`.
 
 ## Licence
+
+*Avancement estimé : 100 %.*
 
 Le code de ce dépôt (outils, scripts, portage, serveur, documentation) est sous licence [MIT](LICENSE).
 Elle ne couvre pas le jeu : Steel Diver: Sub Wars, ses données et son code restent la propriété de Nintendo.

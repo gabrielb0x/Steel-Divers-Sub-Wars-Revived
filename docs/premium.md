@@ -7,6 +7,8 @@ le jeu décide de ce qui est acheté, et ce que le mod change.
 
 ## Ce qu'il y a dans le jeu de base
 
+*Avancement estimé : 100 %.*
+
 Tout le contenu premium est déjà dans le RomFS du jeu gratuit : les 7 zones de missions, les 18 sous-marins de base,
 les 32 motifs et les 32 membres d'équipage, et même les coques des 5 sous-marins historiques (`n2ply_x001` à
 `n2ply_x005`, que les joueurs gratuits voyaient chez les autres en ligne). L'achat n'ajoutait qu'un **droit**, plus,
@@ -25,6 +27,8 @@ Les contenus additionnels forment le titre `0004008C000D7E00` (le jeu est `00040
 un « contenu » numéroté de ce titre.
 
 ## Comment le jeu vérifie les achats (`source/sys/dlc.cpp`)
+
+*Avancement estimé : 100 %.*
 
 La classe `NsubShop` (un singleton, `getNsubShop()`) enveloppe la bibliothèque d'achat `nn::ec` :
 
@@ -51,6 +55,8 @@ de proue). La coque, `modelship`, vient toujours du jeu de base : c'est elle qu'
 
 ## Ce que la version gratuite limite (scripts Pawn)
 
+*Avancement estimé : 100 %.*
+
 Tous les scripts de modes ont une copie de `isFullVersion()` (`return sysDLCCheckPaidForFullVer();`) :
 
 | Script | Version gratuite | Version complète |
@@ -65,6 +71,8 @@ Les sous-marins 19 à 23 suivent `sysDLCCheckCondition(n° − 18)` : au titre, 
 plus acheté est remplacé par le n° 1 (`save.sub.typenum`).
 
 ## Déblocages et sauvegarde
+
+*Avancement estimé : 100 %.*
 
 En version complète, les sous-marins et les motifs se gagnent par des **récompenses** (`bxml/reward_data` :
 `decalNN` pour un motif, `lobby_sub_nameNN` pour un sous-marin, appliquées par `unlockReward`) :
@@ -86,6 +94,8 @@ tableaux de la sauvegarde ([formats.md](formats.md#sauvegarde)) :
 effacé), le bouton Start affiche l'erreur **098-0101** (`sysShowErrEULA(98101)`) et la partie ne démarre plus.
 
 ## Le mod `premium`
+
+*Avancement estimé : 100 % — vérifié dans Azahar.*
 
 ```sh
 .venv/bin/python tools/mod.py build premium --install

@@ -6,6 +6,8 @@ fichier 10) et leur fournit 647 fonctions natives.
 
 ## Organisation
 
+*Avancement estimé : 100 %.*
+
 - **Modes** : `nnMain` charge un script `mode_*` (20 au total), le fait tourner, puis passe au suivant
   (`decomp/src/main.cpp`). Chaque mode boucle une fois par frame et rend la main au moteur avec `sleep 0;`.
 
@@ -40,6 +42,8 @@ fichier 10) et leur fournit 647 fonctions natives.
 
 ## Natives (fonctions C++ appelées par les scripts)
 
+*Avancement estimé : 55 % — les 647 natives retrouvées et reliées à leur code C++ ; 343 prototypes Pawn écrits.*
+
 Les tables d'enregistrement (`AMX_NATIVE_INFO`, déclarées *packed* donc parfois non alignées) sont retrouvées en
 suivant les appels à `amx_Register` :
 
@@ -59,6 +63,8 @@ fonctions variadiques), plus les énumérations `UID` et `BUTTON`. Conventions d
 paramètre des natives `actor*` (0 = l'acteur du script appelant), les vecteurs sont des `Float:v[3]`.
 
 ## Outils
+
+*Avancement estimé : 90 % — désassembleur, décompilateur et assembleur ; reste un pseudo-Pawn recompilable.*
 
 `make scripts` (après `make export`) produit, dans `decomp/scripts/` (non versionné) :
 

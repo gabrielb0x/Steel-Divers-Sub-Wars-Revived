@@ -2,6 +2,8 @@
 
 ## Le dump
 
+*Avancement estimé : 100 %.*
+
 | | |
 |---|---|
 | Fichier | `votre-dump.cia` |
@@ -24,6 +26,8 @@ dlp:FKCL dlp:SRVR dsp::DSP frd:u fs:USER gsp::Gpu hid:USER http:C mic:u ndm:u ne
 y2r:u ldr:ro ir:USER nim:aoc am:app`, plus `$hioFIO $hostio0 $hostio1 pxi:dev` (accès debug « host I/O » oubliés).
 
 ## La table des symboles du linker (`romfs:/map`)
+
+*Avancement estimé : 100 %.*
 
 Les développeurs ont laissé à la racine du RomFS la liste des symboles produite par `armlink` :
 **9431 fonctions** avec adresse, taille, nom C++ démanglé et fichier objet / bibliothèque d'origine.
@@ -58,6 +62,8 @@ Le code propre au jeu ne pèse que ~390 Kio : le reste, ce sont des bibliothèqu
 
 ## Arborescence source d'origine
 
+*Avancement estimé : 100 % — tout ce que le binaire révèle (chemins `__FILE__` et fichiers objets du map).*
+
 Les macros d'assert/log du jeu ont laissé `__FILE__` dans le binaire : 44 chemins sont confirmés.
 
 ```
@@ -77,6 +83,8 @@ Les ~70 autres objets du jeu (`metaball.o`, `torpedotrail.o`, `DsSubAudioMgr.o`,
 de chemin connu : ils sont exportés à la racine de `source/` en attendant d'être classés.
 
 ## Architecture du jeu
+
+*Avancement estimé : 70 % — boucle, modes, monde et scripts compris ; rendu, son et réseau bas niveau seulement survolés.*
 
 - **Moteur maison de Vitei** en C++ au-dessus de NintendoWare for CTR et du CTR-SDK.
 - **Le jeu est une suite de « modes »** : `nnMain` charge un script Pawn `mode_*` (20 au total : `mode_title`,
@@ -98,6 +106,8 @@ de chemin connu : ils sont exportés à la racine de `source/` en attendant d'ê
 
 ## Inventaire du RomFS (1179 fichiers, 200 Mo)
 
+*Avancement estimé : 75 % — formats maison décodés ; modèles, layouts, polices et sons NintendoWare seulement identifiés.*
+
 | Dossier | Fichiers | Taille | Contenu |
 |---|---|---|---|
 | `audiores/` | 48 | 86 Mo | `.bcstm` (musiques), `sound_data.bcsar` |
@@ -117,6 +127,8 @@ de chemin connu : ils sont exportés à la racine de `source/` en attendant d'ê
 | `map` | 1 | 800 Ko | **table des symboles du linker** |
 
 ## Online
+
+*Avancement estimé : 100 % — détaillé depuis dans [online.md](online.md), protocole complet et serveur fonctionnel.*
 
 - Le Nintendo Network a fermé le 8 avril 2024.
 - [Pretendo Network](https://github.com/PretendoNetwork/steel-diver-sub-wars) a déjà un serveur NEX pour ce jeu
