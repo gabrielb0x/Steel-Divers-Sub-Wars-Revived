@@ -565,7 +565,8 @@ def main() -> None:
     p = sub.add_parser("build", help="build mods/<name> (several: together) into build/mods/")
     p.add_argument("names", nargs="+", metavar="name")
     p.add_argument("--set", action="append", default=[], metavar="KEY=VALUE", help="a parameter of the recipe")
-    p.add_argument("--install", action="store_true", help="then install it into Azahar")
+    p.add_argument("--install", action="store_true",
+                   help="then install it into the emulators found (Azahar, Lime3DS, Citra, Borked3DS)")
     p.add_argument("--cxi", action="store_true", help="also write the game with this code patch applied")
     p.add_argument("--no-fixes", action="store_true", help="without the fixes of the game (mods/correctifs)")
     p.add_argument("-o", "--out", type=Path, default=ROOT / "build" / "mods")
@@ -589,11 +590,8 @@ def main() -> None:
     except (ModError, KeyError, tomllib.TOMLDecodeError) as e:
         sys.exit(f"[!] {e}")
     if args.install:
-        dest = azahar.mods_dir(None)
-        if dest.exists():
-            shutil.rmtree(dest)
-        shutil.copytree(built / azahar.TITLE_ID, dest)
-        print(f"[+] installed into {dest}")
+        for dest in azahar.install(built):              # every emulator found (Azahar, Citra family)
+            print(f"[+] installed into {dest}")
 
 
 if __name__ == "__main__":

@@ -11,18 +11,22 @@ Projet de rétro-ingénierie de **Steel Diver: Sub Wars** (Nintendo / Vitei, 3DS
 
 ## Pour les joueurs : le lanceur
 
-Il faut [Python 3.11 ou plus récent](https://www.python.org/downloads/) (rien d'autre), l'émulateur
-[Azahar](https://azahar-emu.org/) et **votre** copie du jeu européen, déchiffrée (`.cia`, `.cxi` ou `.3ds`).
+Il faut [Python 3.11 ou plus récent](https://www.python.org/downloads/) (rien d'autre), un émulateur
+3DS de la famille de Citra — [Azahar](https://azahar-emu.org/) de préférence, ou Lime3DS, Citra, Borked3DS — et
+**votre** copie du jeu européen, déchiffrée (`.cia`, `.cxi` ou `.3ds`). Windows, macOS et Linux.
 
 1. Téléchargez ce projet (bouton *Code > Download ZIP* sur GitHub) et décompressez-le.
-2. Lancez `subwars.py` : double-clic sous Windows, ou dans un terminal `python3 subwars.py`. Le lanceur s'ouvre
-   dans votre navigateur ; il ne parle qu'à votre ordinateur.
+2. Double-cliquez sur le lanceur de votre système : `lancer-windows.bat` (Windows), `lancer-macos.command`
+   (macOS ; la première fois, clic droit > Ouvrir), `lancer-linux.sh` (Linux), ou dans un terminal
+   `python3 subwars.py`. Le lanceur s'ouvre dans votre navigateur ; il ne parle qu'à votre ordinateur.
 3. Onglet **Jeu** : il trouve votre jeu (dans le dossier `cia/` du projet ou dans Azahar, sinon choisissez le
    fichier) et le prépare.
 4. Onglet **Mods** : cochez **Premium** (version complète et les 23 sous-marins), et si vous voulez **Toutes
    les missions**, la **Triche** (dont le tir sans délai), la **Vitesse du sous-marin** (×2 à ×15), vos
-   **Caractéristiques** de sous-marins ou le **Jeu en ligne**, puis *Installer dans Azahar*. Les **Correctifs**
-   sont toujours inclus : sans eux, Azahar plante quand une torpille touche un sous-marin sous l'eau.
+   **Caractéristiques** de sous-marins ou le **Jeu en ligne**, puis *Installer dans l'émulateur* (dans chaque
+   émulateur trouvé). Toujours inclus : les **Correctifs** (sans eux, Azahar plante quand une torpille touche un
+   sous-marin sous l'eau) et le **Pseudo** (votre nom en ligne et en local est le pseudo réglé dans
+   l'émulateur, plus « Citra » pour tout le monde).
 5. Onglets **Sauvegarde** (tout débloquer, médailles, drapeau premium), **Sous-marins** (caractéristiques) et
    **Serveur** (héberger des parties en ligne).
 
@@ -60,8 +64,10 @@ cd server && python3 -m sdsw_server                        # le serveur (royaume
 .venv/bin/python tools/mod.py build en-ligne triche --set server=<adresse> --install   # avec la triche
 ```
 
-  Le serveur règle le nombre de joueurs humains par partie (le jeu complète les équipes avec des bots) et
-  décide quoi faire des tricheurs ([server/README.md](server/README.md)).
+  Le serveur règle le nombre de joueurs humains par partie et décide quoi faire des tricheurs. Un joueur
+  resté seul une minute joue contre des bots qui rejoignent la partie comme des joueurs (noms, vrais
+  sous-marins, niveaux) ; équipes (4v4, 1v4…), carte, niveau, durée et noms se règlent dans le lanceur
+  ([server/README.md](server/README.md)).
 - **Premium sans l'eShop** : le mod `premium` débloque la version complète, les 23 sous-marins (dont les 5
   historiques vendus à part), les motifs et l'équipage ([docs/premium.md](docs/premium.md)).
 - **Éditeur de sauvegarde** : `tools/save.py` affiche et modifie la sauvegarde d'Azahar (déblocages, médailles,

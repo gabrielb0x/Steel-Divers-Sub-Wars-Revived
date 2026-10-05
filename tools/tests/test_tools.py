@@ -343,6 +343,22 @@ class PawnAssembler(unittest.TestCase):
                 AmxImage.parse(make_amx()).assemble(source)
 
 
+class Emulators(unittest.TestCase):
+    def test_every_emulator_of_the_citra_family(self):
+        import azahar
+        with tempfile.TemporaryDirectory() as home:
+            home = Path(home)
+            for folder in ("AppData/Roaming/Azahar", "AppData/Roaming/Borked3DS",
+                           "Library/Application Support/Lime3DS", ".local/share/citra-emu",
+                           ".var/app/org.azahar_emu.Azahar/data/azahar-emu"):
+                (home / folder).mkdir(parents=True)
+            env = {"APPDATA": str(home / "AppData/Roaming"), "XDG_DATA_HOME": str(home / ".local/share")}
+            with mock.patch.dict("os.environ", env), mock.patch("pathlib.Path.home", return_value=home):
+                found = azahar.emulator_dirs()
+        names = [name for name, _ in found]
+        self.assertEqual(names, ["Azahar (Flatpak)", "Azahar", "Lime3DS", "Citra", "Borked3DS"])
+
+
 class Recipes(unittest.TestCase):
     def test_scale(self):
         self.assertEqual(mod.scaled("0.36", 15), "5.4")

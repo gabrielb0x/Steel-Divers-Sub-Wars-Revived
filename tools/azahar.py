@@ -33,34 +33,56 @@ TITLE_ID = "00040000000D7E00"   # Steel Diver: Sub Wars, Europe
 TMD_HEADER, INFO_RECORDS, CHUNK = 0xC4, 64 * 0x24, 0x30
 
 
-def azahar_dirs() -> list[Path]:
-    """User folders of the emulator: AZAHAR_DIR, then Azahar (Flatpak, Linux, Windows, macOS), then its
-    predecessors Lime3DS and Citra, which use the same layout (load/mods/, sdmc/)."""
-    candidates = []
-    if os.environ.get("AZAHAR_DIR"):
-        candidates.append(Path(os.environ["AZAHAR_DIR"]))
+# The 3DS emulators that load mods from load/mods/<title id>/ (exefs/code.ips, romfs/): Azahar and the Citra
+# family it comes from, with their user folder on Linux (XDG, Flatpak), Windows (%APPDATA%) and macOS.
+# (name, Linux/Flatpak folder name, Windows/macOS folder name, Flatpak ids)
+EMULATORS = (
+    ("Azahar", "azahar-emu", "Azahar", ("org.azahar_emu.Azahar",)),
+    ("Lime3DS", "lime3ds-emu", "Lime3DS", ("io.github.lime3ds.Lime3DS",)),
+    ("Citra", "citra-emu", "Citra", ("org.citra_emu.citra", "org.citra_emu.Citra")),
+    ("Borked3DS", "borked3ds-emu", "Borked3DS", ("io.github.borked3ds.Borked3DS",)),
+)
+
+
+def emulator_dirs() -> list[tuple[str, Path]]:
+    """(emulator, user folder) of every emulator found: AZAHAR_DIR first (a portable install: the "user"
+    folder next to the emulator), then the usual places of Azahar, Lime3DS, Citra and Borked3DS."""
+    candidates: list[tuple[str, Path]] = []
+    for variable in ("AZAHAR_DIR", "SUBWARS_EMULATOR_DIR"):
+        if os.environ.get(variable):
+            candidates.append(("Émulateur (" + variable + ")", Path(os.environ[variable])))
     home = Path.home()
     data = Path(os.environ.get("XDG_DATA_HOME") or home / ".local/share")
     appdata = Path(os.environ["APPDATA"]) if os.environ.get("APPDATA") else None
     mac = home / "Library/Application Support"
-    for flatpak, folder, windows in (("org.azahar_emu.Azahar", "azahar-emu", "Azahar"),
-                                     ("io.github.lime3ds.Lime3DS", "lime3ds-emu", "Lime3DS"),
-                                     ("org.citra_emu.citra", "citra-emu", "Citra")):
-        candidates += [home / ".var/app" / flatpak / "data" / folder, data / folder, mac / windows]
+    flatpaks = home / ".var/app"
+    for name, folder, windows, ids in EMULATORS:
+        candidates += [(name + " (Flatpak)", flatpaks / app / "data" / folder) for app in ids]
+        if flatpaks.is_dir():                                   # another Flatpak id of the same emulator
+            candidates += [(name + " (Flatpak)", p) for p in sorted(flatpaks.glob(f"*/data/{folder}"))]
+        candidates += [(name, data / folder), (name, mac / windows)]
         if appdata:
-            candidates.append(appdata / windows)
-    found = []
-    for c in candidates:
-        if c.is_dir() and c not in found:
-            found.append(c)
+            candidates.append((name, appdata / windows))
+    found: list[tuple[str, Path]] = []
+    for name, path in candidates:
+        if path.is_dir() and all(path != p for _, p in found):
+            found.append((name, path))
     return found
+
+
+def azahar_dirs() -> list[Path]:
+    """User folders of the emulators found (emulator_dirs), Azahar first."""
+    return [path for _, path in emulator_dirs()]
 
 
 def config_dir() -> Path:
     """Folder of this project's settings on the player's computer (identities, save backups)."""
     if os.name == "nt" and os.environ.get("APPDATA"):
         return Path(os.environ["APPDATA"]) / "sub-wars-open-sourced"
-    return Path(os.environ.get("XDG_CONFIG_HOME") or Path.home() / ".config") / "sub-wars-open-sourced"
+    old = Path(os.environ.get("XDG_CONFIG_HOME") or Path.home() / ".config") / "sub-wars-open-sourced"
+    if sys.platform == "darwin" and not old.exists():
+        return Path.home() / "Library/Application Support/sub-wars-open-sourced"
+    return old
 
 
 def save_files(bases: list[Path] | None = None) -> list[Path]:
@@ -77,9 +99,33 @@ def mods_dir(base: Path | None) -> Path:
     if base is None:
         found = azahar_dirs()
         if not found:
-            sys.exit("Azahar's user folder was not found (set AZAHAR_DIR or pass --azahar-dir).")
+            sys.exit("No emulator folder found (Azahar, Lime3DS, Citra, Borked3DS): set AZAHAR_DIR or pass "
+                     "--azahar-dir.")
         base = found[0]
     return base / "load" / "mods" / TITLE_ID
+
+
+def mods_dirs(base: Path | None) -> list[Path]:
+    """The mod folders of the game: the one of base, or of every emulator found."""
+    if base is not None:
+        return [base / "load" / "mods" / TITLE_ID]
+    found = azahar_dirs()
+    if not found:
+        sys.exit("No emulator folder found (Azahar, Lime3DS, Citra, Borked3DS): set AZAHAR_DIR or pass "
+                 "--azahar-dir.")
+    return [d / "load" / "mods" / TITLE_ID for d in found]
+
+
+def install(built: Path, base: Path | None = None) -> list[Path]:
+    """Copies a mod built by tools/mod.py into the emulators (all of them, unless base is given)."""
+    src = built / TITLE_ID if (built / TITLE_ID).is_dir() else built
+    done = []
+    for dest in mods_dirs(base):
+        if dest.exists():
+            shutil.rmtree(dest)
+        shutil.copytree(src, dest)
+        done.append(dest)
+    return done
 
 
 def align(x: int, a: int = 64) -> int:
@@ -276,23 +322,19 @@ def main() -> None:
         print(f"[+] {args.out / 'SteelDiverSubWars_original.cia'}: Azahar > File > Install CIA")
         print(f"[+] {args.out / 'SteelDiverSubWars_original.cxi'}: or Azahar > File > Load File, without installing")
     elif args.command == "install":
-        src = args.mod / TITLE_ID if (args.mod / TITLE_ID).is_dir() else args.mod
-        dest = mods_dir(args.azahar_dir)
-        if dest.exists():
-            shutil.rmtree(dest)
-        shutil.copytree(src, dest)
-        print(f"[+] installed into {dest}")
+        for dest in install(args.mod, args.azahar_dir):
+            print(f"[+] installed into {dest}")
     elif args.command == "uninstall":
-        dest = mods_dir(args.azahar_dir)
-        if dest.exists():
-            shutil.rmtree(dest)
-            print(f"[+] removed {dest}")
+        for dest in mods_dirs(args.azahar_dir):
+            if dest.exists():
+                shutil.rmtree(dest)
+                print(f"[+] removed {dest}")
     else:
-        found = azahar_dirs()
-        for d in found:
-            print(f"{d}\n  mods: {d / 'load' / 'mods' / TITLE_ID}")
+        found = emulator_dirs()
+        for name, d in found:
+            print(f"{name}: {d}\n  mods: {d / 'load' / 'mods' / TITLE_ID}")
         if not found:
-            print("Azahar's user folder was not found (set AZAHAR_DIR).")
+            print("No emulator folder found (Azahar, Lime3DS, Citra, Borked3DS): set AZAHAR_DIR.")
 
 
 if __name__ == "__main__":

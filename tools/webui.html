@@ -123,7 +123,7 @@ ol.steps { margin: 6px 0 0; padding-left: 20px; } ol.steps li { margin-bottom: 4
     <div class="status" id="game-status"></div>
     <p class="small muted">Il faut <b>votre</b> copie de Steel Diver: Sub Wars, version européenne
       (<code>00040000000D7E00</code>), déchiffrée : le <code>.cia</code> de l'eShop, un <code>.cxi</code> ou un
-      <code>.3ds</code>. Le lanceur la cherche dans le dossier <code>cia/</code> du projet et dans Azahar. Rien n'est
+      <code>.3ds</code>. Le lanceur la cherche dans le dossier <code>cia/</code> du projet et dans l'émulateur. Rien n'est
       envoyé nulle part.</p>
     <div class="row">
       <button class="btn primary" id="btn-extract-auto">Trouver le jeu et le préparer</button>
@@ -131,11 +131,12 @@ ol.steps { margin: 6px 0 0; padding-left: 20px; } ol.steps li { margin-bottom: 4
     </div>
   </div>
   <div class="card">
-    <h2>2. L'émulateur Azahar</h2>
+    <h2>2. L'émulateur</h2>
     <div class="status" id="emu-status"></div>
     <p class="small muted">Azahar refuse le <code>.cia</code> de l'eShop entier (son manuel est resté chiffré) :
       le lanceur en fait une copie du jeu seul, à installer (Fichier &gt; Installer un CIA), ou un <code>.cxi</code>
-      à ouvrir directement (Fichier &gt; Charger un fichier). Inutile avec un <code>.cxi</code> ou un <code>.3ds</code>.</p>
+      à ouvrir directement (Fichier &gt; Charger un fichier). Inutile avec un <code>.cxi</code> ou un <code>.3ds</code>.
+      Les mods vont dans chaque émulateur trouvé : Azahar, et ceux de la même famille (Lime3DS, Citra, Borked3DS).</p>
     <div class="row">
       <button class="btn" id="btn-prepare">Préparer le jeu pour Azahar</button>
       <button class="btn" id="btn-open-prepared">Ouvrir le dossier</button>
@@ -152,22 +153,22 @@ ol.steps { margin: 6px 0 0; padding-left: 20px; } ol.steps li { margin-bottom: 4
   <div class="card">
     <h2>Mods</h2>
     <p class="small muted">Cochez les mods voulus puis « Installer » : ils sont construits à partir de votre jeu et
-      copiés dans Azahar (<code>load/mods/00040000000D7E00/</code>). Azahar n'en charge qu'un dossier : tous les mods
-      cochés y vont ensemble. Relancez le jeu ensuite.</p>
+      copiés dans l'émulateur (<code>load/mods/00040000000D7E00/</code>, dans chaque émulateur trouvé). Il n'en
+      charge qu'un dossier : tous les mods cochés y vont ensemble. Relancez le jeu ensuite.</p>
     <div id="installed" class="small"></div>
   </div>
   <div id="mod-list"></div>
   <div class="card row">
-    <button class="btn primary" id="btn-install">Installer dans Azahar</button>
+    <button class="btn primary" id="btn-install">Installer dans l'émulateur</button>
     <button class="btn" id="btn-build">Construire sans installer</button>
-    <button class="btn danger" id="btn-uninstall">Retirer les mods d'Azahar</button>
+    <button class="btn danger" id="btn-uninstall">Retirer les mods de l'émulateur</button>
   </div>
 </section>
 
 <section class="tab" id="tab-sauvegarde">
   <div class="card">
     <h2>Sauvegarde</h2>
-    <p class="small"><b>Fermez le jeu dans Azahar avant de modifier la sauvegarde</b> : il garde ses valeurs en
+    <p class="small"><b>Fermez le jeu dans l'émulateur avant de modifier la sauvegarde</b> : il garde ses valeurs en
       mémoire et réécrirait l'ancienne. Une copie de sécurité est faite avant chaque modification.</p>
     <div class="row"><label>Fichier : <select id="save-file"></select></label>
       <button class="btn" id="btn-save-reload">Relire</button></div>
@@ -232,7 +233,8 @@ ol.steps { margin: 6px 0 0; padding-left: 20px; } ol.steps li { margin-bottom: 4
     <h2>En bref</h2>
     <ol class="steps">
       <li><b>Jeu</b> : le lanceur trouve votre copie du jeu et en extrait les fichiers dont les mods ont besoin.</li>
-      <li><b>Azahar</b> : installez le <code>.cia</code> préparé, ou ouvrez le <code>.cxi</code>.</li>
+      <li><b>L'émulateur</b> (Azahar, ou Lime3DS, Citra, Borked3DS) : installez le <code>.cia</code> préparé, ou
+        ouvrez le <code>.cxi</code>.</li>
       <li><b>Mods</b> : cochez <i>Premium</i> (version complète et les 23 sous-marins), et si vous voulez la
         <i>Triche</i>, vos <i>Caractéristiques</i>, le <i>Jeu en ligne</i>. Installez, relancez le jeu.</li>
       <li><b>Sauvegarde</b> : tout débloquer, des médailles d'or, retirer le drapeau premium d'une ancienne sauvegarde.</li>
@@ -241,7 +243,7 @@ ol.steps { margin: 6px 0 0; padding-left: 20px; } ol.steps li { margin-bottom: 4
     <p class="small"><b>Le premium sans l'eShop ?</b> Tout le contenu premium est déjà dans le jeu gratuit ; l'achat
       n'ajoutait qu'un droit. Le mod le donne, et donne aux cinq sous-marins historiques leur coque à la place de leur
       proue, qui était dans le contenu payant.</p>
-    <p class="small"><b>Retirer les mods ?</b> Onglet Mods, « Retirer les mods d'Azahar ». Les déblocages restent dans
+    <p class="small"><b>Retirer les mods ?</b> Onglet Mods, « Retirer les mods de l'émulateur ». Les déblocages restent dans
       la sauvegarde.</p>
     <p class="small"><b>Le jeu affiche l'erreur 098-0101 au démarrage ?</b> La sauvegarde a été marquée « premium » :
       onglet Sauvegarde, « Retirer le drapeau premium », ou installez le mod Premium.</p>
@@ -336,7 +338,9 @@ async function refresh() {
   const chips = $("#chips");
   chips.replaceChildren(
     el("span", {class: "chip " + (g.ready ? "ok" : "warn")}, g.ready ? "● Jeu prêt" : "● Jeu à préparer"),
-    el("span", {class: "chip " + (emu.dirs.length ? "ok" : "warn")}, emu.dirs.length ? "● Azahar trouvé" : "● Azahar introuvable"),
+    el("span", {class: "chip " + (emu.dirs.length ? "ok" : "warn")}, emu.dirs.length
+      ? "● " + [...new Set(emu.names.map(n => n.replace(/ \(.*\)$/, "")))].join(", ") + " trouvé" + (emu.names.length > 1 ? "s" : "")
+      : "● Émulateur introuvable"),
     el("span", {class: "chip " + (emu.mods_installed ? "ok" : "")},
        emu.mods_installed ? "● Mods installés" + (emu.installed ? " : " + emu.installed.mods.join(", ") : "") : "● Aucun mod installé"));
   $("#game-status").replaceChildren(el("span", {class: "dot " + (g.ready ? "ok" : "warn")}),
@@ -344,8 +348,9 @@ async function refresh() {
       : g.found ? "Pas encore préparés. Jeu trouvé : " : "Pas encore préparés, et le jeu n'a pas été trouvé automatiquement.",
       g.ready || !g.found ? "" : el("code", {}, g.found)));
   $("#emu-status").replaceChildren(el("span", {class: "dot " + (emu.dirs.length ? "ok" : "warn")}),
-    el("span", {}, emu.dirs.length ? ["Dossier d'Azahar : ", el("code", {}, emu.dirs[0])]
-      : "Dossier d'Azahar introuvable : lancez Azahar une fois. " + "(Ou définissez la variable AZAHAR_DIR.)"),
+    el("span", {}, emu.dirs.length ? emu.dirs.map((d, i) => el("div", {}, emu.names[i] + " : ", el("code", {}, d)))
+      : "Aucun émulateur trouvé (Azahar, Lime3DS, Citra, Borked3DS) : lancez-le une fois. Version portable : "
+        + "définissez la variable AZAHAR_DIR sur son dossier « user »."),
     g.prepared ? el("span", {class: "muted small"}, " — jeu préparé dans build/azahar/") : "");
   $("#restart").style.display = state.restart ? "block" : "none";
   renderMods();
@@ -418,7 +423,7 @@ function renderMods() {
   $("#installed").replaceChildren(state.emulator.mods_installed
     ? el("span", {}, "Installés : ", el("b", {}, installed ? installed.mods.join(" + ") : "des mods"),
         installed ? el("span", {class: "muted"}, ` (le ${installed.date})`) : "")
-    : el("span", {class: "muted"}, "Aucun mod installé dans Azahar."));
+    : el("span", {class: "muted"}, "Aucun mod installé dans l'émulateur."));
   if (list.dataset.built) return;
   list.dataset.built = "1";
   for (const m of state.mods) {
@@ -487,7 +492,7 @@ function selectedMods() {
 $("#btn-install").addEventListener("click", () => { const s = selectedMods(); runTask("mods/build", {mods: s.names, params: s.params, install: true}); });
 $("#btn-build").addEventListener("click", () => { const s = selectedMods(); runTask("mods/build", {mods: s.names, params: s.params, install: false}); });
 $("#btn-uninstall").addEventListener("click", () => guarded(async () => {
-  if (!confirm("Retirer les mods d'Azahar ? Le jeu redevient celui d'origine (la sauvegarde ne change pas).")) return;
+  if (!confirm("Retirer les mods de l'émulateur ? Le jeu redevient celui d'origine (la sauvegarde ne change pas).")) return;
   const r = await api("mods/uninstall", {body: {}});
   toast(r.removed.length ? "Mods retirés." : "Il n'y avait pas de mod installé.");
   await refresh();
@@ -507,7 +512,7 @@ async function loadSave() {
   if (current && files.includes(current)) select.value = current;
   const view = $("#save-view");
   if (!files.length) {
-    view.replaceChildren(el("div", {class: "card"}, el("p", {}, "Aucune sauvegarde du jeu dans Azahar : lancez le jeu une fois, jusqu'à l'écran titre.")));
+    view.replaceChildren(el("div", {class: "card"}, el("p", {}, "Aucune sauvegarde du jeu dans l'émulateur : lancez le jeu une fois, jusqu'à l'écran titre.")));
     return;
   }
   await guarded(async () => renderSave(await api("save?file=" + encodeURIComponent(select.value))));
@@ -812,7 +817,7 @@ $("#btn-srv-use").addEventListener("click", () => {
   if (host.length > 31) { toast("Adresse trop longue : 31 caractères au plus.", true); return; }
   setModParam("en-ligne", "server", host);
   setModParam("en-ligne", "port", port || "61000");
-  toast(`Mod Jeu en ligne réglé sur ${host}${port ? ":" + port : ""} : cliquez sur « Installer dans Azahar ».`);
+  toast(`Mod Jeu en ligne réglé sur ${host}${port ? ":" + port : ""} : cliquez sur « Installer dans l'émulateur ».`);
   showTab("mods");
   const card = $("#mod-en-ligne");
   if (card) card.scrollIntoView({behavior: "smooth", block: "center"});

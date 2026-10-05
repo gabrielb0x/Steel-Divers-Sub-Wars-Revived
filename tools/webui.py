@@ -283,7 +283,9 @@ class GameServer:
         self.process = subprocess.Popen([sys.executable, "-u", "-m", "sdsw_server", "-c", "serveur.toml",
                                          "--exit-with-stdin"],
                                         cwd=SERVER_DIR, stdin=subprocess.PIPE, stdout=subprocess.PIPE,
-                                        stderr=subprocess.STDOUT, text=True, encoding="utf-8", errors="replace")
+                                        stderr=subprocess.STDOUT, text=True, encoding="utf-8", errors="replace",
+                                        env=os.environ | {"PYTHONIOENCODING": "utf-8", "PYTHONUTF8": "1"},
+                                        creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0))
         threading.Thread(target=self._read, args=(self.process,), daemon=True).start()
 
     def stop_others(self, strict: bool = True) -> None:
@@ -505,11 +507,13 @@ def game_state() -> dict:
 
 
 def emulator_state() -> dict:
-    dirs = azahar.azahar_dirs()
-    mods_dir = dirs[0] / "load" / "mods" / azahar.TITLE_ID if dirs else None
-    installed = load_state().get("installed") if mods_dir and mods_dir.exists() else None
-    return {"dirs": [str(d) for d in dirs], "mods_dir": str(mods_dir) if mods_dir else None,
-            "mods_installed": bool(mods_dir and mods_dir.exists()), "installed": installed,
+    found = azahar.emulator_dirs()
+    dirs = [path for _, path in found]
+    mods = [d / "load" / "mods" / azahar.TITLE_ID for d in dirs]
+    installed = load_state().get("installed") if any(m.exists() for m in mods) else None
+    return {"dirs": [str(d) for d in dirs], "names": [name for name, _ in found],
+            "mods_dir": str(mods[0]) if mods else None,
+            "mods_installed": any(m.exists() for m in mods), "installed": installed,
             "saves": [str(p) for p in azahar.save_files()]}
 
 
@@ -568,19 +572,21 @@ def build_mods(names: list[str], params: dict[str, str], install: bool, log) -> 
     built = mod.build(names, MODS_OUT, params)
     result = {"built": str(built)}
     if install:
-        dirs = azahar.azahar_dirs()
-        if not dirs:
-            raise UserError("Le dossier d'Azahar est introuvable : lancez Azahar une fois, puis réessayez.")
-        dest = dirs[0] / "load" / "mods" / azahar.TITLE_ID
-        if dest.exists():
-            shutil.rmtree(dest)
-        shutil.copytree(built / azahar.TITLE_ID, dest)
+        found = azahar.emulator_dirs()
+        if not found:
+            raise UserError("Aucun émulateur trouvé (Azahar, Lime3DS, Citra, Borked3DS) : lancez-le une fois, "
+                            "puis réessayez.")
+        for name, base in found:                       # every emulator of this computer gets the mod
+            dest = base / "load" / "mods" / azahar.TITLE_ID
+            if dest.exists():
+                shutil.rmtree(dest)
+            shutil.copytree(built / azahar.TITLE_ID, dest)
+            print(f"Installé pour {name} : {dest}")
         public = {k: v for k, v in mod.build.params.items() if k not in ("pid", "password", "token")}
         store_state(installed={"mods": names or mod.fixes(), "params": public,
                                "date": time.strftime("%Y-%m-%d %H:%M")})
-        print(f"Installé dans {dest}")
-        print("Lancez (ou relancez) le jeu dans Azahar : le mod s'applique au démarrage.")
-        result["installed"] = str(dest)
+        print("Lancez (ou relancez) le jeu dans l'émulateur : le mod s'applique au démarrage.")
+        result["installed"] = [str(base / "load" / "mods" / azahar.TITLE_ID) for _, base in found]
     return result
 
 
