@@ -25,6 +25,7 @@ from pathlib import Path
 
 from . import stun
 from .internet import Internet
+from .matchmaking import BotSettings
 from .natcheck import PORTS as NAT_CHECK_PORTS, NatCheckService
 from .realm import Realm, RealmConfig
 from .status import StatusServer
@@ -49,7 +50,8 @@ def load_config(path: Path, only: list[str] | None) -> tuple[dict, list[RealmCon
                                   public_address=entry.get("public_address", public),
                                   auth_port=int(entry["auth_port"]), secure_port=int(entry["secure_port"]),
                                   data_dir=data_dir, max_players=int(entry.get("max_players", 8)),
-                                  cheats=str(entry.get("cheats", "separes"))))
+                                  cheats=str(entry.get("cheats", "separes")),
+                                  bots=BotSettings.from_config(entry, entry["name"])))
     return server, realms
 
 

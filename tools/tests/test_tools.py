@@ -19,6 +19,8 @@ sys.path.insert(0, str(TOOLS))
 
 import mod                                     # noqa: E402
 import shbin                                   # noqa: E402
+from amx import disassemble                    # noqa: E402
+from amxasm import AmxImage, AsmError as AmxAsmError   # noqa: E402
 import webui                                   # noqa: E402
 from armasm import AsmError, assemble          # noqa: E402
 from save import SaveData, SaveError, parse_value   # noqa: E402
@@ -151,10 +153,13 @@ class Assembler(unittest.TestCase):
                   "port": "61000", "server": "127.0.0.1", "debloquer": "oui", "dlc": "non"}
         from string import Template
         for recipe in sorted((TOOLS.parent / "mods").glob("*/mod.toml")):
+            values = dict(params)                       # the labels of an entry are ${arm_<label>} after it
             for entry in tomllib.loads(recipe.read_text(encoding="utf-8")).get("code", []):
                 if "arm" in entry:
                     with self.subTest(recipe=recipe.parent.name, address=hex(entry["address"])):
-                        code = assemble(Template(entry["arm"]).safe_substitute(params), entry["address"])
+                        symbols = {}
+                        code = assemble(Template(entry["arm"]).safe_substitute(values), entry["address"], symbols)
+                        values.update({f"arm_{k}": f"{v:#x}" for k, v in symbols.items()})
                         self.assertLessEqual(len(code), entry.get("max_size", len(code)))
 
     def test_errors(self):
@@ -258,6 +263,84 @@ class Shaders(unittest.TestCase):
                     mod.edit_shader(shaders, {"file": "shaders/test.shbin", "instruction": 99, "value": 0})
             finally:
                 mod.ROMFS = old
+
+
+def make_amx() -> bytes:
+    """A compact Pawn 3.3 script: main() calls f(1) and returns; f(x) returns x ? x : 7 (a branch),
+    one public (@main), one native (sysGetGlobal), a global and a string in the data."""
+    from amx import OP, compress
+    code = [OP["PROC"],                                         # 0x00 main
+            OP["PUSH_C"], 1, OP["PUSH_C"], 4, OP["CALL"], 0x14,  # 0x04, 0x0c, 0x14: call f (0x28)
+            OP["ZERO_PRI"], OP["RETN"],                         # 0x1c, 0x20
+            OP["NOP"],                                          # 0x24
+            OP["PROC"],                                         # 0x28 f
+            OP["LOAD_S_PRI"], 12,                               # 0x2c
+            OP["JNZ"], 0x10,                                    # 0x34: -> 0x44
+            OP["CONST_PRI"], 7,                                 # 0x3c
+            OP["RETN"]]                                         # 0x44
+    data = [5] + [ord(c) for c in "abc"] + [0]
+    names = b"\x0c\x00@main\0sysGetGlobal\0"
+    tables = struct.pack("<II", 0, 78) + struct.pack("<II", 0, 84)       # name table at 76: u16, then names
+    prefix_len = 60 + 16 + len(names)
+    prefix_len += -prefix_len % 4
+    body = compress(b"".join(struct.pack("<i", c) for c in code + data))
+    cod = prefix_len
+    dat = cod + 4 * len(code)
+    hea = dat + 4 * len(data)
+    header = struct.pack("<iHBBhh12i", prefix_len + len(body), 0xF1E0, 10, 10, 0x04, 8, cod, dat, hea, hea + 0x100,
+                         0, 60, 68, 76, 76, 76, 76, 76)
+    prefix = header + tables + names
+    return prefix + bytes(prefix_len - len(prefix)) + body
+
+
+class PawnAssembler(unittest.TestCase):
+    def test_round_trip(self):
+        raw = make_amx()
+        self.assertEqual(AmxImage.parse(raw).write(), raw)
+
+    def test_hook_function_and_public(self):
+        from amx import OP, AmxFile, decode
+        img = AmxImage.parse(make_amx())
+        img.assemble("""
+            .var $count
+        .hook 0x34                      ; the jnz of f, moved by .original
+            inc $count
+            .original
+            .return
+        .public @helper
+        helper:
+            proc
+            push.c "x.y"
+            sysreq.n sysGetGlobal, 1
+            push.c 2
+            sysreq.n sysSetGlobal, 1
+            retn
+        """)
+        raw = img.write()
+        again = AmxImage.parse(raw)
+        self.assertEqual([n for _, n, _ in again.natives], ["sysGetGlobal", "sysSetGlobal"])
+        self.assertEqual([n for _, n, _ in again.publics], ["@helper", "@main"])          # sorted by name
+        insns = {i.addr: i for i in decode(bytes(again.code))}
+        self.assertEqual(insns[0x34].op, OP["JUMP"])
+        hook = 0x34 + insns[0x34].args[0]
+        self.assertEqual(insns[hook].op, OP["INC"])
+        moved = insns[hook + 8]
+        self.assertEqual((moved.op, moved.addr + moved.args[0]), (OP["JNZ"], 0x44))       # still goes to 0x44
+        back = insns[hook + 16]
+        self.assertEqual((back.op, back.addr + back.args[0]), (OP["JUMP"], 0x3c))
+        self.assertEqual(again.string(img.strings["x.y"]), ("x.y", False, 4))
+        with tempfile.TemporaryDirectory() as folder:                              # the disassembler reads it
+            path = Path(folder) / "t.amx"
+            path.write_bytes(raw)
+            self.assertIn("sysSetGlobal", disassemble(AmxFile.load(path)))
+
+    def test_refusals(self):
+        for source in (".hook 0x24\n.return",                     # nop, then a PROC: cannot be moved
+                       "jump @nowhere",
+                       "frob 1",
+                       ".hook 0x34\n.return\n.hook 0x34\n.return"):   # twice the same place
+            with self.subTest(source=source), self.assertRaises(AmxAsmError):
+                AmxImage.parse(make_amx()).assemble(source)
 
 
 class Recipes(unittest.TestCase):

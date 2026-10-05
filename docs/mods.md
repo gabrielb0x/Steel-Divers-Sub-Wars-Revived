@@ -26,6 +26,22 @@ jeu seul (et un `.cxi` chargeable directement).
 **Version visée** : la version de lancement (v0, Europe), celle du dump. Un patch de code dépend de l'exécutable exact :
 les recettes peuvent vérifier les octets d'origine (`expect`).
 
+## Place libre dans le code
+
+Pour ajouter du code ARM, il faut de la place dans l'exécutable : soit une fonction que le patch rend
+inutile (la réécrire en plus court laisse sa fin libre), soit du code que le jeu n'appelle jamais.
+`SEQ_WRITELIST_Write` (0x0014BC90, 1940 octets, bibliothèque Mii `libcfl`) n'est référencée nulle part :
+ni appel, ni pointeur aligné ou non, ni adresse calculée (`add rX, pc`) ; le jeu ne modifie jamais la base de
+Mii de la console. Elle sert de réserve, partagée ainsi entre les mods :
+
+| Plage | Mod | Contenu |
+|---|---|---|
+| 0x0014BC90-0x0014BD8F | `pseudo` | le pseudo de la console dans le Mii du joueur |
+| 0x0014BD90-0x0014C423 | libre | |
+
+Dans les scripts Pawn, la place n'est pas un problème : `tools/amxasm.py` ajoute le code à la fin du
+script, et la mémoire du script grandit d'autant (le chargeur alloue `stp` + la pile demandée).
+
 ## Ce qu'on sait déjà modifier
 
 - **Données** : niveaux, statistiques des sous-marins et de l'équipage, textes, réglages ; recettes `[[text]]` et
@@ -33,8 +49,9 @@ les recettes peuvent vérifier les octets d'origine (`expect`).
 - **Code C++** : recettes `[[code]]` (octets ou assembleur ARM), en connaissant les fonctions grâce à la table des
   symboles du jeu et à la décompilation.
 - **Scripts** : la logique du jeu (modes, sous-marins, interface) est en Pawn ([scripts-pawn.md](scripts-pawn.md)).
-  On sait les lire ; pour les modifier il faudra un assembleur AMX (modifier le bytecode), puis rendre le pseudo-Pawn
-  recompilable avec le compilateur Pawn 3.3. C'est la prochaine brique.
+  `tools/amxasm.py` y ajoute du code (assembleur Pawn, crochets sur les instructions existantes) : c'est ainsi
+  que sont faits les bots du serveur (`mods/en-ligne/bots_*.pasm`). Prochaine étape : du pseudo-Pawn
+  recompilable avec le compilateur Pawn 3.3.
 
 ## Jeu en ligne sur notre serveur
 

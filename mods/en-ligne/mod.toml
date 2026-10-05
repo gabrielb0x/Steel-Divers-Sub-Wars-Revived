@@ -148,3 +148,146 @@ words = ["0x002AF690", "0x002AF690"]
 address = 0x00399E90
 expect = "8e343800c4343800"
 words = ["0x002AF690", "0x002AF690"]
+
+# -- Messages du serveur : MyNotificationEventHandler::ProcessNotificationEvent (568 octets) -----------
+# Le jeu ne retient que trois notifications (3001 un joueur arrive, 4xxx nouveau propriétaire, 109xxx
+# salon supprimé) ; le reste de la fonction n'écrivait que des journaux retirés de la version finale.
+# Réécrite : les mêmes trois, plus les nôtres, qui règlent des variables de script (globales du jeu) :
+#   999001  texte = nom, param1 = valeur entière       -> amxSysSetGlobal(nom, valeur)
+#   999002  texte = « nom=valeur », une chaîne (UTF-8) -> amxSysSetGlobalArray(nom, 96 cellules)
+# Le serveur règle ainsi les parties contre des bots (server.bots.*, les noms des bots…) ; un jeu sans ce
+# mod ignore ces types.
+[[code]]
+address = 0x00185264
+expect = "30402de987df4de2"
+max_size = 568
+arm = """
+    push {r4, r5, r6, lr}
+    sub sp, sp, #0x210
+    mov r4, r1                  @ NotificationEvent: +0xc type, +0x10 param1, +0x14 param2, +0x1c texte
+    ldr r0, [r4, #0xc]
+    ldr r5, globals             @ 0x0038e660
+    ldr r1, joined
+    cmp r0, r1
+    moveq r2, #0
+    streq r2, [r5, #4]          @ 3001 : un joueur arrive
+    beq done
+    sub r1, r0, #4000
+    cmp r1, #1000
+    ldrlo r2, [r4, #0x14]
+    strlo r2, [r5, #0x18]       @ 4xxx : nouveau propriétaire (param2)
+    blo done
+    ldr r1, unregistered
+    sub r1, r0, r1
+    cmp r1, #1000
+    ldrlo r2, [r4, #0x10]
+    strlo r2, [r5, #4]          @ 109xxx : salon supprimé (param1)
+    blo done
+    ldr r1, set_global
+    sub r1, r0, r1
+    cmp r1, #2
+    bhs done
+    ldr r6, [r4, #0x1c]         @ nn::nex::String : texte UTF-16
+    cmp r6, #0
+    beq done
+    mov r5, r1                  @ 0 : entier, 1 : chaîne
+    mov r0, r6
+    bl 0x0023C598               @ wcslen
+    add r1, r6, r0, lsl #1
+    add r1, r1, #2              @ fin, après le zéro final
+    str r6, [sp, #4]
+    add r0, sp, #0x10
+    str r0, [sp, #8]
+    add r3, r0, #0x7f           @ 127 octets au plus
+    mov r12, #1
+    str r12, [sp]
+    add r0, sp, #4
+    add r2, sp, #8
+    bl 0x0023B380               @ convertUTF16toUTF8(&texte, fin, &utf8, fin utf8, 1)
+    cmp r5, #0
+    bne string_global
+    add r0, sp, #0x10
+    ldr r1, [r4, #0x10]
+    bl 0x002539C4               @ amxSysSetGlobal(nom, valeur)
+    b done
+string_global:
+    add r0, sp, #0x10
+find_equal:
+    ldrb r1, [r0], #1
+    cmp r1, #0
+    beq done                    @ pas de « = » : ignoré
+    cmp r1, #0x3d
+    bne find_equal
+    mov r1, #0
+    strb r1, [r0, #-1]          @ fin du nom ; r0 : la valeur
+    add r2, sp, #0x90
+    mov r3, #96
+    mov r12, #1
+cells:
+    mov r1, #0
+    cmp r12, #0
+    beq store
+    ldrb r1, [r0], #1
+    cmp r1, #0
+    moveq r12, #0
+store:
+    str r1, [r2], #4
+    subs r3, r3, #1
+    bne cells
+    mov r1, #0
+    str r1, [sp, #0x20c]        @ dernière cellule : fin de chaîne
+    add r0, sp, #0x10
+    add r1, sp, #0x90
+    mov r2, #96
+    bl 0x001DA344               @ amxSysSetGlobalArray(nom, cellules, 96), comme sysSetGlobalString
+done:
+    add sp, sp, #0x210
+    pop {r4, r5, r6, pc}
+globals:
+    .word 0x0038e660
+joined:
+    .word 3001
+unregistered:
+    .word 109000
+set_global:
+    .word 999001
+"""
+
+# -- Parties contre les bots du serveur (bots_*.pasm, assembleur Pawn de tools/amxasm.py) -------------
+# Seul dans une partie depuis bots_delay secondes (server/serveur.toml), le joueur reçoit server.bots.* :
+# les bots rejoignent le salon un par un, comme des joueurs (nom, sous-marin, niveau), le compte à
+# rebours part, la bataille commence avec les équipes demandées (format 4v4, 1v4…, carte, durée), et
+# elle se termine quand une équipe n'a plus ni joueur ni bot à flot, ou à la fin du temps. En bataille,
+# les bots ont la coque d'un vrai sous-marin, des couleurs, leur nom et leur niveau (pas « CPU »), et
+# comptent dans les compteurs d'équipe. Leurs sous-marins : ceux des bots du jeu, avec la forme de
+# collision des sous-marins des joueurs (bxml/pscope_ply01).
+[[bxml]]
+file = "bxml/surface_sub_bot_blue.bxml"
+from = "bxml/surface_sub_npc_blue.bxml"
+select = "collshape"
+copy = { file = "bxml/pscope_ply01.bxml", select = "collshape" }
+
+[[bxml]]
+file = "bxml/surface_sub_bot_red.bxml"
+from = "bxml/surface_sub_npc_red.bxml"
+select = "collshape"
+copy = { file = "bxml/pscope_ply01.bxml", select = "collshape" }
+
+[[amx]]
+file = "amx/hud.amx"
+asm_file = "bots_hud.pasm"
+[[amx]]
+file = "amx/mode_lobby.amx"
+asm_file = "bots_salon.pasm"
+
+[[amx]]
+file = "amx/mode_periscope.amx"
+asm_file = "bots_bataille.pasm"
+
+[[amx]]
+file = "amx/game_state.amx"
+asm_file = "bots_partie.pasm"
+
+[[amx]]
+file = "amx/surface_sub.amx"
+asm_file = "bots_ia.pasm"

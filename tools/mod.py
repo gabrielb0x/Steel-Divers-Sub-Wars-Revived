@@ -24,6 +24,9 @@ mod.toml:
   rename = { old = "new" }          # optional: renames attributes, keeping their place (applied before set)
   scale = "${factor}"               # optional: multiplies every number of the selected nodes (after set)
   remove = true                     # optional: removes the selected nodes instead
+  from = "bxml/surface_sub_npc_blue.bxml"   # optional: file is a new file, a copy of this one
+  copy = { file = "bxml/pscope_ply01.bxml", select = "collshape" }   # optional: set the attributes of
+                                    # that node (before set)
 
   [[subs]]                          # the characteristics of the submarines from a player's file
   file = "${fichier}"               # (tools/subs.py; "auto": sous-marins.toml of the settings folder)
@@ -34,6 +37,8 @@ mod.toml:
   string = "player.muteki"
   replace = "mode.ready"            # not longer than the original
   # or an instruction operand: address = 0x130D0, operand = 0, value = 1, expect = 0
+  # or Pawn assembly added to the script (tools/amxasm.py): asm = "..." or asm_file = "x.pasm" (in the
+  # mod's folder), with .hook <address> to run it in place of existing instructions; ${param} allowed
 
   [[shader]]                        # an instruction of a PICA200 shader (shaders/*.shbin, DVLB)
   file = "shaders/metaball.shbin"
@@ -44,6 +49,7 @@ mod.toml:
   [[code]]                          # code patch, at a virtual address of code.bin
   address = 0x0010C7FC
   arm = "bx lr"                     # ARM assembly (tools/armasm.py), or: bytes = "1eff2fe1",
+                                    # (the labels of an arm block: ${arm_<label>} in the entries after it)
                                     # ascii = "text" / utf16 = "text" (NUL-terminated), words = ["0x1234"]
   expect = "f0412de9"               # optional: bytes that must be there (guards the version)
   max_size = 116                    # optional: the patch must not be longer (end of the function)
@@ -75,9 +81,11 @@ from __future__ import annotations
 
 import argparse
 import contextlib
+import copy
 import hashlib
 import json
 import os
+import re
 import secrets
 import shutil
 import string
@@ -90,7 +98,7 @@ from pathlib import Path
 import armasm
 import azahar
 import shbin
-from amx import AmxPatcher
+from amxasm import AmxImage, AsmError
 from bxml import TYPE_FLOATS, TYPE_INTS, Bxml, escape_string, float_text, from_xml, infer_type
 from ctr import find_game_cia
 
@@ -107,14 +115,36 @@ class ModError(Exception):
 
 # ---- data -----------------------------------------------------------------------------------
 
-def edit_bxml(files: dict[str, ET.Element], file: str, select: str, values: dict[str, str],
-              rename: dict[str, str] | None = None, remove: bool = False, scale: float | None = None) -> int:
+def load_bxml(files: dict[str, ET.Element], file: str) -> ET.Element:
+    """The tree of a BXML file of the game, as edited so far by this build."""
     if file not in files:
         path = ROMFS / file
         if not path.exists():
             raise ModError(f"{file}: not in extracted/romfs (run make extract)")
         files[file] = ET.fromstring(Bxml(path.read_bytes()).to_xml())
-    root = files[file]
+    return files[file]
+
+
+def new_bxml(files: dict[str, ET.Element], file: str, source: str) -> None:
+    """A new file of the mod, a copy of a file of the game (then edited by the entries that follow)."""
+    if file in files or (ROMFS / file).exists():
+        raise ModError(f"{file}: the game already has this file")
+    files[file] = copy.deepcopy(load_bxml(files, source))
+
+
+def copied_attributes(files: dict[str, ET.Element], spec: dict) -> dict[str, str]:
+    """copy = {file = ..., select = ...}: the attributes of a node of another file."""
+    root = load_bxml(files, spec["file"])
+    select = spec.get("select", ".")
+    node = root if select in (".", "") else root.find(select)
+    if node is None:
+        raise ModError(f"{spec['file']}: nothing matches {select!r}")
+    return dict(node.attrib)
+
+
+def edit_bxml(files: dict[str, ET.Element], file: str, select: str, values: dict[str, str],
+              rename: dict[str, str] | None = None, remove: bool = False, scale: float | None = None) -> int:
+    root = load_bxml(files, file)
     nodes = [root] if select in (".", "") else root.findall(select)
     if not nodes:
         raise ModError(f"{file}: nothing matches {select!r}")
@@ -176,16 +206,20 @@ def bxml_files(entry: dict) -> list[str]:
     return [entry["file"]]
 
 
-def edit_amx(scripts: dict[str, AmxPatcher], entry: dict) -> None:
+def edit_amx(scripts: dict[str, AmxImage], entry: dict, params: dict[str, str] | None = None,
+             folder: Path | None = None) -> None:
     file = entry["file"]
     if file not in scripts:
         path = ROMFS / file
         if not path.exists():
             raise ModError(f"{file}: not in extracted/romfs (run make extract)")
-        scripts[file] = AmxPatcher(path.read_bytes())
+        scripts[file] = AmxImage.parse(path.read_bytes())
     script = scripts[file]
     try:
-        if "string" in entry:
+        if "asm" in entry or "asm_file" in entry:
+            source = entry.get("asm") or (folder / entry["asm_file"]).read_text(encoding="utf-8")
+            script.assemble(fill_braces(source, params or {}))
+        elif "string" in entry:
             places = [entry["at"]] if "at" in entry else script.find_string(entry["string"])
             if not places:
                 raise ModError(f"{file}: no literal {entry['string']!r}")
@@ -195,8 +229,9 @@ def edit_amx(scripts: dict[str, AmxPatcher], entry: dict) -> None:
                 script.replace_string(addr, entry["string"], entry["replace"])
         else:
             script.set_operand(entry["address"], entry.get("operand", 0), entry["value"], entry.get("expect"))
-    except ValueError as e:
-        raise ModError(f"{file}: {e} (not the EUR v0 scripts?)") from e
+    except (ValueError, AsmError) as e:
+        where = f" ({entry['asm_file']})" if "asm_file" in entry else ""
+        raise ModError(f"{file}{where}: {e} (not the EUR v0 scripts?)") from e
 
 
 def edit_shader(shaders: dict[str, bytearray], entry: dict) -> None:
@@ -270,11 +305,20 @@ def apply_texts(files: dict[str, ET.Element], entry: dict, params: dict[str, str
 
 # ---- code -----------------------------------------------------------------------------------
 
-def assemble(source: str, address: int) -> bytes:
+def assemble(source: str, address: int, symbols: dict[str, int] | None = None) -> bytes:
     try:
-        return armasm.assemble(source, address)
+        return armasm.assemble(source, address, symbols)
     except armasm.AsmError as e:
         raise ModError(f"ARM code at {address:#x}: {e}") from e
+
+
+def fill_braces(text: str, params: dict[str, str]) -> str:
+    """${name} only (Pawn assembly uses $name for its own data)."""
+    def value(m: re.Match) -> str:
+        if m[1] not in params:
+            raise ModError(f"unknown parameter ${{{m[1]}}} in the recipe")
+        return params[m[1]]
+    return re.sub(r"\$\{(\w+)\}", value, text)
 
 
 def fill(text: str, params: dict[str, str]) -> str:
@@ -285,9 +329,14 @@ def fill(text: str, params: dict[str, str]) -> str:
 
 
 def patch_data(entry: dict, params: dict[str, str]) -> bytes:
+    """The bytes of a [[code]] entry. The labels of its ARM code become parameters of the entries after it:
+    ${arm_<label>} is the address of <label>, as 0x..."""
     address = entry["address"]
     if "arm" in entry:
-        return assemble(fill(entry["arm"], params), address)
+        symbols: dict[str, int] = {}
+        data = assemble(fill(entry["arm"], params), address, symbols)
+        params.update({f"arm_{name}": f"{value:#010x}" for name, value in symbols.items()})
+        return data
     if "ascii" in entry:
         return fill(entry["ascii"], params).encode("ascii") + b"\0"
     if "utf16" in entry:
@@ -300,9 +349,10 @@ def patch_data(entry: dict, params: dict[str, str]) -> bytes:
 def code_patches(entries: list[dict], params: dict[str, str] | None = None) -> dict[int, bytes]:
     code = CODE_BIN.read_bytes()
     patches: dict[int, bytes] = {}
+    params = dict(params or {})
     for entry in entries:
         address = entry["address"]
-        data = patch_data(entry, params or {})
+        data = patch_data(entry, params)
         if "max_size" in entry and len(data) > entry["max_size"]:
             raise ModError(f"code patch at {address:#x}: {len(data)} bytes, more than {entry['max_size']}")
         offset = address - CODE_BASE
@@ -416,13 +466,16 @@ def build(names: list[str], out_root: Path, overrides: dict[str, str] | None = N
         shutil.rmtree(out)
 
     files: dict[str, ET.Element] = {}
-    scripts: dict[str, AmxPatcher] = {}
+    edited: set[str] = set()                           # files of the mod (others are only read)
+    scripts: dict[str, AmxImage] = {}
     shaders: dict[str, bytearray] = {}
     code: list[dict] = []
-    for mod in mods:
+    for mod, name in zip(mods, names):
         for entry in mod.get("text", []):
             if enabled(entry, params):
                 apply_texts(files, entry, params)
+                edited.update(f"text/{language}.bxml" for language in
+                              entry.get("languages") or [p.stem for p in (ROMFS / "text").glob("*.bxml")])
         for entry in mod.get("bxml", []):
             if enabled(entry, params):
                 scale = None
@@ -431,10 +484,14 @@ def build(names: list[str], out_root: Path, overrides: dict[str, str] | None = N
                         scale = float(fill(str(entry["scale"]), params))
                     except ValueError as e:
                         raise ModError(f"scale = {entry['scale']!r}: not a number") from e
+                if "from" in entry:
+                    new_bxml(files, entry["file"], entry["from"])
+                values = copied_attributes(files, entry["copy"]) if "copy" in entry else {}
+                values |= {k: fill(str(v), params) for k, v in entry.get("set", {}).items()}
                 for file in bxml_files(entry):
-                    edit_bxml(files, file, entry.get("select", "."),
-                              {k: fill(str(v), params) for k, v in entry.get("set", {}).items()},
+                    edit_bxml(files, file, entry.get("select", "."), values,
                               entry.get("rename"), entry.get("remove", False), scale)
+                    edited.add(file)
         for entry in mod.get("subs", []):
             if enabled(entry, params):
                 import subs
@@ -444,15 +501,18 @@ def build(names: list[str], out_root: Path, overrides: dict[str, str] | None = N
                     raise ModError(str(e)) from e
                 for file, values in edits.items():
                     edit_bxml(files, file, ".", values)
+                    edited.add(file)
                 print(f"[+] caractéristiques de {len(edits)} sous-marin(s) modifiées")
         for entry in mod.get("amx", []):
             if enabled(entry, params):
-                edit_amx(scripts, entry)
+                edit_amx(scripts, entry, params, MODS / name)
         for entry in mod.get("shader", []):
             if enabled(entry, params):
                 edit_shader(shaders, entry)
         code += [entry for entry in mod.get("code", []) if enabled(entry, params)]
     for file, root in files.items():
+        if file not in edited:
+            continue
         dest = out / "romfs" / file
         dest.parent.mkdir(parents=True, exist_ok=True)
         dest.write_bytes(from_xml(ET.tostring(root, encoding="unicode")))
@@ -475,7 +535,7 @@ def build(names: list[str], out_root: Path, overrides: dict[str, str] | None = N
         dest.parent.mkdir(parents=True, exist_ok=True)
         dest.write_bytes(ips(patches))
     title = " + ".join(mod.get("name", name) for mod, name in zip(mods, names))
-    print(f"[+] {title}: {len(files) + len(scripts) + len(shaders)} file(s), {len(code)} code patch(es) -> {out}")
+    print(f"[+] {title}: {len(edited) + len(scripts) + len(shaders)} file(s), {len(code)} code patch(es) -> {out}")
     build.params = params
     return out_root / label
 

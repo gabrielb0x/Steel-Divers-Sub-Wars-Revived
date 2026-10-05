@@ -45,7 +45,7 @@ PAGE = Path(__file__).with_name("webui.html")
 EXTRACTED = ROOT / "extracted"
 MODS_OUT = ROOT / "build" / "mods"
 PREPARED = ROOT / "build" / "azahar"
-MOD_ORDER = ["correctifs", "premium", "missions", "specs", "triche", "vitesse", "en-ligne"]
+MOD_ORDER = ["correctifs", "pseudo", "premium", "missions", "specs", "triche", "vitesse", "en-ligne"]
 STATE_FILE = "lanceur.json"
 
 
@@ -386,7 +386,9 @@ class GameServer:
     def json(self) -> dict:
         data = self.config()
         realms = [{"name": r.get("name"), "auth_port": r.get("auth_port"), "cheats": r.get("cheats", "separes"),
-                   "max_players": r.get("max_players", 8)} for r in data.get("realm", [])]
+                   "max_players": r.get("max_players", 8), "bots": r.get("bots", True),
+                   "bots_delay": r.get("bots_delay", 60), "bots_format": r.get("bots_format", "4v4"),
+                   "bots_level": r.get("bots_level", "difficile")} for r in data.get("realm", [])]
         settings = data.get("server", {})
         try:
             status_port = int(settings.get("status_port", 0))
@@ -400,6 +402,46 @@ class GameServer:
                 "others": [{"pid": pid, "command": cmd} for pid, cmd in others.items()],
                 "state": self.state(pids),
                 "status_page": f"http://127.0.0.1:{status_port}/" if status_port else None}
+
+
+def server_package():
+    if str(SERVER_DIR) not in sys.path:
+        sys.path.insert(0, str(SERVER_DIR))
+    from sdsw_server import config
+    return config
+
+
+def map_names() -> dict[str, str]:
+    """Names of the battle maps (number -> name), from the player's own game texts, when available."""
+    names = {}
+    with contextlib.suppress(OSError, ValueError, ImportError):
+        import xml.etree.ElementTree as ET
+        from bxml import Bxml
+        root = ET.fromstring(Bxml((EXTRACTED / "romfs" / "text" / "EU_French.bxml").read_bytes()).to_xml())
+        for node in root.iter("string"):
+            key = node.get("key", "")
+            if key.startswith("stage_multi_") and key[12:].isdigit():
+                names[str(int(key[12:]))] = node.get("text", "")
+    return names
+
+
+def server_config() -> dict:
+    config = server_package()
+    path = SERVER_DIR / "serveur.toml"
+    try:
+        options = config.read(path)
+    except (OSError, ValueError) as e:
+        raise UserError(f"serveur.toml illisible : {e}") from e
+    return {"options": options, "schema": config.schema(), "maps": map_names(), "file": str(path)}
+
+
+def save_server_config(changes: dict) -> dict:
+    config = server_package()
+    try:
+        config.update(SERVER_DIR / "serveur.toml", changes)
+    except config.ConfigError as e:
+        raise UserError(str(e)) from e
+    return server_config()
 
 
 def test_server(address: str) -> dict:
@@ -803,6 +845,12 @@ class LauncherServer(ThreadingHTTPServer):
             return self.game_server.json()
         if key == "POST server/test":
             return test_server(str(body.get("address", "")))
+        if key == "GET server/config":
+            return server_config()
+        if key == "POST server/config":
+            result = save_server_config(body)
+            result["restart"] = self.game_server.running
+            return result
         if key == "POST open":
             open_folder(Path(body.get("path", "")))
             return {}

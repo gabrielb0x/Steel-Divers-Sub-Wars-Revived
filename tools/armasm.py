@@ -39,8 +39,8 @@ class AsmError(Exception):
     pass
 
 
-def assemble(source: str, address: int) -> bytes:
-    """Assembles source for an image loaded at address."""
+def assemble(source: str, address: int, symbols: dict[str, int] | None = None) -> bytes:
+    """Assembles source for an image loaded at address. symbols, when given, receives the labels."""
     statements = []
     for number, line in enumerate(source.splitlines(), 1):
         line = re.split(r"@|//", _mask_strings(line), maxsplit=1)[0]
@@ -66,6 +66,8 @@ def assemble(source: str, address: int) -> bytes:
                     out += _statement(text, address + len(out), labels, final)
             except AsmError as e:
                 raise AsmError(f"line {number}: {e}: {text}") from None
+    if symbols is not None:
+        symbols.update(labels)
     return bytes(out)
 
 

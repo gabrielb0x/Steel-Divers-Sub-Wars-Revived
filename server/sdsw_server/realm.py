@@ -16,11 +16,12 @@ Login, as the game performs it (JobCTRLogin, JobBackEndServicesLogin, JobTicketM
 from __future__ import annotations
 
 import asyncio
+import contextlib
 import logging
 import os
 import struct
 import time
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 
 from . import rmc
@@ -29,7 +30,7 @@ from .crypto import KerberosError, kerberos_decrypt, kerberos_encrypt
 from .ddl import (AuthenticationInfo, MatchmakeSession, NotificationEvent, RVConnectionData,
                   SearchCriteria)
 from .internet import Internet
-from .matchmaking import Matchmaker
+from .matchmaking import SET_GLOBAL, SET_GLOBAL_STRING, BotSettings, Matchmaker
 from .prudp import Connection, PRUDPServer
 from .rmc import RMCDispatcher, RMCError
 from .streams import StationURL, StreamIn, StreamOut, datetime_now
@@ -65,6 +66,7 @@ class RealmConfig:
     build_name: str = "Sub Wars Open Sourced server"
     max_players: int = 8              # human players per match; the game fills each team up to 4 with AI subs
     cheats: str = "separes"           # players whose build declares the cheat mod: autorises/separes/refuses
+    bots: BotSettings = field(default_factory=BotSettings)    # a player alone in a match plays bots
 
     def __post_init__(self) -> None:
         if not 2 <= self.max_players <= 8:
@@ -84,9 +86,10 @@ class Realm:
         self.flags: dict[int, frozenset[str]] = {}     # pid -> flags of its build (token), set at login
         self.auth = AuthServer(self)
         self.secure = SecureServer(self)
-        self.matchmaker = Matchmaker(self.notify, config.max_players)
+        self.matchmaker = Matchmaker(self.notify, config.max_players, config.bots)
         self._bans: set[int] = set()
         self._bans_mtime: float | None = None
+        self._ticker: asyncio.Task | None = None
 
     async def start(self) -> None:
         loop = asyncio.get_running_loop()
@@ -97,8 +100,21 @@ class Realm:
                       self.config.auth_port, self.config.secure_port, self.accounts.count())
         self.log.info("realm %s: up to %d human players per match (AI subs fill the teams), cheats %s",
                       self.config.name, self.config.max_players, self.config.cheats)
+        bots = self.config.bots
+        if bots.enabled:
+            self.log.info("realm %s: a player alone for %d s plays bots (%s, map %s, level %s)", self.config.name,
+                          bots.delay, bots.format, bots.map or "random", bots.level)
+        self._ticker = asyncio.get_running_loop().create_task(self._tick())
+
+    async def _tick(self) -> None:
+        while True:
+            await asyncio.sleep(1)
+            with contextlib.suppress(Exception):
+                self.matchmaker.tick()
 
     def close(self) -> None:
+        if self._ticker:
+            self._ticker.cancel()
         self.auth.close()
         self.secure.close()
         self.accounts.db.close()
@@ -113,9 +129,12 @@ class Realm:
                 "cheaters_online": sum(1 for pid in online if is_cheater(self.flags.get(pid, ()))),
                 "accounts": self.accounts.count(), "max_players": self.config.max_players,
                 "cheats": self.config.cheats,
+                "bots": ({"delay": self.config.bots.delay, "format": self.config.bots.format,
+                          "map": self.config.bots.map, "level": self.config.bots.level}
+                         if self.config.bots.enabled else None),
                 "matches": [{"players": len(s.participants), "max": s.info.max_participants,
                              "open": bool(s.info.open_participation), "cheaters": s.pool == CHEAT_POOL,
-                             "minutes": int((now - s.created) // 60)}
+                             "bots": s.bots, "minutes": int((now - s.created) // 60)}
                             for s in self.matchmaker.sessions.values()]}
 
     def banned(self, pid: int) -> bool:
@@ -183,7 +202,10 @@ class Realm:
             return
         params = StreamOut()
         params.structure(NotificationEvent(source, type_, param1, param2, text, param3))
-        self.log.info("notification %d to pid %d (param1 %d, param2 %d)", type_, pid, param1, param2)
+        if type_ in (SET_GLOBAL, SET_GLOBAL_STRING):
+            self.log.debug("pid %d: %s", pid, text if type_ == SET_GLOBAL_STRING else f"{text} = {param1}")
+        else:
+            self.log.info("notification %d to pid %d (param1 %d, param2 %d)", type_, pid, param1, param2)
         self.secure.rmc.call_client(conn, NOTIFICATION, 1, params)
 
 

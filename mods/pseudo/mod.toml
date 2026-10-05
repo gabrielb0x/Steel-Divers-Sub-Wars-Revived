@@ -1,0 +1,125 @@
+# Mod « pseudo » : en ligne et en local, votre nom est le pseudo de la console (celui de l'émulateur),
+# pas le nom de votre Mii. Inclus dans toutes les constructions (comme les correctifs).
+#
+# Ce que fait le jeu : le nom affiché pour chaque joueur (salon, bataille, résultats) vient de son Mii,
+# que chaque console envoie aux autres (FaceSystem::sendMii, données Mii de 0x60 octets). Sous émulateur,
+# il n'y a pas de Mii à soi : l'émulateur en donne un par défaut, le même pour tout le monde (« Citra »
+# dans Azahar). Le pseudo de la console, lui, se règle dans l'émulateur (Azahar : Émulation > Configurer
+# > Système > Pseudo ; même réglage dans Citra, Lime3DS, Mandarine, Borked3DS ; le jeu le lit par
+# nn::cfg, que tous les émulateurs fournissent).
+#
+# Le patch remplace le nom du Mii du joueur par ce pseudo (10 caractères au plus, comme un nom de Mii)
+# et recalcule la somme de contrôle des données Mii (CRC-16 XMODEM des octets 0 à 0x5D, gros-boutiste
+# en 0x5E), aux trois endroits où le jeu les prend : sauvegarde (FaceSystem::setStoreData), base de Mii
+# de la console (FaceSystem::updateMii) et lecture du nom (FaceSystem::getStoreDataName, pour le joueur
+# lui-même). Les autres consoles reçoivent donc un Mii qui porte votre pseudo. Un pseudo vide garde le
+# nom du Mii. Le visage du Mii ne change pas.
+#
+# Le code ajouté va dans SEQ_WRITELIST_Write (bibliothèque Mii, 1940 octets, que le jeu n'appelle jamais :
+# aucune référence dans l'exécutable) ; docs/mods.md tient la liste de ces emplacements libres.
+
+name = "Pseudo de la console"
+description = "En ligne et en local, votre nom est le pseudo de la console (de l'émulateur), pas « Citra »"
+always = true
+
+[[code]]
+address = 0x0014BC90                     # SEQ_WRITELIST_Write (jamais appelée), 0x000-0x0FF
+expect = "f14f2de940d04de2"
+max_size = 0x100
+arm = """
+@ getStoreDataName(store, out, size, isMe, isGuest): for the player's own Mii, the nickname first.
+names:
+    push {r0, r1, r2, r3, r4, lr}       @ the replaced instruction: the function's frame
+    cmp r3, #0
+    beq names_back
+    push {r0, r1, r2, r3}
+    bl rename
+    pop {r0, r1, r2, r3}
+names_back:
+    b 0x00176C90
+
+@ setStoreData(src, size, own): tail call to memcpy(dst, src, size), then the player's own Mii renamed.
+store:
+    push {r4, lr}
+    mov r4, r0
+    bl 0x00252B00                       @ __aeabi_memcpy
+    ldr r1, own_mii
+    cmp r4, r1
+    moveq r0, r4
+    bleq rename
+    mov r0, r4
+    pop {r4, pc}
+
+@ updateMii: the console's own Mii just read from its Mii database into 0x593C68.
+database:
+    mov r0, r4
+    bl rename
+    mov r2, r5                          @ the replaced instruction
+    b 0x00176F10
+
+@ rename(store): the console's nickname as the Mii's name (0x1A, 10 UTF-16 characters), then the
+@ CRC-16 XMODEM of bytes 0 to 0x5D, big-endian at 0x5E.
+rename:
+    push {r4, r5, r6, lr}
+    sub sp, sp, #0x20
+    mov r4, r0
+    mov r0, sp
+    bl 0x0018A458                       @ nn::cfg::CTR::GetUserName
+    ldrh r1, [sp]
+    cmp r1, #0
+    beq renamed                         @ no nickname: the Mii keeps its name
+    add r2, r4, #0x1a
+    mov r3, #0
+    mov r5, #0
+copy:
+    ldrh r1, [sp, r3]
+    cmp r1, #0
+    moveq r5, #1
+    cmp r5, #0
+    movne r1, #0
+    strh r1, [r2, r3]
+    add r3, r3, #2
+    cmp r3, #20
+    blo copy
+    ldr r6, polynomial
+    mov r0, #0
+    mov r3, #0
+crc_byte:
+    ldrb r1, [r4, r3]
+    eor r0, r0, r1, lsl #8
+    mov r2, #8
+crc_bit:
+    mov r0, r0, lsl #1
+    tst r0, #0x10000
+    eorne r0, r0, r6
+    subs r2, r2, #1
+    bne crc_bit
+    add r3, r3, #1
+    cmp r3, #0x5e
+    blo crc_byte
+    mov r1, r0, lsr #8
+    strb r1, [r4, #0x5e]
+    strb r0, [r4, #0x5f]
+renamed:
+    add sp, sp, #0x20
+    pop {r4, r5, r6, pc}
+own_mii:
+    .word 0x00593C68
+polynomial:
+    .word 0x00011021                    @ x^16 + x^12 + x^5 + 1, bit 16 cleared at the same time
+"""
+
+[[code]]
+address = 0x00176C8C                     # FaceSystem::getStoreDataName : push {r0-r4, lr}
+expect = "1f402de9"
+arm = "b ${arm_names}"
+
+[[code]]
+address = 0x00176A0C                     # FaceSystem::setStoreData : b __aeabi_memcpy
+expect = "3b7003ea"
+arm = "b ${arm_store}"
+
+[[code]]
+address = 0x00176F0C                     # FaceSystem::updateMii : mov r2, r5
+expect = "0520a0e1"
+arm = "b ${arm_database}"

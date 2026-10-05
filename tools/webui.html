@@ -203,6 +203,16 @@ ol.steps { margin: 6px 0 0; padding-left: 20px; } ol.steps li { margin-bottom: 4
   </div>
   <div class="card" id="srv-public"></div>
   <div class="card">
+    <h2>Configuration du serveur</h2>
+    <p class="small muted">Les options de <code>serveur.toml</code>. « Enregistrer » les écrit dans le fichier (ses
+      commentaires restent) ; un serveur qui tourne les prend en compte quand on le relance.</p>
+    <div id="srv-config"><p class="muted small">Chargement…</p></div>
+    <div class="row" style="margin-top:10px">
+      <button class="btn primary" id="btn-srv-config-save">Enregistrer</button>
+      <button class="btn" id="btn-srv-config-reload">Annuler les changements</button>
+    </div>
+  </div>
+  <div class="card">
     <h2>Rejoindre le serveur d'un ami</h2>
     <p class="small muted">Entrez l'adresse qu'il vous donne (IP ou nom, avec <code>:port</code> s'il n'utilise
       pas 61000). « Tester » vérifie depuis cet ordinateur que son serveur répond ; puis installez le mod
@@ -310,7 +320,7 @@ function showTab(name) {
   document.querySelectorAll("section.tab").forEach(s => s.classList.toggle("active", s.id === "tab-" + name));
   if (name === "sauvegarde") loadSave();
   if (name === "sousmarins") loadSubs();
-  if (name === "serveur") loadServer();
+  if (name === "serveur") { loadServer(); loadServerConfig(); }
   history.replaceState(null, "", "#" + name);
 }
 document.querySelectorAll("nav button").forEach(b => b.addEventListener("click", () => showTab(b.dataset.tab)));
@@ -693,12 +703,82 @@ function renderPublic(s) {
       el("code", {}, "127.0.0.1"), " ; sur votre réseau local : ", el("code", {}, lan), "."));
   }
   if (realm) parts.push(el("div", {class: "small muted"}, `Royaume « ${realm.name} » : jusqu'à ${realm.max_players} joueurs humains par partie `
-    + `(des bots complètent les équipes) · tricheurs : ${CHEATS[realm.cheats] || realm.cheats}.`));
+    + `(des bots complètent les équipes) · tricheurs : ${CHEATS[realm.cheats] || realm.cheats}`
+    + (realm.bots ? ` · seul ${realm.bots_delay} s : bots en ${realm.bots_format}, niveau ${realm.bots_level}.` : " · pas de bots pour un joueur seul.")));
   parts.push(s.status_page ? el("div", {class: "small"}, "Page d'état : ", el("a", {href: s.status_page, target: "_blank"}, s.status_page))
     : el("div", {class: "small muted"}, "Page d'état : désactivée (status_port dans la configuration)."));
   parts.push(el("div", {class: "small muted"}, "Configuration : ", el("code", {}, s.config)));
   box.replaceChildren(...parts);
 }
+// ---- server configuration --------------------------------------------------------------------------
+let serverConfig = null;
+const LEVELS = {normal: "normal (les bots du jeu)", difficile: "difficile", expert: "expert"};
+const CHEAT_LABELS = {separes: "séparés (entre eux)", autorises: "autorisés avec tout le monde", refuses: "refusés"};
+function formatLabel(f) {
+  const [a, b] = f.split("v").map(Number);
+  const mine = a === 1 ? "vous seul" : `vous et ${a - 1} bot${a > 2 ? "s" : ""}`;
+  return `${f} — ${mine} contre ${b} bot${b > 1 ? "s" : ""}`;
+}
+function optionInput(o, value, onChange, maps) {
+  let input;
+  if (o.kind === "bool") {
+    input = el("input", {type: "checkbox"});
+    input.checked = !!value;
+    input.addEventListener("change", () => onChange(input.checked));
+  } else if (o.kind === "choice") {
+    const label = c => o.key === "bots_format" ? formatLabel(c) : o.key === "bots_level" ? (LEVELS[c] || c)
+      : o.key === "cheats" ? (CHEAT_LABELS[c] || c)
+      : o.key === "bots_map" ? (c === "aleatoire" ? "aléatoire" : `${c}${maps[c] ? " — " + maps[c] : ""}`) : c;
+    input = el("select", {}, ...o.choices.map(c => el("option", {value: c}, label(c))));
+    input.value = String(value);
+    input.addEventListener("change", () => onChange(input.value));
+  } else {
+    input = el("input", {type: o.kind === "int" ? "number" : "text", value: String(value),
+      size: o.kind === "int" ? 7 : 26, min: o.low ?? false, max: o.high ?? false});
+    input.addEventListener("input", () => onChange(o.kind === "int" ? Number(input.value) : input.value));
+  }
+  return input;
+}
+function optionField(o, value, onChange, maps) {
+  return el("div", {class: "field"}, el("label", {}, o.label), optionInput(o, value, onChange, maps),
+    el("div", {class: "hint"}, o.help));
+}
+async function loadServerConfig() {
+  await guarded(async () => { serverConfig = await api("server/config"); renderServerConfig(); });
+}
+function renderServerConfig() {
+  const c = serverConfig, box = $("#srv-config");
+  c.changes = {server: {}, realm: {}};
+  const general = el("div", {class: "fields"}, ...c.schema.server.map(o =>
+    optionField(o, c.options.server[o.key], v => { c.changes.server[o.key] = v; }, c.maps)));
+  const realms = c.options.realm.map(r => {
+    const set = (k, v) => { (c.changes.realm[r.name] = c.changes.realm[r.name] || {})[k] = v; };
+    const main = c.schema.realm.filter(o => !o.key.startsWith("bots"));
+    const bots = c.schema.realm.filter(o => o.key.startsWith("bots"));
+    return el("div", {style: "margin-top:14px"},
+      el("h3", {}, `Royaume « ${r.name} »`, r.name === "emulateur" ? el("span", {class: "muted small"}, " (joueurs sur émulateur)")
+        : r.name === "pc" ? el("span", {class: "muted small"}, " (portage PC)") : ""),
+      el("div", {class: "fields"}, ...main.map(o => optionField(o, r[o.key], v => set(o.key, v), c.maps))),
+      el("h3", {}, "Bots"),
+      el("div", {class: "fields"}, ...bots.map(o => optionField(o, r[o.key], v => set(o.key, v), c.maps))));
+  });
+  box.replaceChildren(el("h3", {}, "Général"), general, ...realms,
+    el("p", {class: "small muted", style: "margin-top:10px"}, "Fichier : ", el("code", {}, c.file)));
+}
+$("#btn-srv-config-reload").addEventListener("click", loadServerConfig);
+$("#btn-srv-config-save").addEventListener("click", () => guarded(async () => {
+  const c = serverConfig;
+  const body = {server: c.changes.server, realm: Object.entries(c.changes.realm).map(([name, v]) => Object.assign({name}, v))};
+  serverConfig = await api("server/config", {body});
+  renderServerConfig();
+  if (serverConfig.restart && confirm("Configuration enregistrée. Relancer le serveur maintenant pour l'appliquer ?")) {
+    await api("server/start", {body: {}});
+    loadServer();
+  } else {
+    toast("Configuration enregistrée.");
+  }
+}));
+
 $("#btn-srv-start").addEventListener("click", () => guarded(async () => {
   const button = $("#btn-srv-start");
   button.disabled = true;

@@ -68,8 +68,14 @@ se jouent en P2P via Pia. Aucune bibliothèque NEX de classement ou de stockage 
    box), joueurs du réseau du serveur présentés sous l'adresse publique et port de leur jeu redirigé
    ([online.md](online.md#7-joueurs-éloignés--adresses-publiques-et-privées)) ; validé par simulation (deux NAT
    Linux dans des espaces de noms réseau) ; lanceur : arrêt d'un serveur déjà lancé, adresse à partager, test.
-5. **À suivre** : une vraie partie entre deux maisons ; relais pour les NAT stricts si besoin ; migration d'hôte
-   et départs en cours de partie à éprouver.
+5. ~~**Bots pour un joueur seul**~~ : seul `bots_delay` secondes, le joueur joue contre des bots réglés par le
+   serveur (équipes 4v4, 1v4…, carte, niveau, durée, noms) ; ils rejoignent le salon comme des joueurs, ont de
+   vrais sous-marins, leur nom et leur niveau, et comptent pour la victoire. Vérifié dans Azahar. Le serveur
+   règle le jeu par des notifications à lui (variables de script, [online.md](online.md#8-serveur--jeu--les-variables-du-mod)).
+   Options du serveur affichées et modifiables dans le lanceur.
+6. **À suivre** : des bots qui jouent vraiment comme des joueurs (collisions entre eux, combats entre bots,
+   déplacements naturels) ; une vraie partie entre deux maisons ; relais pour les NAT stricts si besoin ;
+   migration d'hôte et départs en cours de partie à éprouver.
 
 ## Volet 4 — Mods (Azahar, puis portage PC)
 
@@ -78,9 +84,10 @@ Le plan détaillé est dans [mods.md](mods.md) : on publie des recettes (`mods/`
 1. ~~**Outillage**~~ : jeu installable dans Azahar (`tools/azahar.py`), mods en recettes construites et installées
    par `tools/mod.py` (textes, BXML, patchs de code IPS) ; reste les scripts Pawn (assembleur AMX).
 2. **Scripts Pawn** : ~~patchs ciblés~~ (chaînes et opérandes, réencodage compact identique à l'octet près :
-   `tools/amx.py`, recettes `[[amx]]`, mod `triche`) ; reste un assembleur AMX complet, puis du pseudo-Pawn
-   recompilable, base des mods de gameplay. Le menu de debug des développeurs en dépend (sa logique et son
-   affichage ont été retirés).
+   `tools/amx.py`, recettes `[[amx]]`, mod `triche`) ; ~~assembleur~~ (`tools/amxasm.py` : code, données,
+   natives et fonctions publiques ajoutés, crochets sur les instructions existantes, fichiers `.pasm`) ; reste
+   du pseudo-Pawn recompilable. Le menu de debug des développeurs en dépend (sa logique et son affichage ont
+   été retirés).
 3. ~~**Jeu en ligne**~~ : mod `en-ligne` (patch des fonctions *friends* utilisées par `JobCTRLogin`, serveurs de
    détection de NAT redirigés, identité par joueur). Reste : une somme de version propre aux mods de gameplay.
 4. **60 fps** : affichage interpolé entre deux pas de simulation, d'abord dans le portage PC.
@@ -91,6 +98,8 @@ Le plan détaillé est dans [mods.md](mods.md) : on publie des recettes (`mods/`
    shaders, contourné dans `shaders/metaball.shbin`), mod `correctifs` inclus partout ([mods.md](mods.md#correctifs)).
 8. ~~**Petits mods**~~ : `missions` (toutes les missions), `vitesse` (sous-marin ×2 à ×15), tir sans délai
    (`triche`, option `rafale`).
+9. ~~**Pseudo**~~ : en ligne et en local, le nom d'un joueur est le pseudo de sa console (de l'émulateur), plus
+   « Citra » pour tout le monde (mod `pseudo`, inclus partout).
 
 ## Décisions
 

@@ -18,6 +18,17 @@ status_port = 0                 # page d'état (joueurs en ligne, parties) en HT
 #   cheats       joueurs dont le mod triche : mods/triche, ou caractéristiques de sous-marins modifiées
 #                (mods/specs) ; le mod premium n'en fait pas partie.
 #                "autorises" (ils jouent avec tout le monde), "separes" (seulement entre eux) ou "refuses".
+#   bots         true : un joueur resté seul dans une partie joue contre des bots au bout de bots_delay
+#                secondes (il faut le mod en-ligne à jour). Les autres options des bots :
+#   bots_delay      secondes d'attente seul avant les bots (60)
+#   bots_format     taille des deux équipes : "4v4" (vous et 3 bots contre 4 bots), "1v4" (seul contre
+#                   4 bots), "2v3"… de 1 à 4 par équipe ; si quelqu'un vous rejoint avant la bataille, il
+#                   joue avec vous et les bots complètent
+#   bots_map        "aleatoire", ou le numéro de la carte : 1, 2, 4 à 10 (le lanceur affiche leurs noms)
+#   bots_level      "normal" (les bots du jeu d'origine), "difficile" ou "expert" (plus rapides, visent
+#                   la cible la plus proche là où elle sera, tirent dès qu'ils sont alignés) ; vaut
+#                   pour tous les bots des parties en ligne, pas seulement ceux des parties à un joueur
+#   bots_countdown  secondes de compte à rebours avant la bataille contre les bots (10)
 # Pour bannir un joueur : son identifiant (journal du serveur : « login pid … ») sur une ligne de
 # <data_dir>/bannis.txt ; le fichier est relu à chaque connexion, sans redémarrer le serveur.
 
@@ -28,6 +39,12 @@ secure_port = 61001             # serveur sécurisé (UDP)
 data_dir = "data/emulateur"     # comptes (sqlite), relatif à ce fichier
 max_players = 8
 cheats = "separes"
+bots = true
+bots_delay = 60
+bots_format = "4v4"
+bots_map = "aleatoire"
+bots_level = "difficile"
+bots_countdown = 10
 
 [[realm]]
 name = "pc"                     # joueurs du portage PC
@@ -36,3 +53,9 @@ secure_port = 61011
 data_dir = "data/pc"
 max_players = 8
 cheats = "separes"
+bots = true
+bots_delay = 60
+bots_format = "4v4"
+bots_map = "aleatoire"
+bots_level = "difficile"
+bots_countdown = 10

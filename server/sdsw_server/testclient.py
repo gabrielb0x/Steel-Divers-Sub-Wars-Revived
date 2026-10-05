@@ -153,6 +153,27 @@ class PRUDPClient(asyncio.DatagramProtocol):
         self.seq += 1
         self.send(p)
 
+    def notifications(self) -> list[tuple[int, int, int, str, int]]:
+        """NotificationEvents received (protocol 14, method 1): (type, param1, param2, string, param3)."""
+        out = []
+        for proto, method, body in self.incoming_calls:
+            if (proto, method) == (14, 1):
+                _, s = StreamIn(body).structure_header()
+                s.pid()
+                out.append((s.u32(), s.u32(), s.u32(), s.string(), s.u32()))
+        return out
+
+    def game_globals(self) -> dict[str, int | str]:
+        """The script globals the server set in the game (online mod), last value of each."""
+        values: dict[str, int | str] = {}
+        for kind, p1, _, text, _ in self.notifications():
+            if kind == 999001:
+                values[text] = p1
+            elif kind == 999002:
+                name, _, value = text.partition("=")
+                values[name] = value
+        return values
+
     async def call(self, proto: int, method: int, params: StreamOut) -> StreamIn:
         call_id = self.call_id
         self.call_id += 1

@@ -34,14 +34,32 @@ le port qu'il vise change. Pour faire jouer tout le monde ensemble, il suffirait
 
 ## Bots et triche
 
-Chaque royaume a deux options de partie dans `serveur.toml` :
+Chaque royaume a ses options de partie dans `serveur.toml` (le lanceur les affiche et les modifie, onglet
+**Serveur**, « Configuration du serveur ») :
 
-* **`max_players`** (2 à 8) : nombre de joueurs humains par partie. Les bots existent déjà dans le jeu : la
-  console hôte complète chaque équipe à 4 sous-marins avec des sous-marins pilotés par l'ordinateur
-  (`mode_periscope` › `@setNpc`, 4 − joueurs de l'équipe). Limiter les humains donne donc plus de bots :
-  `max_players = 2` fait toujours du un contre un, avec 3 bots de chaque côté. Le serveur ne peut pas jouer
-  lui-même un bot (la bataille se joue entre les consoles), et le jeu exige au moins un joueur dans chaque
-  équipe pour lancer le compte à rebours : il faut être au moins deux.
+* **`max_players`** (2 à 8) : nombre de joueurs humains par partie. La console hôte complète chaque équipe à
+  4 sous-marins avec les bots du jeu (`mode_periscope` › `@setNpc`) : limiter les humains donne plus de bots.
+* **Bots pour un joueur seul** (`bots = true`, avec le mod [`en-ligne`](../mods/en-ligne/mod.toml) à jour) :
+  un joueur resté seul dans une partie `bots_delay` secondes (60) joue contre des bots. Le jeu d'origine
+  attend sans fin un adversaire ; ici le serveur envoie au jeu les réglages de la partie, et les bots
+  **rejoignent le salon comme des joueurs**, un par un (nom, sous-marin, niveau, prêts), puis le compte à
+  rebours (`bots_countdown` secondes) lance la bataille. En bataille ils ont la coque et les couleurs d'un
+  vrai sous-marin, leur nom et leur niveau au-dessus d'eux (pas « CPU »), ils comptent dans les compteurs
+  d'équipe et pour la victoire, et la caméra du spectateur peut les suivre. Options :
+  * `bots_format` : les deux équipes, `"4v4"` (vous et 3 bots contre 4 bots), `"1v4"` (seul contre 4),
+    `"2v3"`… de 1 à 4 par équipe ; si un autre joueur arrive avant la bataille, il joue avec vous et les bots
+    complètent ;
+  * `bots_map` : `"aleatoire"` ou le numéro d'une carte (1, 2, 4 à 10 ; le lanceur affiche leurs noms, lus
+    dans votre jeu) ;
+  * `bots_level` : `"normal"` (les bots du jeu d'origine), `"difficile"` ou `"expert"` (plus rapides, ils
+    visent le sous-marin ennemi le plus proche là où il sera et tirent dès qu'ils sont alignés) ; vaut pour
+    tous les bots des parties en ligne ;
+  * `bots_duration` : durée de la bataille en minutes (5 ; une bataille en ligne du jeu dure 10 minutes) ;
+  * `bots_names` : les noms des bots (au moins 7, 10 caractères au plus), tirés au hasard à chaque partie.
+
+  Comment le serveur parle au jeu : par des notifications NEX à lui (types 999001 et 999002) que le mod
+  `en-ligne` transforme en variables de script du jeu (`server.bots.*`) ; détails dans
+  [../docs/online.md](../docs/online.md#8-serveur--jeu--les-variables-du-mod).
 * **`cheats`** : que faire des joueurs dont le mod contient [la triche](../mods/triche/mod.toml) ou des
   [caractéristiques de sous-marins modifiées](../mods/specs/mod.toml) (leur jeton le déclare : drapeaux
   `triche` et `specs`) : `"separes"` (par défaut : ils ne rencontrent que d'autres tricheurs), `"autorises"`
@@ -136,7 +154,8 @@ Aucune donnée de jeu n'est stockée : le jeu n'utilise pas de classements ni de
 | `sdsw_server/streams.py`, `ddl.py` | sérialisation NEX et structures du jeu (MatchmakeSession, critères…) |
 | `sdsw_server/crypto.py` | RC4, chiffrement Kerberos, dérivation de clé |
 | `sdsw_server/realm.py` | serveur d'authentification (TicketGranting) et serveur sécurisé (SecureConnection, NATTraversal, MatchMaking, MatchmakeExtension) |
-| `sdsw_server/matchmaking.py` | salons, notifications |
+| `sdsw_server/matchmaking.py` | salons, notifications, bots pour un joueur seul |
+| `sdsw_server/config.py` | options de `serveur.toml`, lues et réécrites avec leurs commentaires (lanceur) |
 | `sdsw_server/natcheck.py` | détection de NAT de Pia (serveurs « nncs ») |
 | `sdsw_server/internet.py` | adresse publique, redirections de la box, joueurs du réseau du serveur |
 | `sdsw_server/upnp.py`, `stun.py` | clients UPnP (box) et STUN, bibliothèque standard seule |

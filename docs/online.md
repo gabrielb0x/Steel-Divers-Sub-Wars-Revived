@@ -17,6 +17,7 @@ instances d'Azahar se connectent, se retrouvent dans un salon et lancent une bat
 | 5. recherche de partie | serveur sécurisé | `MatchmakeExtension`, `MatchMaking`, `NATTraversal` |
 | 6. la bataille | de console à console | Pia (P2P) : le serveur n'y participe pas |
 | 7. joueurs éloignés | serveur, box | adresse publique, redirections UPnP, joueurs du réseau du serveur |
+| 8. réglages du serveur | serveur → jeu | notifications à nous, variables de script (mod `en-ligne`) |
 
 ## 1. Connexion : `gameServerLogin` et `JobCTRLogin`
 
@@ -205,3 +206,31 @@ l'ami ou le joueur à domicile ; sans elle, dans aucun.
 Les noms sont résolus : `nn::nex::InetAddress::SetAddress` appelle `GetHostByName` quand l'adresse n'est pas
 numérique (drapeau `0x00399D1F`, à 1 dans l'exécutable), et Pia résout les noms des serveurs de détection de NAT.
 Le mod accepte donc un nom (DNS dynamique) à la place d'une IP.
+
+## 8. Serveur → jeu : les variables du mod
+
+Le serveur n'a aucun moyen d'agir sur une bataille, qui se joue de console à console. Pour régler les
+parties contre des bots (et plus tard d'autres choses), le mod `en-ligne` réécrit
+`MyNotificationEventHandler::ProcessNotificationEvent` (0x00185264, 568 octets dont l'essentiel écrivait des
+journaux retirés de la version finale) : il garde les trois notifications que le jeu retenait (3001, 4xxx,
+109xxx) et en ajoute deux, inconnues du jeu d'origine qui les ignore :
+
+| Type | Texte | param1 | Effet dans le jeu |
+|---|---|---|---|
+| 999001 | nom | valeur | `amxSysSetGlobal(nom, valeur)` : une variable entière des scripts |
+| 999002 | `nom=valeur` | — | `amxSysSetGlobalArray(nom, 96 cellules)` : une chaîne, comme `sysSetGlobalString` |
+
+Le texte d'une notification arrive en UTF-16 (`nn::nex::String`, tampon en +4) ; le patch le convertit en
+UTF-8 avec la fonction du jeu (`convertUTF16toUTF8`). NEX distribue les notifications sur le fil principal,
+pendant `Network::dispatch()`, là où tournent les scripts.
+
+Variables utilisées (`server/sdsw_server/matchmaking.py`, `mods/en-ligne/bots_*.pasm`) :
+
+| Variable | Sens |
+|---|---|
+| `server.bots` | 1 : la partie se joue contre des bots (remis à 0 à chaque nouveau salon) |
+| `server.bots.mine`, `server.bots.other` | tailles de l'équipe des joueurs et de l'autre |
+| `server.bots.stage` | carte (`player.stage`, 10 à 19), 0 : au hasard |
+| `server.bots.level` | 1 normal, 2 difficile, 3 expert : tous les bots des parties en ligne |
+| `server.bots.countdown`, `server.bots.duration` | compte à rebours (ms) et durée de la bataille (s) |
+| `server.bots.name<k>`, `sub<k>`, `lv<k>` | le bot k (1 à 7) : nom, sous-marin (1 à 23), niveau affiché |

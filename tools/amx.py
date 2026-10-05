@@ -142,28 +142,10 @@ class AmxFile:
 
     def instructions(self):
         """Decodes the code segment linearly (Pawn emits no data inside code)."""
-        cip = 0
-        while cip < len(self.code):
-            raw = self.cell(cip)
-            op = raw & 0xFFFF
-            if op >= len(OPCODES) or op in INVALID:
-                raise ValueError(f"{self.name}: invalid opcode {op} at {cip:#x}")
-            if PACKED_FIRST <= op <= PACKED_LAST:
-                yield Instruction(cip, op, [s32(raw) >> 16], 4)
-                cip += 4
-            elif op in (OP["CASETBL"], OP["ICASETBL"]):
-                num = self.cell(cip + 4)
-                cases = [(0, cip + 4 + 4 + s32(self.cell(cip + 8)) - 4)]
-                for i in range(num):
-                    entry = cip + 12 + 8 * i
-                    cases.append((s32(self.cell(entry)), entry + 4 + s32(self.cell(entry + 4)) - 4))
-                size = 4 + 4 * (2 * num + 2)
-                yield Instruction(cip, op, [num], size, cases)
-                cip += size
-            else:
-                n = NPARAMS[OPCODES[op]]
-                yield Instruction(cip, op, [s32(self.cell(cip + 4 + 4 * i)) for i in range(n)], 4 + 4 * n)
-                cip += 4 + 4 * n
+        try:
+            yield from decode(self.code)
+        except ValueError as e:
+            raise ValueError(f"{self.name}: {e}") from e
 
     def string_at(self, addr: int, strict: bool = True) -> str | None:
         """Returns the string literal stored at a data address, packed or unpacked. Not strict (the
@@ -191,6 +173,37 @@ class AmxFile:
         if len(chars) < (2 if strict else 1) or not all(0x20 <= b < 0x7F or b in (9, 10, 13) for b in chars):
             return None
         return chars.decode("latin-1")
+
+
+def decode(code: bytes, start: int = 0, end: int | None = None):
+    """Instructions of a code segment (expanded), from start to end. Branch operands are relative to
+    the opcode; CASETBL targets are given as absolute code addresses in Instruction.cases."""
+    def cell(offset: int) -> int:
+        return struct.unpack_from("<I", code, offset)[0]
+
+    cip = start
+    end = len(code) if end is None else end
+    while cip < end:
+        raw = cell(cip)
+        op = raw & 0xFFFF
+        if op >= len(OPCODES) or op in INVALID:
+            raise ValueError(f"invalid opcode {op} at {cip:#x}")
+        if PACKED_FIRST <= op <= PACKED_LAST:
+            yield Instruction(cip, op, [s32(raw) >> 16], 4)
+            cip += 4
+        elif op in (OP["CASETBL"], OP["ICASETBL"]):
+            num = cell(cip + 4)
+            cases = [(0, cip + 4 + 4 + s32(cell(cip + 8)) - 4)]
+            for i in range(num):
+                entry = cip + 12 + 8 * i
+                cases.append((s32(cell(entry)), entry + 4 + s32(cell(entry + 4)) - 4))
+            size = 4 + 4 * (2 * num + 2)
+            yield Instruction(cip, op, [num], size, cases)
+            cip += size
+        else:
+            n = NPARAMS[OPCODES[op]]
+            yield Instruction(cip, op, [s32(cell(cip + 4 + 4 * i)) for i in range(n)], 4 + 4 * n)
+            cip += 4 + 4 * n
 
 
 def expand(compact: bytes, memsize: int) -> bytes:

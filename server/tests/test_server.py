@@ -17,6 +17,7 @@ from pathlib import Path
 from sdsw_server import testclient
 from sdsw_server.crypto import RC4, derive_user_key, kerberos_decrypt, kerberos_encrypt, KerberosError
 from sdsw_server.ddl import MatchmakeSession, criterion_matches
+from sdsw_server.matchmaking import BotSettings
 from sdsw_server.natcheck import NatCheckService
 from sdsw_server.prudp import CONNECT, DATA, FLAG_NEED_ACK, FLAG_RELIABLE, Packet, Signer, decode_datagram, encode_packet
 from sdsw_server.realm import Realm, RealmConfig
@@ -107,13 +108,13 @@ class Formats(unittest.TestCase):
         self.assertEqual((q.supported_functions, q.conn_sig, q.max_substream_id), (3, b"s" * 16, 0))
 
 
-def run_realm(test, max_players=8, cheats="separes"):
+def run_realm(test, max_players=8, cheats="separes", bots=None):
     """Starts a realm on free ports, runs test(realm, port) inside the event loop."""
     async def main():
         with tempfile.TemporaryDirectory() as tmp:
             config = RealmConfig(name="test", listen="127.0.0.1", public_address="127.0.0.1",
                                  auth_port=free_udp_port(), secure_port=free_udp_port(), data_dir=Path(tmp),
-                                 max_players=max_players, cheats=cheats)
+                                 max_players=max_players, cheats=cheats, bots=bots or BotSettings(enabled=False))
             realm = Realm(config, NatCheckService())
             await realm.start()
             try:
@@ -127,6 +128,111 @@ def run_realm(test, max_players=8, cheats="separes"):
 async def matchmade(port: int, pid: int, flags: str = ""):
     secure, _ = await testclient.login("127.0.0.1", port, pid, "password", flags)
     return await testclient.matchmake(secure, 3)
+
+
+async def console(port: int, pid: int, flags: str = ""):
+    """A simulated console in a match: (its connection, the session)."""
+    secure, _ = await testclient.login("127.0.0.1", port, pid, "password", flags)
+    session = await testclient.matchmake(secure, 3)
+    if session.owner_pid == pid:
+        params = StreamOut(); params.u32(session.id)
+        await secure.call(109, 2, params)                         # OpenParticipation, as the lobby does
+    return secure, session
+
+
+class Clock:
+    def __init__(self) -> None:
+        self.now = 1000.0
+
+    def __call__(self) -> float:
+        return self.now
+
+
+class Bots(unittest.TestCase):
+    """A player alone in a match for bots_delay seconds is told to play against bots."""
+
+    def run_bots(self, test, **settings):
+        bots = BotSettings(**({"delay": 60} | settings))
+
+        async def wrapped(realm, port):
+            clock = Clock()
+            realm.matchmaker.clock = clock
+            return await test(realm, port, clock)
+        return run_realm(wrapped, bots=bots)
+
+    def test_alone_gets_bots(self):
+        async def test(realm, port, clock):
+            secure, session = await console(port, 0x10000001)
+            clock.now += 30
+            first = realm.matchmaker.tick()
+            clock.now += 31
+            second = realm.matchmaker.tick()
+            await asyncio.sleep(0.3)
+            return first, second, secure.game_globals()
+        first, second, values = self.run_bots(test, mine=1, other=4, map=5, level="expert", countdown=15)
+        self.assertEqual(first, [])
+        self.assertEqual(len(second), 1)
+        bots = {k: v for k, v in values.items() if k[12:15] in ("nam", "sub") or k.startswith("server.bots.lv")}
+        others = {k: v for k, v in values.items() if k not in bots}
+        self.assertEqual(others, {"server.bots": 1, "server.bots.mine": 1, "server.bots.other": 4,
+                                  "server.bots.stage": 14, "server.bots.level": 3, "server.bots.countdown": 15000,
+                                  "server.bots.duration": 300})
+        names = [values[f"server.bots.name{k}"] for k in range(1, 8)]
+        self.assertEqual(len(set(names)), 7)                       # seven players, all different
+        self.assertTrue(all(1 <= values[f"server.bots.sub{k}"] <= 23 for k in range(1, 8)))
+
+    def test_two_players_no_bots(self):
+        async def test(realm, port, clock):
+            a, _ = await console(port, 0x10000001)
+            b, _ = await console(port, 0x10000002)
+            clock.now += 120
+            started = realm.matchmaker.tick()
+            await asyncio.sleep(0.3)
+            return started, a.game_globals(), b.game_globals()
+        started, a, b = self.run_bots(test)
+        self.assertEqual(started, [])
+        self.assertEqual(a.get("server.bots"), 0)
+        self.assertEqual(b.get("server.bots"), 0)
+
+    def test_newcomer_joins_the_bots(self):
+        async def test(realm, port, clock):
+            a, _ = await console(port, 0x10000001)
+            clock.now += 61
+            realm.matchmaker.tick()
+            b, _ = await console(port, 0x10000002)
+            await asyncio.sleep(0.3)
+            return b.game_globals()
+        self.assertEqual(self.run_bots(test).get("server.bots"), 1)
+
+    def test_next_round_starts_over(self):
+        async def test(realm, port, clock):
+            a, session = await console(port, 0x10000001)
+            clock.now += 61
+            realm.matchmaker.tick()
+            params = StreamOut(); params.u32(session.id)
+            await a.call(109, 1, params)                            # CloseParticipation: the battle
+            params = StreamOut(); params.u32(session.id)
+            await a.call(109, 2, params)                            # back in the lobby
+            await asyncio.sleep(0.3)
+            after = a.game_globals()["server.bots"]
+            clock.now += 61
+            again = realm.matchmaker.tick()
+            return after, len(again)
+        self.assertEqual(self.run_bots(test), (0, 1))
+
+    def test_settings(self):
+        b = BotSettings.from_config({"bots_format": "2v3", "bots_map": "4", "bots_level": "normal",
+                                     "bots_delay": 30, "bots_countdown": 20, "bots_duration": 8,
+                                     "bots_names": "Un, Deux, Trois, Quatre, Cinq, Six, Sept, Huit"})
+        self.assertEqual((b.mine, b.other, b.map, b.level, b.delay, b.countdown, b.duration),
+                         (2, 3, 4, "normal", 30, 20, 8))
+        self.assertEqual(b.names[:2], ("Un", "Deux"))
+        with self.assertRaises(ValueError):
+            BotSettings.from_config({"bots_names": ["Un", "Deux"]})
+        self.assertEqual(BotSettings.from_config({}).format, "4v4")
+        for bad in ({"bots_format": "5v1"}, {"bots_map": "3"}, {"bots_level": "facile"}, {"bots_delay": 1}):
+            with self.assertRaises(ValueError):
+                BotSettings.from_config(bad)
 
 
 class Options(unittest.TestCase):

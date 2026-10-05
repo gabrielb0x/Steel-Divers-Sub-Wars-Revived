@@ -68,6 +68,7 @@ string = "player.muteki"
 replace = "mode.ready"                    # pas plus longue que l'originale
 # ou un opérande d'instruction : address = 0x130D0, operand = 0, value = 1, expect = 0
 # (les sauts sont relatifs à l'instruction : value = 8 saute à l'instruction suivante)
+# ou du code Pawn ajouté au script : asm_file = "fichier.pasm" (dans le dossier du mod) ou asm = "..."
 
 [[shader]]                                # une instruction d'un shader PICA200 (shaders/*.shbin)
 file = "shaders/metaball.shbin"
@@ -79,6 +80,7 @@ value = 0x84000000                        # nop
 address = 0x0021A82C
 bytes = "8988883c"                        # ou : arm = "mov r0, #1" (assembleur tools/armasm.py),
                                           # ascii = "texte", utf16 = "texte", words = ["0x1234"]
+                                          # (les étiquettes d'un bloc arm : ${arm_<étiquette>} ensuite)
 expect = "8988083d"                       # facultatif : octets attendus, protège des autres versions
 max_size = 116                            # facultatif : taille maximale (la fin de la fonction remplacée)
 
@@ -94,7 +96,9 @@ scope = "${server}:${port}"               # donne ${pid}, ${password} et ${token
 Une identité est créée une fois par serveur et gardée dans `~/.config/sub-wars-open-sourced/identites.json` :
 reconstruire le mod garde le même compte.
 
-Autres possibilités : `files = "bxml/pscope_ply??_stats.bxml"` (motif) au lieu de `file` dans `[[bxml]]`, et
+Autres possibilités : `from = "bxml/x.bxml"` dans `[[bxml]]` crée un nouveau fichier, copie de celui-ci, et
+`copy = { file = "...", select = "..." }` reprend les attributs d'un nœud d'un autre fichier ;
+`files = "bxml/pscope_ply??_stats.bxml"` (motif) au lieu de `file` dans `[[bxml]]`, et
 `scale = "${facteur}"` qui multiplie tous les nombres des nœuds choisis (après `set`) ;
 `if = "${option}"` sur n'importe quelle entrée (appliquée seulement si l'option vaut `oui`), ou
 `unless = "${option}"` (seulement si elle vaut `non`) ;
@@ -105,21 +109,54 @@ de recette : le mod fait partie de toutes les constructions (correctifs du jeu).
 (`build/mods/en-ligne+triche/`), puisqu'Azahar n'en charge qu'un.
 
 Les adresses et les noms viennent de la décompilation (`decomp/`, `ghidra/symbols.txt`) ; les formats sont décrits
-dans [../docs/formats.md](../docs/formats.md). Les modifications de scripts Pawn viendront avec un assembleur AMX.
+dans [../docs/formats.md](../docs/formats.md).
+
+### Code Pawn (`.pasm`)
+
+`tools/amxasm.py` assemble du code Pawn (mnémoniques de `decomp/scripts/asm/`) et l'ajoute à la fin d'un
+script : rien de ce qui existe ne bouge. `.hook <adresse>` remplace la ou les instructions à cette adresse (8
+octets au moins) par un saut vers le code qui suit ; `.original` les rejoue, `.return` revient après elles.
+Exemple (le décompte de 120 secondes du salon remplacé par une variable) :
+
+```
+.hook 0xebf8                    ; const.alt 0x1d4c0
+    push.pri
+    push.c "server.bots.countdown"
+    sysreq.n sysGetGlobal, 1    ; une native par son nom, et son nombre d'arguments
+    move.alt
+    pop.pri
+    .return
+```
+
+Aussi : des fonctions (`nom:` puis `proc` … `retn`, appelées par `call @nom`), `.public @nom` (une
+fonction publique de plus), `.var $nom [cellules]`, `.cells $nom 1, 2`, `.string $nom "texte"`, les chaînes
+entre guillemets (gardées dans les données du script), les globales du script par leur adresse (`g_504c`),
+`float(1.5)`. Une native absente du script est ajoutée à sa table. Voir les `bots_*.pasm` de
+[en-ligne](en-ligne/).
 
 ## Mods disponibles
 
 | Mod | Effet |
 |---|---|
 | `correctifs` | toujours inclus : corrige le plantage d'Azahar quand une torpille touche un sous-marin sous l'eau |
+| `pseudo` | toujours inclus : en ligne et en local, votre nom est le pseudo de la console (de l'émulateur), pas « Citra » |
 | `premium` | version complète, les 23 sous-marins, motifs et équipage débloqués, sans l'eShop ([détails](../docs/premium.md)) |
 | `missions` | les 21 missions du mode solo jouables tout de suite, sans toucher à la sauvegarde |
-| `en-ligne` | jeu en ligne sur un serveur [Sub Wars Open Sourced](../server/README.md) |
+| `en-ligne` | jeu en ligne sur un serveur [Sub Wars Open Sourced](../server/README.md), avec ses bots pour un joueur seul |
 | `specs` | vos propres caractéristiques de sous-marins (`tools/subs.py`) ; en ligne, comptées comme triche |
 | `mention-titre` | « © 2026 Nintendo Lawyers » et « Open Sourced by gabrielb0x. » sous le titre (options `ligne1`, `ligne2`) |
 | `triche` | invincible, torpilles et air infinis, tir sans délai, rechargement rapide, masqueur gratuit, moteur gonflé |
 | `vitesse` | votre sous-marin va 2, 3, 5, 10 ou 15 fois plus vite (option `facteur`) ; en ligne, compté comme triche |
 | `texte-titre` | exemple : « Version gratuite » devient « Version moddée » sur l'écran titre |
+
+## Pseudo de la console
+
+Inclus dans tous les mods. En ligne comme en local, le jeu affiche pour chaque joueur le nom de son Mii, que
+chaque console envoie aux autres. Sous émulateur, personne n'a de Mii à soi : l'émulateur donne le même à
+tout le monde, « Citra ». Le mod remplace ce nom par le **pseudo de la console**, celui que vous réglez dans
+l'émulateur (Azahar : Émulation > Configurer > Système > Pseudo ; même réglage dans Citra, Lime3DS,
+Mandarine, Borked3DS), 10 caractères au plus. Le visage du Mii ne change pas ; un pseudo vide garde le nom du
+Mii. Vérifié dans Azahar : le salon affiche le pseudo de la console au lieu de « Citra ».
 
 ## Correctifs
 
