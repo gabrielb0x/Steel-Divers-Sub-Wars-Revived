@@ -84,6 +84,10 @@ Le plan détaillé est dans [mods.md](mods.md) : on publie des recettes (`mods/`
 5. ~~**Premium**~~ : mod `premium` (version complète et contenus additionnels sans l'eShop, déblocages,
    sous-marins historiques avec leur coque), [premium.md](premium.md).
 6. ~~**Sauvegarde**~~ : format décodé, éditeur `tools/save.py`.
+7. ~~**Correctifs**~~ : plantage d'Azahar quand une torpille touche un sous-marin sous l'eau (bug de son JIT de
+   shaders, contourné dans `shaders/metaball.shbin`), mod `correctifs` inclus partout ([mods.md](mods.md#correctifs)).
+8. ~~**Petits mods**~~ : `missions` (toutes les missions), `vitesse` (sous-marin ×2 à ×15), tir sans délai
+   (`triche`, option `rafale`).
 
 ## Décisions
 

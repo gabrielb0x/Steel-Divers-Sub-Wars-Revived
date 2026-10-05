@@ -146,7 +146,7 @@ une à une, export et import en JSON), avec une copie de sécurité avant chaque
 | `.arc` | darc (archives de layouts NW4C : `.bclyt`, `.bclim`, `.bclan`) |
 | `.bcfnt` | police NW4C (`CFNT`) |
 | `.bcsar`, `.bcstm` | archive de sons, musiques en streaming |
-| `.shbin` | shaders PICA200 compilés (`DVLB`) |
+| `.shbin` | shaders PICA200 compilés (`DVLB`) ; désassembleur : `tools/shbin.py` |
 | `.amx` | scripts Pawn compilés, voir [scripts-pawn.md](scripts-pawn.md) |
 | `.mpo` | photos 3D (JPEG multi-image) |
 | `.csid`, `.xml`, `.html` | sorties de SoundMaker (en-tête C des ID de sons, rapports) |

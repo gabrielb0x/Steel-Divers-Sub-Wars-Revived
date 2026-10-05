@@ -39,6 +39,9 @@ dit à quoi sert chaque fichier. Ce sont des copies du jeu : elles ne se partage
 automatiquement, ou la variable `AZAHAR_DIR`). Un seul mod est actif à la fois. Il faut d'abord avoir lancé
 `make extract` : les recettes s'appliquent aux fichiers extraits du dump.
 
+Chaque construction inclut les **correctifs** du jeu (`mods/correctifs`, `always = true`), sauf avec `--no-fixes` ;
+`tools/mod.py build correctifs --install` les installe seuls.
+
 ## Écrire une recette : `mods/<nom>/mod.toml`
 
 ```toml
@@ -64,6 +67,13 @@ at = 0x5D4C                               # une chaîne du segment de données (
 string = "player.muteki"
 replace = "mode.ready"                    # pas plus longue que l'originale
 # ou un opérande d'instruction : address = 0x130D0, operand = 0, value = 1, expect = 0
+# (les sauts sont relatifs à l'instruction : value = 8 saute à l'instruction suivante)
+
+[[shader]]                                # une instruction d'un shader PICA200 (shaders/*.shbin)
+file = "shaders/metaball.shbin"
+instruction = 0x084                       # son numéro dans le code, comme l'affiche tools/shbin.py
+expect = 0xA4021800                       # facultatif : l'instruction d'origine
+value = 0x84000000                        # nop
 
 [[code]]                                  # patch du code, à une adresse de code.bin (exemple de syntaxe)
 address = 0x0021A82C
@@ -75,6 +85,7 @@ max_size = 116                            # facultatif : taille maximale (la fin
 [params.server]                           # facultatif : valeur donnée à la construction
 help = "adresse du serveur"               #   tools/mod.py build <nom> --set server=1.2.3.4
 default = "127.0.0.1"                     # et utilisée dans les [[code]] sous la forme ${server}
+# choices = ["2", "3", "5"]               # ou : les seules valeurs acceptées (liste dans le lanceur)
 
 [identity]                                # facultatif : identité de joueur pour un serveur en ligne
 scope = "${server}:${port}"               # donne ${pid}, ${password} et ${token}
@@ -83,10 +94,12 @@ scope = "${server}:${port}"               # donne ${pid}, ${password} et ${token
 Une identité est créée une fois par serveur et gardée dans `~/.config/sub-wars-open-sourced/identites.json` :
 reconstruire le mod garde le même compte.
 
-Autres possibilités : `files = "bxml/pscope_ply??_stats.bxml"` (motif) au lieu de `file` dans `[[bxml]]` ;
+Autres possibilités : `files = "bxml/pscope_ply??_stats.bxml"` (motif) au lieu de `file` dans `[[bxml]]`, et
+`scale = "${facteur}"` qui multiplie tous les nombres des nœuds choisis (après `set`) ;
 `if = "${option}"` sur n'importe quelle entrée (appliquée seulement si l'option vaut `oui`), ou
 `unless = "${option}"` (seulement si elle vaut `non`) ;
-`token_flags = ["triche"]` en tête de recette (annoncé au serveur en ligne dans le jeton).
+`token_flags = ["triche"]` en tête de recette (annoncé au serveur en ligne dans le jeton) ; `always = true` en tête
+de recette : le mod fait partie de toutes les constructions (correctifs du jeu).
 
 **Plusieurs mods ensemble** : `tools/mod.py build en-ligne triche …` les construit dans un seul dossier
 (`build/mods/en-ligne+triche/`), puisqu'Azahar n'en charge qu'un.
@@ -98,12 +111,58 @@ dans [../docs/formats.md](../docs/formats.md). Les modifications de scripts Pawn
 
 | Mod | Effet |
 |---|---|
+| `correctifs` | toujours inclus : corrige le plantage d'Azahar quand une torpille touche un sous-marin sous l'eau |
 | `premium` | version complète, les 23 sous-marins, motifs et équipage débloqués, sans l'eShop ([détails](../docs/premium.md)) |
+| `missions` | les 21 missions du mode solo jouables tout de suite, sans toucher à la sauvegarde |
 | `en-ligne` | jeu en ligne sur un serveur [Sub Wars Open Sourced](../server/README.md) |
 | `specs` | vos propres caractéristiques de sous-marins (`tools/subs.py`) ; en ligne, comptées comme triche |
 | `mention-titre` | « © 2026 Nintendo Lawyers » et « Open Sourced by gabrielb0x. » sous le titre (options `ligne1`, `ligne2`) |
-| `triche` | invincible, torpilles et air infinis, rechargement rapide, masqueur gratuit, moteur gonflé |
+| `triche` | invincible, torpilles et air infinis, tir sans délai, rechargement rapide, masqueur gratuit, moteur gonflé |
+| `vitesse` | votre sous-marin va 2, 3, 5, 10 ou 15 fois plus vite (option `facteur`) ; en ligne, compté comme triche |
 | `texte-titre` | exemple : « Version gratuite » devient « Version moddée » sur l'écran titre |
+
+## Correctifs
+
+Inclus dans tous les mods. Sans eux, dans Azahar, une torpille qui touche un sous-marin sous l'eau fige le
+jeu, puis Azahar se ferme : il remplit la mémoire (5 Go de RAM et 4 Go d'échange sur une machine de 7 Go)
+jusqu'à ce que le système le tue (« Out of memory » dans `journalctl -k`). La cause est un bug du JIT de
+shaders d'Azahar, que déclenche l'huile qui fuit d'un sous-marin touché ; le correctif réécrit deux
+instructions du shader concerné sans rien changer à l'image. Explication complète :
+[../docs/mods.md](../docs/mods.md#correctifs). Vérifié dans Azahar : sans correctif, la mémoire passe de 1,2 à
+3,4 Go en 4 secondes dès qu'une nappe d'huile est à l'écran ; avec, elle reste à 1,2 Go et l'huile s'affiche.
+
+```sh
+.venv/bin/python tools/mod.py build correctifs --install     # sans aucun autre mod
+```
+
+Si vous ne voulez aucun mod, décocher « Enable Shader JIT » dans Azahar (Émulation > Configurer > Graphismes)
+évite aussi le bug, au prix d'un émulateur plus lent.
+
+## Toutes les missions
+
+```sh
+.venv/bin/python tools/mod.py build missions --install
+.venv/bin/python tools/mod.py build premium missions --install
+```
+
+Le menu des missions ouvre une mission quand les précédentes de sa zone sont terminées, et une zone selon le
+nombre total de missions terminées ; en version gratuite, il ne lance que les deux premières zones. Le mod
+compte chaque mission comme terminée et ouvre toutes les zones, sans rien écrire dans la sauvegarde : vos
+médailles et vos temps restent les vôtres (le total affiché en haut du menu indique 21). Retirer le mod remet
+le menu comme avant ; pour marquer les missions terminées pour de bon : `tools/save.py unlock missions`.
+
+## Vitesse du sous-marin
+
+```sh
+.venv/bin/python tools/mod.py build vitesse --set facteur=5 --install        # 2, 3, 5, 10 ou 15
+.venv/bin/python tools/mod.py build premium triche vitesse --set facteur=15 --install
+```
+
+Votre sous-marin va `facteur` fois plus vite, en surface, en plongée et en marche arrière, et atteint cette
+vitesse dans le même temps qu'avant ; le virage, la plongée et les autres sous-marins ne changent pas. Le mod
+multiplie les deux tables qui traduisent les notes de vitesse en accélération (`bxml/table_above_accel` et
+`table_below_accel`) : la vitesse maximale du jeu vaut l'accélération fois 25 environ (frottement de 3,8 % par
+image). En ligne, le serveur le compte comme de la triche.
 
 ## Premium
 
@@ -145,7 +204,9 @@ refusées. Prévu pour le jeu hors ligne : en ligne, le serveur le traite comme 
 .venv/bin/python tools/mod.py build triche --set moteur=non --set rechargement=non --install
 ```
 
-Options (toutes à `oui` par défaut) : `invincible`, `torpilles`, `air`, `rechargement`, `masqueur`, `moteur`.
+Options (toutes à `oui` par défaut) : `invincible`, `torpilles`, `air`, `rechargement`, `rafale`, `masqueur`,
+`moteur`. Avec `rafale`, chaque appui sur A (ou ZR) tire une torpille, sans délai entre deux tirs ; avec
+`torpilles` en plus, le stock ne baisse jamais.
 L'invincibilité, les torpilles et l'air infinis reprennent le drapeau `player.muteki` du mode test des
 développeurs ; le reste modifie les caractéristiques des 23 sous-marins. Vérifié dans une mission solo :
 torpilles qui ne diminuent pas, coque intacte sous les bombes. En ligne, le serveur sait que vous trichez et,

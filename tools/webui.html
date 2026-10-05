@@ -401,14 +401,17 @@ function renderMods() {
   list.dataset.built = "1";
   for (const m of state.mods) {
     const choice = modChoices[m.id] || {on: installed ? installed.mods.includes(m.id) : m.id === "premium", params: {}};
+    if (m.always) choice.on = true;
     modChoices[m.id] = choice;
     const box = el("input", {type: "checkbox", "data-mod": m.id});
     box.checked = choice.on;
+    box.disabled = m.always;
     const card = el("div", {class: "mod card" + (choice.on ? " on" : ""), id: "mod-" + m.id});
     box.addEventListener("change", () => { choice.on = box.checked; card.classList.toggle("on", box.checked); saveChoices(); });
     const tags = [];
     if (m.flags.includes("triche") || m.flags.includes("specs")) tags.push(el("span", {class: "tag cheat"}, "triche en ligne"));
     if (m.online) tags.push(el("span", {class: "tag"}, "en ligne"));
+    if (m.always) tags.push(el("span", {class: "tag"}, "toujours inclus"));
     const params = el("div", {class: "params"});
     for (const p of m.params) {
       const value = choice.params[p.key] ?? (installed && installed.params[p.key]) ?? p.default;
@@ -418,6 +421,11 @@ function renderMods() {
         input.checked = ["oui", "o", "yes", "1", "true", "vrai", "on"].includes(String(value).toLowerCase());
         input.addEventListener("change", () => { choice.params[p.key] = input.checked ? "oui" : "non"; saveChoices(); });
         params.append(el("label", {}, input, p.help.replace(/\s*\(oui\/non\)\s*$/, "")));
+      } else if (p.kind === "choice") {
+        input = el("select", {"data-param": p.key}, ...p.choices.map(c => el("option", {value: c}, c)));
+        input.value = p.choices.includes(String(value)) ? String(value) : p.default;
+        input.addEventListener("change", () => { choice.params[p.key] = input.value; saveChoices(); });
+        params.append(el("label", {}, el("span", {style: "min-width:90px"}, p.key), input, el("span", {class: "muted"}, p.help)));
       } else {
         input = el("input", {type: "text", "data-param": p.key, value: value, size: 22});
         input.addEventListener("input", () => { choice.params[p.key] = input.value; saveChoices(); });
@@ -435,7 +443,7 @@ function selectedMods() {
   const names = [], params = {};
   for (const m of state.mods) {
     const choice = modChoices[m.id];
-    if (!choice || !choice.on) continue;
+    if (!choice || !choice.on || m.always) continue;
     names.push(m.id);
     for (const p of m.params) params[p.key] = choice.params[p.key] ?? p.default;
   }

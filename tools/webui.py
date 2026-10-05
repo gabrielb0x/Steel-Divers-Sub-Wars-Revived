@@ -44,7 +44,7 @@ PAGE = Path(__file__).with_name("webui.html")
 EXTRACTED = ROOT / "extracted"
 MODS_OUT = ROOT / "build" / "mods"
 PREPARED = ROOT / "build" / "azahar"
-MOD_ORDER = ["premium", "specs", "triche", "en-ligne"]
+MOD_ORDER = ["correctifs", "premium", "missions", "specs", "triche", "vitesse", "en-ligne"]
 STATE_FILE = "lanceur.json"
 
 
@@ -308,11 +308,13 @@ def mods_list() -> list[dict]:
         params = []
         for key, spec in data.get("params", {}).items():
             default = str(spec.get("default", ""))
-            kind = "bool" if default.lower() in mod.YES | mod.NO else "text"
-            params.append({"key": key, "help": spec.get("help", ""), "default": default, "kind": kind})
+            kind = "choice" if "choices" in spec else "bool" if default.lower() in mod.YES | mod.NO else "text"
+            params.append({"key": key, "help": spec.get("help", ""), "default": default, "kind": kind,
+                           "choices": [str(c) for c in spec.get("choices", [])]})
         out.append({"id": recipe.parent.name, "name": data.get("name", recipe.parent.name),
                     "description": data.get("description", ""), "params": params,
-                    "flags": data.get("token_flags", []), "online": "identity" in data})
+                    "flags": data.get("token_flags", []), "online": "identity" in data,
+                    "always": bool(data.get("always"))})
     rank = {name: i for i, name in enumerate(MOD_ORDER)}
     return sorted(out, key=lambda m: (rank.get(m["id"], len(rank)), m["id"]))
 
@@ -344,7 +346,8 @@ def prepare_for_azahar(source: Path, log) -> dict:
 
 
 def build_mods(names: list[str], params: dict[str, str], install: bool, log) -> dict:
-    if not names:
+    names = [name for name in names if name not in mod.fixes()]     # always part of the build
+    if not names and not mod.fixes():
         raise UserError("Choisissez au moins un mod.")
     if not (EXTRACTED / "code.bin").exists():
         raise UserError("Il faut d'abord préparer les fichiers du jeu (onglet Jeu).")
@@ -359,7 +362,8 @@ def build_mods(names: list[str], params: dict[str, str], install: bool, log) -> 
             shutil.rmtree(dest)
         shutil.copytree(built / azahar.TITLE_ID, dest)
         public = {k: v for k, v in mod.build.params.items() if k not in ("pid", "password", "token")}
-        store_state(installed={"mods": names, "params": public, "date": time.strftime("%Y-%m-%d %H:%M")})
+        store_state(installed={"mods": names or mod.fixes(), "params": public,
+                               "date": time.strftime("%Y-%m-%d %H:%M")})
         print(f"Installé dans {dest}")
         print("Lancez (ou relancez) le jeu dans Azahar : le mod s'applique au démarrage.")
         result["installed"] = str(dest)

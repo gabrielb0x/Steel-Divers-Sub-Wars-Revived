@@ -11,6 +11,7 @@ players do not need keystone. It covers what patches need, with the encodings ke
   stack             push pop {reglist} (a single register: str/ldr with writeback, as LLVM does),
                     ldm/stm with ia ib da db (fd ed fa ea), ! and reglists with ranges
   branches          b bl [cond] label or absolute address, bx blx rm
+  hint              nop (the ARMv6K hint E320F000, as in the game)
   adr               adr rd, label (add/sub rd, pc, #offset)
   directives        .word .long .short .hword .byte .ascii .asciz .string .align n .balign n .space n
   syntax            labels (name:), comments (@ or //), several statements per line separated by ";"
@@ -295,6 +296,10 @@ def _split_mnemonic(name: str, bases: list[str], allow_s: bool, middles: tuple[s
 
 
 def _instruction(name: str, ops: list[str], pc: int, labels: dict[str, int], final: bool) -> int:
+    if name == "nop" or name[3:] in CONDITIONS and name.startswith("nop"):
+        if ops:
+            raise AsmError("nop takes no operand")
+        return CONDITIONS.get(name[3:], 14) << 28 | 0x0320F000
     # Branches first: "blt" is b + lt, "bls" b + ls, "bleq" bl + eq.
     for base in ("bx", "blx"):
         if name == base or name[len(base):] in CONDITIONS and name.startswith(base):

@@ -49,7 +49,7 @@ _INT = re.compile(r"^-?\d+$")
 _FLOAT = re.compile(r"^-?(\d+\.\d*|\.\d+|\d+(\.\d*)?[eE][-+]?\d+|inf|nan)$")
 
 
-def _float(value: float) -> str:
+def float_text(value: float) -> str:
     """Shortest text giving back the same f32, always with a decimal point (so it reads as f32)."""
     raw = struct.pack("<f", value)
     if value != value or value in (float("inf"), float("-inf")):
@@ -97,7 +97,7 @@ def encode_value(kind: int, raw: bytes) -> str:
     if kind == TYPE_INTS:
         return " ".join(str(v) for v in struct.unpack(f"<{len(raw) // 4}i", raw))
     if kind == TYPE_FLOATS:
-        return " ".join(_float(v) for v in struct.unpack(f"<{len(raw) // 4}f", raw))
+        return " ".join(float_text(v) for v in struct.unpack(f"<{len(raw) // 4}f", raw))
     if kind == TYPE_SHORTS:
         return "s16:" + " ".join(str(v) for v in struct.unpack(f"<{len(raw) // 2}h", raw))
     if kind == TYPE_BYTES:

@@ -63,6 +63,44 @@ Deux façons de rediriger le jeu :
 Le matchmaking ne réunit que des consoles qui annoncent la même somme de version (CRC-32 du numéro de build,
 attribut 3) : un mod qui change le gameplay doit changer cette valeur pour ne pas rencontrer de joueurs sans le mod.
 
+## Correctifs
+
+Le mod [`correctifs`](../mods/correctifs/mod.toml) fait partie de toutes les constructions (`always = true`).
+
+**Plantage quand une torpille touche un sous-marin sous l'eau.** Dans Azahar, en mission solo, quelques
+instants après qu'une torpille a touché un sous-marin sous l'eau, le jeu se fige et Azahar se ferme. Ce n'est
+pas le jeu qui plante : le journal du noyau (`journalctl -k`) montre qu'Azahar est tué par le système faute de
+mémoire (« Out of memory: Killed process (azahar) », 5,3 Go de RAM et 4,1 Go d'échange). Le journal d'Azahar
+s'arrête avant (il n'écrit sur le disque qu'à chaque erreur).
+
+- Un sous-marin endommagé fuit de l'huile : ses scripts (`surface_sub`, `surface_sub_rival`…, et le joueur au
+  replay) appellent `fxOilAdd` toutes les 9 images, et chaque bulle vit 2 secondes.
+- `MetaBallSys` (`source/metaball.cpp`) dessine ces bulles seulement quand la caméra est sous l'eau
+  (`visibleGroups & 1`), en sprites : le programme 2 de `shaders/metaball.shbin` est un geometry shader qui,
+  pour chaque point devant la caméra (entre les plans proche et lointain), fait deux boucles imbriquées :
+  `loop i0` dans `main`, qui appelle le sous-programme `draw_strip`, qui contient `loop i1`. Les constantes
+  `i0 = i1 = (0, 0, 1, 0)` en font un tour chacune : un carré par bulle.
+- Azahar n'accélère jamais un geometry shader sur la carte graphique : il l'exécute avec son JIT de shaders
+  (`video_core/shader/shader_jit_x64_compiler.cpp`). `Compile_LOOP` garde le compteur de boucle dans des
+  registres de l'hôte (`esi`, `edi`, `r12d`) et ne les sauvegarde que pour une boucle imbriquée dans le même
+  bloc de code. La boucle de `draw_strip`, compilée à part, écrase le compteur de la boucle externe et le
+  laisse à 0 ; la boucle externe le décrémente (−1) puis teste s'il est nul : elle repart pour environ quatre
+  milliards de tours. Chaque tour émet deux triangles, qu'Azahar range dans un tableau avant de les dessiner :
+  la mémoire croît de plusieurs centaines de Mo par seconde.
+
+D'où les symptômes : seulement sous l'eau, seulement quand une bulle est devant la caméra (une remontée à la
+surface évite le plantage, une nouvelle plongée le déclenche), et plus rien une vingtaine de secondes après le
+dernier coup, quand la fuite s'arrête. Le moteur de shaders sans JIT (« Enable Shader JIT » décoché) fait les
+boucles correctement.
+
+La correction remplace les deux `LOOP` par des `NOP` (`[[shader]]` dans la recette) : elles ne font qu'un tour
+et aucune instruction n'utilise leur compteur (`aL`), donc le shader dessine exactement la même chose.
+`tools/shbin.py --check` cherche ce motif (une boucle atteinte par un `CALL` depuis une autre boucle) : seul
+`metaball.shbin` l'a. Vérifié dans Azahar avec un mod de test qui fait fuir les sous-marins ennemis en
+permanence : sans correctif, la mémoire passe de 1,2 à 3,4 Go en 4 secondes ; avec, elle reste à 1,2 Go et
+l'huile s'affiche normalement. Le bug mériterait d'être signalé à Azahar (sauvegarder les registres de boucle
+autour de chaque `CALL`, ou les garder dans l'état du shader comme l'interpréteur).
+
 ## 60 fps
 
 Ce que fait le moteur aujourd'hui :

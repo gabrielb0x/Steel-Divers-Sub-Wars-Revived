@@ -1,10 +1,11 @@
-"""Tests of the players' tools that need no game file: ARM assembler, save format, recipes.
+"""Tests of the players' tools that need no game file: ARM assembler, save format, recipes, shaders.
 
     python3 -m unittest discover -s tools/tests
 """
 
 import struct
 import sys
+import tempfile
 import tomllib
 import unittest
 import zlib
@@ -13,6 +14,8 @@ from pathlib import Path
 TOOLS = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(TOOLS))
 
+import mod                                     # noqa: E402
+import shbin                                   # noqa: E402
 from armasm import AsmError, assemble          # noqa: E402
 from save import SaveData, SaveError, parse_value   # noqa: E402
 
@@ -94,6 +97,7 @@ KEYSTONE = [
     ('ldm r0, {r1, r2}', "060090e8"),
     ('stmia r0!, {r1}', "0200a0e8"),
     ('bx lr', "1eff2fe1"),
+    ('nop', "00f020e3"),
     ('bxne r3', "13ff2f11"),
     ('blx r3', "33ff2fe1"),
     ('.word 0x1234', "34120000"),
@@ -192,6 +196,83 @@ class Save(unittest.TestCase):
         self.assertEqual(parse_value("1.5"), struct.unpack("<i", struct.pack("<f", 1.5))[0])
         with self.assertRaises(SaveError):
             SaveData().set("player.sub", 1)               # not saved by the game
+
+
+def make_shbin(code: list[int]) -> bytes:
+    """A DVLB with one geometry program over code, and the operand descriptors of the instructions used."""
+    dvlp = struct.pack("<4sIIIII", b"DVLP", 0, 0x20, len(code), 0x20 + 4 * len(code), 1) + b"\0" * 8
+    dvlp += struct.pack(f"<{len(code)}I", *code) + struct.pack("<II", 0x0000036F, 0)
+    dvle = struct.pack("<4sHBBIIHHBBBBIIIIIIIIII", b"DVLE", 0x1002, 1, 0, 0, len(code), 3, 0x7F, 0, 0, 0, 0,
+                       0x40, 0, 0x40, 0, 0x40, 0, 0x40, 0, 0x40, 1) + b"\0"
+    header_size = 8 + 4
+    return struct.pack("<4sII", b"DVLB", 1, header_size + len(dvlp)) + dvlp + dvle
+
+
+# The pattern of shaders/metaball.shbin: main loops (i0) over a call of a subroutine that loops (i1).
+NESTED = [0x90000C05,      # 000: call 003, 5
+          0x88000000,      # 001: end
+          0x84000000,      # 002: nop
+          0xA4401C00,      # 003: loop i1, 007
+          0xA8000000,      # 004: emit
+          0x84000000,      # 005: nop
+          0x84000000,      # 006: nop
+          0x84000000,      # 007: nop
+          0xA4002800,      # 008: loop i0, 00a
+          0x90000C05,      # 009: call 003, 5
+          0x84000000,      # 00a: nop
+          0x88000000]      # 00b: end
+
+
+class Shaders(unittest.TestCase):
+    def test_disassembly(self):
+        shader = shbin.Shader(make_shbin(NESTED))
+        self.assertEqual(shader.disassemble(8), "loop i0, 00a")
+        self.assertEqual(shader.disassemble(9), "call 003, 5")
+        self.assertEqual(shader.disassemble(3), "loop i1, 007")
+        self.assertEqual(shbin.disassemble(0x4C403015, [0x0000036F] * 0x16), "mov o2.xyzw, v3")
+        self.assertEqual(shbin.f24(0x3F0000), 1.0)
+
+    def test_nested_loops(self):
+        self.assertEqual(shbin.Shader(make_shbin(NESTED)).nested_loops(), [(8, 3)])
+        fixed = [shbin.NOP if i in (3, 8) else word for i, word in enumerate(NESTED)]
+        self.assertEqual(shbin.Shader(make_shbin(fixed)).nested_loops(), [])
+
+    def test_recipe_patch(self):
+        with tempfile.TemporaryDirectory() as folder:
+            path = Path(folder) / "shaders" / "test.shbin"
+            path.parent.mkdir()
+            path.write_bytes(make_shbin(NESTED))
+            old, mod.ROMFS = mod.ROMFS, Path(folder)
+            try:
+                shaders: dict[str, bytearray] = {}
+                entry = {"file": "shaders/test.shbin", "instruction": 8, "expect": 0xA4002800, "value": shbin.NOP}
+                mod.edit_shader(shaders, entry)
+                self.assertEqual(shbin.Shader(bytes(shaders["shaders/test.shbin"])).code[8], shbin.NOP)
+                with self.assertRaises(mod.ModError):                    # no longer the original
+                    mod.edit_shader(shaders, entry)
+                with self.assertRaises(mod.ModError):
+                    mod.edit_shader(shaders, {"file": "shaders/test.shbin", "instruction": 99, "value": 0})
+            finally:
+                mod.ROMFS = old
+
+
+class Recipes(unittest.TestCase):
+    def test_scale(self):
+        self.assertEqual(mod.scaled("0.36", 15), "5.4")
+        self.assertEqual(mod.scaled("0.4", 10), "4.0")                 # stays a f32
+        self.assertEqual(mod.scaled("3 -2", 2), "6 -4")
+        self.assertEqual(mod.scaled("n2ply_s001", 2), "n2ply_s001")
+
+    def test_choices(self):
+        recipe = {"params": {"facteur": {"default": "2", "choices": ["2", "3", "5"]}}}
+        self.assertEqual(mod.recipe_params([recipe], {"facteur": "5"})["facteur"], "5")
+        with self.assertRaises(mod.ModError):
+            mod.recipe_params([recipe], {"facteur": "4"})
+
+    def test_fixes_always_included(self):
+        self.assertIn("correctifs", mod.fixes())
+        recipe = tomllib.loads((TOOLS.parent / "mods" / "correctifs" / "mod.toml").read_text(encoding="utf-8"))
+        self.assertEqual({e["instruction"] for e in recipe["shader"]}, {0x061, 0x084})
 
 
 if __name__ == "__main__":

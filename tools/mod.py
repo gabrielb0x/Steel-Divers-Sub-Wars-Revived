@@ -22,6 +22,7 @@ mod.toml:
   select = "actor[@name='mode_settings']"   # ElementTree path from the root element
   set = { timeLimit = "2400.0" }    # values written as in the XML (2400.0 is a f32, 60 a s32)
   rename = { old = "new" }          # optional: renames attributes, keeping their place (applied before set)
+  scale = "${factor}"               # optional: multiplies every number of the selected nodes (after set)
   remove = true                     # optional: removes the selected nodes instead
 
   [[subs]]                          # the characteristics of the submarines from a player's file
@@ -34,6 +35,12 @@ mod.toml:
   replace = "mode.ready"            # not longer than the original
   # or an instruction operand: address = 0x130D0, operand = 0, value = 1, expect = 0
 
+  [[shader]]                        # an instruction of a PICA200 shader (shaders/*.shbin, DVLB)
+  file = "shaders/metaball.shbin"
+  instruction = 0x061               # index in the shared code (DVLP), as tools/shbin.py lists it
+  expect = 0xA441BC00               # optional: the original instruction
+  value = 0x84000000                # nop
+
   [[code]]                          # code patch, at a virtual address of code.bin
   address = 0x0010C7FC
   arm = "bx lr"                     # ARM assembly (tools/armasm.py), or: bytes = "1eff2fe1",
@@ -44,19 +51,21 @@ mod.toml:
   [params.server]                   # optional: values given on the command line (--set server=...),
   help = "..."                      # used as ${server} in the [[code]] texts
   default = "127.0.0.1"
-  max_length = 31
+  max_length = 31                   # or choices = ["2", "3"]: the only values accepted
 
   [identity]                        # optional: a player identity for an online server, generated once
   scope = "${server}:${port}"       # per scope and kept in ~/.config/sub-wars-open-sourced/identites.json;
                                     # gives ${pid}, ${password} and ${token}
   token_flags = ["triche"]          # optional, top level: told to the online server in the token
+  always = true                     # optional, top level: part of every build (fixes of the game)
 
 Any entry may have if = "${param}": it is applied only when the parameter is yes (oui, 1, true...),
 or unless = "${param}": only when it is no.
 
-Usage:  tools/mod.py build <name> [<name>...] [--set key=value ...] [--install] [--cxi]
+Usage:  tools/mod.py build <name> [<name>...] [--set key=value ...] [--install] [--cxi] [--no-fixes]
         tools/mod.py list
 Several mods are built together into build/mods/<name>+<name>/ (Azahar loads a single mod folder).
+The recipes marked always = true (mods/correctifs) are added to every build, unless --no-fixes.
 
 --cxi also writes build/azahar/SteelDiverSubWars_<name>[_<server>].cxi, the game with the code patch already
 applied, to open in Azahar next to the original (RomFS changes stay in the mod folder only).
@@ -80,8 +89,9 @@ from pathlib import Path
 
 import armasm
 import azahar
+import shbin
 from amx import AmxPatcher
-from bxml import Bxml, escape_string, from_xml
+from bxml import TYPE_FLOATS, TYPE_INTS, Bxml, escape_string, float_text, from_xml, infer_type
 from ctr import find_game_cia
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -98,7 +108,7 @@ class ModError(Exception):
 # ---- data -----------------------------------------------------------------------------------
 
 def edit_bxml(files: dict[str, ET.Element], file: str, select: str, values: dict[str, str],
-              rename: dict[str, str] | None = None, remove: bool = False) -> int:
+              rename: dict[str, str] | None = None, remove: bool = False, scale: float | None = None) -> int:
     if file not in files:
         path = ROMFS / file
         if not path.exists():
@@ -126,7 +136,20 @@ def edit_bxml(files: dict[str, ET.Element], file: str, select: str, values: dict
             node.attrib.update(items)
         for name, value in values.items():
             node.set(name, str(value))
+        if scale is not None:
+            for name, value in list(node.attrib.items()):
+                node.set(name, scaled(value, scale))
     return len(nodes)
+
+
+def scaled(text: str, factor: float) -> str:
+    """An attribute of numbers multiplied by factor, of the same type (other attributes unchanged)."""
+    kind = infer_type(text)
+    if kind == TYPE_INTS:
+        return " ".join(str(round(int(t) * factor)) for t in text.split())
+    if kind == TYPE_FLOATS:
+        return " ".join(float_text(float(t) * factor) for t in text.split())
+    return text
 
 
 YES = {"1", "oui", "o", "yes", "y", "true", "vrai", "on"}
@@ -174,6 +197,30 @@ def edit_amx(scripts: dict[str, AmxPatcher], entry: dict) -> None:
             script.set_operand(entry["address"], entry.get("operand", 0), entry["value"], entry.get("expect"))
     except ValueError as e:
         raise ModError(f"{file}: {e} (not the EUR v0 scripts?)") from e
+
+
+def edit_shader(shaders: dict[str, bytearray], entry: dict) -> None:
+    """Replaces an instruction of a PICA200 shader binary (DVLB), by its index in the shared code."""
+    file = entry["file"]
+    if file not in shaders:
+        path = ROMFS / file
+        if not path.exists():
+            raise ModError(f"{file}: not in extracted/romfs (run make extract)")
+        shaders[file] = bytearray(path.read_bytes())
+    data = shaders[file]
+    try:
+        code, size = shbin.code_location(data)
+    except ValueError as e:
+        raise ModError(f"{file}: {e}") from e
+    index = entry["instruction"]
+    if not 0 <= index < size:
+        raise ModError(f"{file}: no instruction {index:#x} ({size} in the shader)")
+    offset = code + 4 * index
+    found = struct.unpack_from("<I", data, offset)[0]
+    if "expect" in entry and found != entry["expect"]:
+        raise ModError(f"{file}: instruction {index:#x} is {found:#010x}, not {entry['expect']:#010x} "
+                       "(not the EUR v0 files?)")
+    struct.pack_into("<I", data, offset, entry["value"])
 
 
 def font_characters(typeface: str, cache: dict[str, set[int] | None] = {}) -> set[int] | None:
@@ -327,6 +374,9 @@ def recipe_params(mods: list[dict], overrides: dict[str, str]) -> dict[str, str]
             raise ModError(f"--set {key}=... is required: {spec.get('help', '')}")
         if len(value) > spec.get("max_length", 1 << 30):
             raise ModError(f"{key}: at most {spec['max_length']} characters")
+        choices = [str(c) for c in spec.get("choices", [])]
+        if choices and value not in choices:
+            raise ModError(f"{key}: {value!r} is not one of {', '.join(choices)}")
         params[key] = value
     flags = sorted({f for mod in mods for f in mod.get("token_flags", [])})
     scopes = {fill(mod["identity"]["scope"], params) for mod in mods if "identity" in mod}
@@ -346,16 +396,28 @@ def load_recipe(name: str) -> dict:
 
 # ---- build ----------------------------------------------------------------------------------
 
-def build(names: list[str], out_root: Path, overrides: dict[str, str] | None = None) -> Path:
+def fixes() -> list[str]:
+    """The recipes marked always = true: fixes of the game, part of every build."""
+    return sorted(recipe.parent.name for recipe in MODS.glob("*/mod.toml")
+                  if tomllib.loads(recipe.read_text(encoding="utf-8")).get("always"))
+
+
+def build(names: list[str], out_root: Path, overrides: dict[str, str] | None = None,
+          with_fixes: bool = True) -> Path:
+    label = "+".join(names) or "+".join(fixes())
+    if with_fixes:
+        names = [name for name in fixes() if name not in names] + list(names)
+    if not names:
+        raise ModError("no mod to build")
     mods = [load_recipe(name) for name in names]
     params = recipe_params(mods, overrides or {})
-    label = "+".join(names)
     out = out_root / label / azahar.TITLE_ID
     if out.exists():
         shutil.rmtree(out)
 
     files: dict[str, ET.Element] = {}
     scripts: dict[str, AmxPatcher] = {}
+    shaders: dict[str, bytearray] = {}
     code: list[dict] = []
     for mod in mods:
         for entry in mod.get("text", []):
@@ -363,10 +425,16 @@ def build(names: list[str], out_root: Path, overrides: dict[str, str] | None = N
                 apply_texts(files, entry, params)
         for entry in mod.get("bxml", []):
             if enabled(entry, params):
+                scale = None
+                if "scale" in entry:
+                    try:
+                        scale = float(fill(str(entry["scale"]), params))
+                    except ValueError as e:
+                        raise ModError(f"scale = {entry['scale']!r}: not a number") from e
                 for file in bxml_files(entry):
                     edit_bxml(files, file, entry.get("select", "."),
                               {k: fill(str(v), params) for k, v in entry.get("set", {}).items()},
-                              entry.get("rename"), entry.get("remove", False))
+                              entry.get("rename"), entry.get("remove", False), scale)
         for entry in mod.get("subs", []):
             if enabled(entry, params):
                 import subs
@@ -380,6 +448,9 @@ def build(names: list[str], out_root: Path, overrides: dict[str, str] | None = N
         for entry in mod.get("amx", []):
             if enabled(entry, params):
                 edit_amx(scripts, entry)
+        for entry in mod.get("shader", []):
+            if enabled(entry, params):
+                edit_shader(shaders, entry)
         code += [entry for entry in mod.get("code", []) if enabled(entry, params)]
     for file, root in files.items():
         dest = out / "romfs" / file
@@ -389,6 +460,10 @@ def build(names: list[str], out_root: Path, overrides: dict[str, str] | None = N
         dest = out / "romfs" / file
         dest.parent.mkdir(parents=True, exist_ok=True)
         dest.write_bytes(script.write())
+    for file, shader in shaders.items():
+        dest = out / "romfs" / file
+        dest.parent.mkdir(parents=True, exist_ok=True)
+        dest.write_bytes(bytes(shader))
 
     if code:
         patches = code_patches(code, params)
@@ -400,7 +475,7 @@ def build(names: list[str], out_root: Path, overrides: dict[str, str] | None = N
         dest.parent.mkdir(parents=True, exist_ok=True)
         dest.write_bytes(ips(patches))
     title = " + ".join(mod.get("name", name) for mod, name in zip(mods, names))
-    print(f"[+] {title}: {len(files) + len(scripts)} file(s), {len(code)} code patch(es) -> {out}")
+    print(f"[+] {title}: {len(files) + len(scripts) + len(shaders)} file(s), {len(code)} code patch(es) -> {out}")
     build.params = params
     return out_root / label
 
@@ -432,6 +507,7 @@ def main() -> None:
     p.add_argument("--set", action="append", default=[], metavar="KEY=VALUE", help="a parameter of the recipe")
     p.add_argument("--install", action="store_true", help="then install it into Azahar")
     p.add_argument("--cxi", action="store_true", help="also write the game with this code patch applied")
+    p.add_argument("--no-fixes", action="store_true", help="without the fixes of the game (mods/correctifs)")
     p.add_argument("-o", "--out", type=Path, default=ROOT / "build" / "mods")
     sub.add_parser("list", help="list the mods of mods/")
     args = ap.parse_args()
@@ -439,14 +515,15 @@ def main() -> None:
     if args.command == "list":
         for recipe in sorted(MODS.glob("*/mod.toml")):
             mod = tomllib.loads(recipe.read_text(encoding="utf-8"))
-            print(f"{recipe.parent.name:24s} {mod.get('description', '')}")
+            always = " (toujours inclus)" if mod.get("always") else ""
+            print(f"{recipe.parent.name:24s} {mod.get('description', '')}{always}")
         return
     try:
         overrides = dict(item.split("=", 1) for item in args.set)
     except ValueError:
         sys.exit("[!] --set expects KEY=VALUE")
     try:
-        built = build(args.names, args.out, overrides)
+        built = build(args.names, args.out, overrides, with_fixes=not args.no_fixes)
         if args.cxi:
             print(f"[+] {write_cxi('+'.join(args.names), built, build.params)}: Azahar > File > Load File")
     except (ModError, KeyError, tomllib.TOMLDecodeError) as e:

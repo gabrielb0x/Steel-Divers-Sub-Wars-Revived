@@ -27,6 +27,7 @@ make data       tools/bxml.py -> extracted/xml/ (BXML: levels, stats, texts; nam
 make azahar     tools/azahar.py prepare -> build/azahar/ (CIA without the encrypted manual, which Azahar rejects; CXI)
 tools/mod.py build <name>... [--install] [--cxi]   mods/<name>/mod.toml -> build/mods/<a+b>/ -> Azahar load/mods/00040000000D7E00/
 tools/save.py, tools/subs.py                        save editor (Azahar save), submarine characteristics (mod "specs")
+tools/shbin.py <file.shbin> [--check]               PICA200 shader disassembler; --check: loops Azahar's JIT runs wrong
 python3 subwars.py                                  players' launcher: local web UI (tools/webui.py + webui.html)
 python3 -m unittest discover -s tools/tests         tests of the players' tools (no game file needed)
 cd server && python3 -m sdsw_server        online server (realms "emulateur" and "pc", serveur.toml); tests: python3 -m unittest discover -s tests -t .
@@ -65,6 +66,10 @@ Ghidra scripts are Java (`ghidra/scripts/`), compiled by Ghidra 12.1.4; check th
   with the real game: PRUDP v1, RC4 "CD&ML" before the Kerberos session key, aggregate ACKs (MULTI_ACK, substream 1).
   Azahar's frd:u lacks game authentication, hence the `en-ligne` mod. Pretendo's server (Go, AGPL-3.0) is cloned for
   reference in `build/ref/pretendo-sdsw`; Azahar sources (GPL, reference only) in `build/ref/azahar` (sparse).
+- Azahar crash "torpedo hits a sub underwater" = OOM kill, not a game bug: Azahar's x64 shader JIT clobbers the
+  outer LOOP counter when a subroutine CALLed from a loop has its own LOOP (geometry shader of the oil metaballs,
+  shaders/metaball.shbin) -> ~4e9 iterations emitting triangles. mods/correctifs (always = true, in every build)
+  NOPs the two loops. `journalctl -k` shows such OOM kills; Azahar's own log only flushes on errors.
 - Testing in Azahar: portable profiles in `~/.var/app/org.azahar_emu.Azahar/sdsw-test/<p>/user/`
   (`flatpak run --cwd=<p>`), shown in Xephyr. The machine has 7 GB of RAM: OpenGL under Xephyr can reach 5 GB per
   instance (two got OOM-killed) and the software renderer runs at 3 %: one instance at a time.

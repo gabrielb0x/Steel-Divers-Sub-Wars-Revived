@@ -19,8 +19,10 @@ Il faut [Python 3.11 ou plus récent](https://www.python.org/downloads/) (rien d
    dans votre navigateur ; il ne parle qu'à votre ordinateur.
 3. Onglet **Jeu** : il trouve votre jeu (dans le dossier `cia/` du projet ou dans Azahar, sinon choisissez le
    fichier) et le prépare.
-4. Onglet **Mods** : cochez **Premium** (version complète et les 23 sous-marins), et si vous voulez la
-   **Triche**, vos **Caractéristiques** de sous-marins ou le **Jeu en ligne**, puis *Installer dans Azahar*.
+4. Onglet **Mods** : cochez **Premium** (version complète et les 23 sous-marins), et si vous voulez **Toutes
+   les missions**, la **Triche** (dont le tir sans délai), la **Vitesse du sous-marin** (×2 à ×15), vos
+   **Caractéristiques** de sous-marins ou le **Jeu en ligne**, puis *Installer dans Azahar*. Les **Correctifs**
+   sont toujours inclus : sans eux, Azahar plante quand une torpille touche un sous-marin sous l'eau.
 5. Onglets **Sauvegarde** (tout débloquer, médailles, drapeau premium), **Sous-marins** (caractéristiques) et
    **Serveur** (héberger des parties en ligne).
 
@@ -63,6 +65,12 @@ cd server && python3 -m sdsw_server                        # le serveur (royaume
   historiques vendus à part), les motifs et l'équipage ([docs/premium.md](docs/premium.md)).
 - **Éditeur de sauvegarde** : `tools/save.py` affiche et modifie la sauvegarde d'Azahar (déblocages, médailles,
   n'importe quelle valeur, export JSON) ; format dans [docs/formats.md](docs/formats.md#sauvegarde).
+- **Plantage d'Azahar corrigé** : quand une torpille touchait un sous-marin sous l'eau, l'émulateur remplissait
+  la mémoire et se faisait tuer par le système. C'est un bug du JIT de shaders d'Azahar (et de Citra), déclenché
+  par le geometry shader de la nappe d'huile ; le mod `correctifs`, inclus dans tous les mods, le contourne
+  ([docs/mods.md](docs/mods.md#correctifs)).
+- **Autres mods** : `missions` (les 21 missions jouables tout de suite, sans toucher à la sauvegarde), `vitesse`
+  (votre sous-marin ×2, ×3, ×5, ×10 ou ×15), `triche` (invincible, torpilles infinies et tir sans délai…).
 
 ```sh
 .venv/bin/python tools/mod.py build premium --install       # version complète et tous les sous-marins

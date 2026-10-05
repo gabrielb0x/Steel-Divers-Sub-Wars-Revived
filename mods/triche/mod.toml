@@ -15,9 +15,14 @@
 #   sysGetGlobal("player.muteki") par « mode.ready », qui vaut 1 pendant toute la bataille.
 # * les caractéristiques des 23 sous-marins (bxml/pscope_plyNN_stats.bxml) : temps de rechargement des
 #   torpilles, cadence de tir, air consommé par le masqueur, accélérations et virage (notes de 1 à 9).
+# * « rafale » : plus aucun délai entre deux tirs, une torpille à chaque appui sur A (ou ZR). Le tir part
+#   au relâchement du bouton (periscope_move func_11750) si le délai g_4ffc est écoulé et si le bouton de
+#   tir de l'écran tactile a fini son animation ; après un tir, g_4ffc = torpedo.interval + 15 images.
+#   Le mod met la cadence (torpedoFireInterval) à 1 image, retire les 15 images et n'attend plus
+#   l'animation du bouton. Avec « torpilles », le stock ne baisse jamais.
 
 name = "Triche"
-description = "Invincible, torpilles et air infinis, rechargement rapide, masqueur gratuit, moteur gonflé"
+description = "Invincible, torpilles et air infinis, tir sans délai, masqueur gratuit, moteur gonflé"
 token_flags = ["triche"]
 
 [params.invincible]
@@ -34,6 +39,10 @@ default = "oui"
 
 [params.rechargement]
 help = "rechargement et tir rapides (oui/non)"
+default = "oui"
+
+[params.rafale]
+help = "tirer sans aucun délai, autant de torpilles qu'on veut (oui/non)"
 default = "oui"
 
 [params.masqueur]
@@ -87,6 +96,27 @@ replace = "mode.ready"
 if = "${rechargement}"
 files = "bxml/pscope_ply[0-9][0-9]_stats.bxml"
 set = { torpedoReplenishTime = "1", torpedoFireInterval = "30" }
+
+[[bxml]]
+if = "${rafale}"                        # après « rechargement » : c'est cette valeur qui reste
+files = "bxml/pscope_ply[0-9][0-9]_stats.bxml"
+set = { torpedoFireInterval = "1" }     # le minimum : à 0, le bouton de tir ne se réactive plus
+
+[[amx]]
+if = "${rafale}"
+file = "amx/periscope_move.amx"         # func_10e04 : g_4ffc = torpedo.interval + 15 après un tir
+address = 0x11248                       # add.c 15
+operand = 0
+expect = 0xF
+value = 0
+
+[[amx]]
+if = "${rafale}"
+file = "amx/periscope_move.amx"         # func_11750 : « if (!g_4ffc && func_4900(tpd_00)) » (bouton prêt)
+address = 0x11780                       # jzer L_11798
+operand = 0
+expect = 0x18
+value = 8                               # vers l'instruction suivante : le bouton n'est plus attendu
 
 [[bxml]]
 if = "${masqueur}"

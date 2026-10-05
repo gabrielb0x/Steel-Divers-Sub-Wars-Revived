@@ -1,0 +1,35 @@
+# Mod « toutes les missions » : les 21 missions du mode solo sont jouables tout de suite.
+#
+#   tools/mod.py build missions --install
+#
+# Rien n'est écrit dans la sauvegarde : vos médailles et vos meilleurs temps restent les vôtres, et
+# retirer le mod remet le menu comme avant.
+#
+# Comment le menu des missions décide (amx/mode_mission_select.amx, decomp/scripts/mode_mission_select.p) :
+# * pour chacune des 7 zones, il compte les missions terminées (save.single.stageS.medal[L] > 0) ;
+# * la mission L d'une zone s'ouvre quand les L-1 précédentes sont terminées ;
+# * une zone s'ouvre quand le total des missions terminées atteint son seuil (0, 0, 5, 7, 12, 5, 9) ;
+# * en version gratuite, seules les deux premières zones du menu se lancent (sinon il propose la
+#   version complète : « g_7de8 <= 1 || isFullVersion() »).
+# Le mod fait compter chaque mission comme terminée (ce compte ne sert qu'à ouvrir les missions et au
+# total affiché en haut du menu, qui indique donc 21), et ouvre toutes les zones en version gratuite.
+# Les médailles affichées, elles, restent celles de la sauvegarde.
+#
+# Aucun effet en ligne : le menu des missions n'est que local.
+
+name = "Toutes les missions"
+description = "Les 21 missions du mode solo jouables tout de suite, sans toucher à la sauvegarde"
+
+[[amx]]
+file = "amx/mode_mission_select.amx"
+address = 0x6A50                          # jsgeq L_6a64 : « if (0 < médaille) terminées++ »
+operand = 0
+expect = 0x14                             # saut relatif vers 0x6A64 (pas de médaille : non comptée)
+value = 8                                 # vers l'instruction suivante : toujours comptée
+
+[[amx]]
+file = "amx/mode_mission_select.amx"
+address = 0x76A0                          # const.alt 1 de « g_7de8 <= 1 » (deux zones en version gratuite)
+operand = 0
+expect = 1
+value = 6                                 # les 7 zones du menu (0 à 6)
