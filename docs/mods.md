@@ -37,7 +37,13 @@ Mii de la console. Elle sert de réserve, partagée ainsi entre les mods :
 | Plage | Mod | Contenu |
 |---|---|---|
 | 0x0014BC90-0x0014BD8F | `pseudo` | le pseudo de la console dans le Mii du joueur |
-| 0x0014BD90-0x0014C423 | libre | |
+| 0x0014BD90-0x0014BD9F | libre | |
+| 0x0014BDA0-0x0014C3DF | `60fps` | l'image intermédiaire (nnMain, interpolation des acteurs et de la caméra) |
+| 0x0014C3E0-0x0014C423 | libre | |
+
+Données : le code ajouté n'a pas de place réservée en mémoire vive. `60fps` alloue son bloc avec le
+`operator new` du jeu et garde son pointeur dans deux mots de `main.o` que seul l'initialiseur statique
+écrit (0x0038E630, 0x0038E634 ; aucune autre lecture ni écriture dans l'exécutable).
 
 Dans les scripts Pawn, la place n'est pas un problème : `tools/amxasm.py` ajoute le code à la fin du
 script, et la mémoire du script grandit d'autant (le chargeur alloue `stp` + la pile demandée).
@@ -118,11 +124,11 @@ permanence : sans correctif, la mémoire passe de 1,2 à 3,4 Go en 4 secondes ; 
 l'huile s'affiche normalement. Le bug mériterait d'être signalé à Azahar (sauvegarder les registres de boucle
 autour de chaque `CALL`, ou les garder dans l'état du shader comme l'interpréteur).
 
-## 60 fps
+## 60 et 120 images par seconde
 
-Ce que fait le moteur aujourd'hui :
+Ce que fait le moteur :
 
-- `nnMain` attend au moins **deux VBlank** par image : le jeu est bloqué à 30 fps.
+- `nnMain` attend au moins **deux VBlank** par pas : le jeu est bloqué à 30 images par seconde.
 - La simulation avance d'un **pas fixe de 1/30 s** : horloge du monde (`World::update`) et
   `World::getDeltaTimeSeconds()`, qui renvoie la constante 1/30 aux effets (distorsion, flou de vitesse, sillages de
   torpilles, métaballes, fondus, aquarium, générique).
@@ -130,16 +136,48 @@ Ce que fait le moteur aujourd'hui :
   délais d'appels (`sysCallPublicDelayed`).
 - Le **replay** garde les **210 dernières images** (7 s à 30 fps), 80 acteurs par image.
 
-Passer simplement à une image par VBlank ferait tourner tout le jeu deux fois plus vite. Deux voies :
+Passer simplement à une image par VBlank ferait tourner tout le jeu deux fois plus vite, et doubler la fréquence
+de simulation demanderait de corriger tous les compteurs des 123 scripts (et désynchroniserait le jeu en ligne
+avec les joueurs à 30). Le mod **`60fps`** garde donc la simulation à 30 pas par seconde et dessine **une image
+de plus au milieu de chaque pas** :
 
-1. **Doubler la fréquence de simulation** : pas de 1/60 dans le C++, et diviser par deux tous les compteurs d'images
-   des 123 scripts (et doubler le tampon de replay). Trop de points à corriger à la main, risque de désynchroniser le
-   jeu en ligne avec les joueurs à 30 fps.
-2. **Simuler à 30 Hz et afficher à 60 Hz** en interpolant entre deux états : le moteur sépare déjà l'état simulé des
-   acteurs (`positionPtr`, fonctions `*Sim`) de l'état dessiné (`Actor` +0x4C), copié par `World::postScriptUpdate`.
-   Il faudrait dessiner une image intermédiaire en interpolant positions, rotations et caméra. Aucun script à
-   toucher, compatible en ligne, mais c'est du code moteur à injecter : naturel dans le portage PC, plus délicat en
-   patch pour Azahar (il faut y loger du code neuf).
+1. Après la simulation d'un pas, au début du dessin (`nnMain` 0x00100ABC, à la place de `Fader::update`),
+   chaque acteur visible qui a bougé depuis le pas précédent (`Actor::matrix`, la matrice qu'
+   `Actor::updateMatrix` a copiée dans son nœud de scène, transformation en +0x4C, drapeau 0x800 en +0x88) est
+   placé à mi-chemin entre son état précédent et l'état courant ; la caméra du renderer 0 aussi (position et
+   cible de `gfxCameraLookAt`, appliquées par `Renderer::updateCamera`, où tombe `Renderer::preCullUpdate`,
+   un `nop` suivi de la fonction).
+2. La scène est recalculée par `Renderer::update` avec `System::s_paused` à 1 : `Scene::update` et
+   `Scene::updateModels` n'avancent alors ni les animations ni les particules, et les effets qui avancent avec le
+   temps (métaballes, distorsion, poissons, flou, fondus) attendent de même ; seuls les nœuds et la caméra
+   changent.
+3. La section de dessin de `nnMain` dessine cette image, sans les mises à jour d'une fois par pas
+   (`Renderer::updateDowntime`, `FaceSystem::update`, `ParticleManager::cleanupUnused` : crochet en 0x00100DF4),
+   puis l'image reste une VBlank à l'écran (crochet après `Graphics::runDraw`, 0x00100E54).
+4. L'état courant revient dans les nœuds et la caméra, et `nnMain` dessine l'image du pas comme d'habitude ; il
+   attend ensuite sa seconde VBlank.
+
+L'ordre d'affichage reste celui du jeu (une image de retard dans le pipeline de `Graphics::flip`, triple tampon) :
+l'image du milieu s'intercale simplement entre deux images du jeu. Pas d'image du milieu en pause, quand rien
+n'a bougé, pour un acteur nouveau, placé par autre chose que sa matrice (attaché à un os) ou qui a sauté de plus
+de 300 unités, pour une caméra qui saute ou tourne de plus de 60°, et quand la simulation du pas n'a pas tenu
+dans sa première VBlank. Un pas qui dépasse malgré tout ses deux VBlank met le mod en retrait 2 s, puis 4, 8…
+jusqu'à une minute. Les textes en surimpression (noms au-dessus des sous-marins, interface) et les particules
+gardent leur rythme de 30 images par seconde.
+
+Vérifié dans Azahar (écran titre, caméra en mouvement) : 60 images par seconde d'émulation, sans défaut visible.
+Avec le processeur émulé à 100 %, le jeu n'a pas toujours le temps de dessiner deux images par pas (le mod
+reste alors à 30) ; à 200 % (Émulation > Configurer > Débogage > Vitesse d'horloge du CPU) il tient 60.
+
+**120 images par seconde** (ou 144, 165…) : impossible dans un émulateur. L'écran de la console émulée se
+rafraîchit à 59,83 Hz (`FRAME_TICKS` d'Azahar) et l'émulateur montre une image par rafraîchissement ;
+accélérer l'émulation à 200 % donnerait 120 images, mais aussi un son deux fois plus rapide et une horloge
+réseau faussée. Dans le **portage PC**, le même principe donnera n'importe quelle fréquence : simulation à 30 pas
+par seconde, et à chaque rafraîchissement de l'écran une image interpolée à la fraction de pas écoulée
+(1/4, 2/4, 3/4 à 120 Hz).
+
+En ligne, la question « à quelle fréquence faire tourner tout le monde » ne se pose pas : les consoles à 30 et à
+60 images par seconde font exactement les mêmes 30 pas de simulation par seconde, et restent synchronisées.
 
 ## Menu de debug
 

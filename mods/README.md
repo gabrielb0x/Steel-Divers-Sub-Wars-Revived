@@ -140,6 +140,7 @@ entre guillemets (gardées dans les données du script), les globales du script 
 |---|---|
 | `correctifs` | toujours inclus : corrige le plantage d'Azahar quand une torpille touche un sous-marin sous l'eau |
 | `pseudo` | toujours inclus : en ligne et en local, votre nom est le pseudo de la console (de l'émulateur), pas « Citra » |
+| `60fps` | le jeu affiche 60 images par seconde (image intermédiaire interpolée) ; la partie reste à 30 pas par seconde, compatible en ligne avec tout le monde |
 | `premium` | version complète, les 23 sous-marins, motifs et équipage débloqués, sans l'eShop ([détails](../docs/premium.md)) |
 | `missions` | les 21 missions du mode solo jouables tout de suite, sans toucher à la sauvegarde |
 | `en-ligne` | jeu en ligne sur un serveur [Sub Wars Open Sourced](../server/README.md), avec ses bots pour un joueur seul et son anti-triche |

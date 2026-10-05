@@ -13,6 +13,8 @@ players do not need keystone. It covers what patches need, with the encodings ke
   branches          b bl [cond] label or absolute address, bx blx rm
   hint              nop (the ARMv6K hint E320F000, as in the game)
   adr               adr rd, label (add/sub rd, pc, #offset)
+  VFPv2 (the 3DS)   vldr vstr [cond] sN|dN, [rn, #±imm]; vadd vsub vmul vdiv vmov vcmp vcmpe [cond].f32 sd, sn, sm
+                    (vcmp with #0); vmov sN, rT and rT, sN; vmrs APSR_nzcv, fpscr; vpush vpop {s..} or {d..}
   directives        .word .long .short .hword .byte .ascii .asciz .string .align n .balign n .space n
   syntax            labels (name:), comments (@ or //), several statements per line separated by ";"
                     numbers in decimal, 0x hexadecimal, 0b binary, 'c', labels and + - between them
@@ -297,7 +299,82 @@ def _split_mnemonic(name: str, bases: list[str], allow_s: bool, middles: tuple[s
     return None
 
 
+def _vfp_register(text: str) -> tuple[str, int]:
+    m = re.match(r"^([sd])(\d+)$", text.strip().lower())
+    if not m or int(m[2]) > 31 or m[1] == "d" and int(m[2]) > 15:      # VFPv2: d0-d15
+        raise AsmError(f"not a VFP register: {text}")
+    return m[1], int(m[2])
+
+
+def _vfp_fields(text: str, d_shift: int, v_shift: int, kind: str = "s") -> int:
+    """A single register sN as Vx:X (Vx = N >> 1 at v_shift, X = N & 1 at d_shift), or a double dN as X:Vx."""
+    k, n = _vfp_register(text)
+    if k != kind:
+        raise AsmError(f"expected an {kind} register: {text}")
+    return (n >> 1) << v_shift | (n & 1) << d_shift if k == "s" else (n & 15) << v_shift | (n >> 4) << d_shift
+
+
+def _vfp(name: str, ops: list[str], pc: int, labels: dict[str, int], final: bool) -> int | None:
+    """The VFPv2 instructions of the 3DS's ARM11 (single precision, and doubles for vldr/vstr/vpush/vpop)."""
+    m = re.match(r"^(vldr|vstr|vadd|vsub|vmul|vdiv|vmov|vcmpe|vcmp|vmrs|vpush|vpop)([a-z]{2})?(\.f32)?$", name)
+    if not m or (m[2] and m[2] not in CONDITIONS):
+        return None
+    base, cond = m[1], CONDITIONS.get(m[2] or "al")
+    word = cond << 28
+    if base in ("vldr", "vstr"):
+        kind, _ = _vfp_register(ops[0])
+        mem = re.match(r"^\[\s*(\w+)\s*(?:,\s*#?(.+?))?\s*\]$", ",".join(ops[1:]).strip())
+        if not mem:
+            raise AsmError(f"{base} takes [rn, #offset]")
+        offset = _value(mem[2], labels, final) if mem[2] else 0
+        if offset & 3 or not -1020 <= offset <= 1020:
+            raise AsmError(f"{base} offset must be a multiple of 4 within ±1020")
+        return (word | 0x0D000A00 | (base == "vldr") << 20 | (offset >= 0) << 23 | _register(mem[1]) << 16
+                | (kind == "d") << 8 | _vfp_fields(ops[0], 22, 12, kind) | abs(offset) >> 2)
+    if base in ("vpush", "vpop"):
+        regs = [r.strip() for r in ",".join(ops).strip().strip("{}").split(",") if r.strip()]
+        names = []
+        for r in regs:
+            first, _, last = r.partition("-")
+            k, a = _vfp_register(first)
+            b = _vfp_register(last)[1] if last else a
+            names += [f"{k}{n}" for n in range(a, b + 1)]
+        kinds = {n[0] for n in names}
+        numbers = [int(n[1:]) for n in names]
+        if len(kinds) != 1 or numbers != list(range(numbers[0], numbers[0] + len(numbers))):
+            raise AsmError(f"{base} takes consecutive registers of one kind")
+        kind = kinds.pop()
+        count = len(numbers) * (2 if kind == "d" else 1)
+        return (word | (0x0D2D0A00 if base == "vpush" else 0x0CBD0A00) | (kind == "d") << 8
+                | _vfp_fields(names[0], 22, 12, kind) | count)
+    if base == "vmrs":
+        if [o.strip().lower() for o in ops] != ["apsr_nzcv", "fpscr"]:
+            raise AsmError("vmrs: only vmrs APSR_nzcv, fpscr")
+        return word | 0x0EF1FA10
+    if base == "vmov" and not m[3]:                     # between a core register and a single
+        if ops[0].strip().lower().startswith("s"):
+            return word | 0x0E000A10 | _register(ops[1]) << 12 | _vfp_fields(ops[0], 7, 16)
+        return word | 0x0E100A10 | _register(ops[0]) << 12 | _vfp_fields(ops[1], 7, 16)
+    if not m[3]:
+        raise AsmError(f"{base} needs .f32")
+    if base in ("vcmp", "vcmpe"):
+        e = (base == "vcmpe") << 7
+        if ops[1].strip() in ("#0", "#0.0"):
+            return word | 0x0EB50A40 | e | _vfp_fields(ops[0], 22, 12)
+        return word | 0x0EB40A40 | e | _vfp_fields(ops[0], 22, 12) | _vfp_fields(ops[1], 5, 0)
+    if base == "vmov":
+        return word | 0x0EB00A40 | _vfp_fields(ops[0], 22, 12) | _vfp_fields(ops[1], 5, 0)
+    opcode = {"vadd": 0x0E300A00, "vsub": 0x0E300A40, "vmul": 0x0E200A00, "vdiv": 0x0E800A00}[base]
+    if len(ops) == 2:                                   # vadd.f32 s0, s1 = vadd.f32 s0, s0, s1
+        ops = [ops[0], ops[0], ops[1]]
+    return word | opcode | _vfp_fields(ops[0], 22, 12) | _vfp_fields(ops[1], 7, 16) | _vfp_fields(ops[2], 5, 0)
+
+
 def _instruction(name: str, ops: list[str], pc: int, labels: dict[str, int], final: bool) -> int:
+    if name.startswith("v"):
+        word = _vfp(name, ops, pc, labels, final)
+        if word is not None:
+            return word
     if name == "nop" or name[3:] in CONDITIONS and name.startswith("nop"):
         if ops:
             raise AsmError("nop takes no operand")

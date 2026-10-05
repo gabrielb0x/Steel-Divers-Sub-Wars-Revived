@@ -113,6 +113,23 @@ KEYSTONE = [
     ('.asciz "save.sub.unlock"', "736176652e7375622e756e6c6f636b00"),
     ('.ascii "abc"', "616263"),
     ('.align 2', ""),
+    ('vldr s0, [r1, #4]', "010a91ed"),
+    ('vldr s31, [r2, #-8]', "02fa52ed"),
+    ('vstr s17, [sp, #-1020]', "ff8a4ded"),
+    ('vldr d8, [r4, #16]', "048b94ed"),
+    ('vadd.f32 s31, s30, s29', "2efa7fee"),
+    ('vsub.f32 s3, s4, s5', "621a72ee"),
+    ('vmul.f32 s16, s17, s18', "898a28ee"),
+    ('vdiv.f32 s0, s0, s1', "200a80ee"),
+    ('vaddeq.f32 s0, s1, s2', "810a300e"),
+    ('vmov s17, r12', "90ca08ee"),
+    ('vmov lr, s30', "10ea1fee"),
+    ('vmov.f32 s31, s0', "40faf0ee"),
+    ('vcmpe.f32 s15, s16', "c87af4ee"),
+    ('vcmp.f32 s3, #0', "401af5ee"),
+    ('vmrs APSR_nzcv, fpscr', "10faf1ee"),
+    ('vpush {d8-d10}', "068b2ded"),
+    ('vpop {s16-s19}', "048abdec"),
 ]
 
 

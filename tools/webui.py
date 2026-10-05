@@ -45,7 +45,7 @@ PAGE = Path(__file__).with_name("webui.html")
 EXTRACTED = ROOT / "extracted"
 MODS_OUT = ROOT / "build" / "mods"
 PREPARED = ROOT / "build" / "azahar"
-MOD_ORDER = ["correctifs", "pseudo", "premium", "missions", "specs", "triche", "vitesse", "en-ligne"]
+MOD_ORDER = ["correctifs", "pseudo", "60fps", "premium", "missions", "specs", "triche", "vitesse", "en-ligne"]
 STATE_FILE = "lanceur.json"
 
 

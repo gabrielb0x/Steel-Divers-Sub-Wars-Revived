@@ -1,0 +1,519 @@
+# Mod « 60fps » : le jeu affiche 60 images par seconde au lieu de 30, sans rien changer à la partie.
+#
+#   tools/mod.py build 60fps --install                    # seul, ou avec d'autres mods (en-ligne, premium…)
+#
+# Ce que fait le jeu : nnMain fait un pas de simulation (scripts, physique, réseau) puis dessine une image,
+# et attend que chaque pas dure deux VBlank de l'écran : 30 pas et 30 images par seconde. Tout le jeu
+# compte en pas (minuteurs des scripts, animations, particules, pas fixe de 1/30 s du moteur) : faire
+# deux pas par image doublerait sa vitesse.
+#
+# Ce que fait le mod : la simulation garde ses 30 pas par seconde, et entre deux images le jeu en dessine
+# une de plus, au milieu du pas : chaque acteur (sous-marins, torpilles, décors mobiles) et la caméra à
+# mi-chemin entre leur état précédent et l'état courant. Pour cette image, la scène est recalculée
+# « en pause » (System::s_paused) : Scene::update n'avance alors ni les animations ni les particules.
+# L'image du milieu montre 1/60 s plus tôt ce que l'image courante montrera ensuite : rien n'est
+# deviné, le jeu garde exactement les mêmes calculs, et une partie en ligne entre une console à 30 et
+# une à 60 images par seconde reste synchronisée.
+#
+# Garde-fous : pas d'image du milieu quand le jeu est en pause, quand rien n'a bougé, pour un acteur qui
+# vient d'apparaître ou qui a sauté de plus de 300 unités (téléportation, changement de scène), pour une
+# caméra qui saute ou tourne de plus de 60° (changement de plan), et quand le pas n'a pas fini sa
+# simulation dans sa première VBlank. Si un pas dépasse malgré tout ses deux VBlank (le jeu ralentirait),
+# le mod repasse à 30 images par seconde 2 secondes, puis 4, 8… jusqu'à une minute.
+#
+# Dans Azahar, l'émulation du processeur compte : si le jeu reste à 30 images par seconde dans les
+# scènes chargées (« App: 30 FPS » dans la barre d'état), augmentez Émulation > Configurer > Débogage >
+# Vitesse d'horloge du CPU (200 % suffit en général). 120 images par seconde sont impossibles dans un
+# émulateur : l'écran de la console émulée se rafraîchit à 60 Hz et l'émulateur montre une image par
+# rafraîchissement. Ce sera pour le portage PC, qui dessinera autant d'images intermédiaires que l'écran
+# en demande (docs/mods.md, « 60 et 120 images par seconde »).
+#
+# Le code ajouté va dans SEQ_WRITELIST_Write (voir docs/mods.md, place libre). Mémoire : un bloc de
+# 13 Ko alloué une fois (operator new) pour l'état précédent des 256 acteurs et de la caméra ; deux mots
+# de main.o que seul l'initialiseur statique écrit (0x0038E630 : la passe, 0x0038E634 : le bloc).
+
+name = "60 images/s"
+description = "Le jeu affiche 60 images par seconde (image intermédiaire interpolée), la partie reste à 30 pas par seconde"
+
+[[code]]
+address = 0x0014BDA0                     # SEQ_WRITELIST_Write (jamais appelée), 0x110-0x793
+expect = "08005a11e100009a"
+max_size = 0x684
+arm = """
+@ ---- nnMain, 0x00100ABC: instead of Fader::update, at the start of the image's drawing (r9: the VBlank count
+@ when the step started). Pass 0: decide on an image in the middle of the step and prepare it; pass 2: the
+@ current state's image, as the game does.
+render_start:
+    ldr r0, pass_addr
+    ldr r1, [r0]
+    cmp r1, #0
+    bne 0x00102BE4                      @ pass 2: Fader::update, then the game's drawing
+    push {r4-r11, lr}
+    bl prepare
+    cmp r0, #0
+    pop {r4-r11, lr}
+    beq 0x00102BE4                      @ no image in the middle: as the game does
+    ldr r0, pass_addr
+    mov r1, #1
+    str r1, [r0]                        @ pass 1: the image in the middle, without Fader::update
+    bx lr
+
+@ ---- nnMain, 0x00100DF4 (mov r4, #0), after Graphics::stopDraw: the image in the middle skips the once-per-step
+@ updates (Renderer::updateDowntime, FaceSystem::update, ParticleManager::cleanupUnused).
+after_stopdraw:
+    ldr r0, pass_addr
+    ldr r0, [r0]
+    cmp r0, #1
+    beq 0x00100E3C                      @ straight to Graphics::flip
+    mov r4, #0
+    b 0x00100DF8
+
+@ ---- nnMain, 0x00100E54 (mov r0, #0), after Graphics::runDraw.
+after_rundraw:
+    ldr r1, pass_addr
+    ldr r0, [r1]
+    cmp r0, #1
+    beq after_middle
+    cmp r0, #2
+    bne after_done
+    mov r0, #0
+    str r0, [r1]
+    bl overrun
+after_done:
+    mov r0, #0
+    b 0x00100E58                        @ the game's yield and wait for the second VBlank
+after_middle:
+    mov r0, #2
+    str r0, [r1]
+    bl finish
+    b 0x00100ABC                        @ the drawing again, for the current state
+
+@ prepare() -> r0 = 1 when the scene is set in the middle of the step. Always keeps the current state of the
+@ actors and of the camera for the next step. Block: +0 step, +4 cooldown, +8 backoff, +12 VBlank count at the
+@ previous step, +16 an image in the middle this step, +24 camera (position, target, direction, step), +64 the
+@ 256 actors (matrix, step; bit 31: moved to the middle).
+prepare:
+    push {r4-r11, lr}
+    ldr r4, pass_addr
+    ldr r5, [r4, #4]
+    cmp r5, #0
+    bne prepare_block
+    ldr r0, block_size
+    bl 0x00254000                       @ operator new
+    movs r5, r0
+    beq prepare_no
+    mov r1, #0
+    ldr r2, block_size
+prepare_clear:
+    subs r2, r2, #4
+    str r1, [r5, r2]
+    bne prepare_clear
+    mov r0, #60
+    str r0, [r5, #8]                    @ backoff: 2 seconds
+    str r5, [r4, #4]
+prepare_block:
+    ldr r0, [r5]
+    add r0, r0, #2                      @ the next step; one more after a gap (loading): old states are stale
+    ldr r1, [r5, #12]
+    str r9, [r5, #12]
+    sub r1, r9, r1
+    cmp r1, #4
+    subls r0, r0, #1
+    str r0, [r5]
+    mov r1, #0
+    str r1, [r5, #16]
+    mov r6, #0                          @ r6: an image in the middle
+    ldr r0, [r5, #4]                    @ cooldown after a step that ran late
+    cmp r0, #0
+    subne r0, r0, #1
+    strne r0, [r5, #4]
+    bne prepare_decided
+    ldr r0, paused_addr
+    ldrb r0, [r0]
+    cmp r0, #0
+    bne prepare_decided
+    bl 0x0010E098                       @ Graphics::getVBlankCount
+    cmp r0, r9
+    moveq r6, #1                        @ the simulation fit in the step's first VBlank
+prepare_decided:
+    mov r7, #0                          @ r7: what moves to the middle
+    ldr r0, world_addr
+    ldr r8, [r0]                        @ g_world
+    cmp r8, #0
+    beq prepare_camera
+    ldr r10, [r8, #0x414]               @ actorCount
+    cmp r10, #256
+    movgt r10, #256
+    mov r11, #0
+actor_loop:
+    cmp r11, r10
+    bge prepare_camera
+    ldr r0, [r8, r11, lsl #2]
+    add r11, r11, #1
+    ldrb r1, [r0, #4]                   @ active
+    cmp r1, #0
+    beq actor_loop
+    ldrb r1, [r0, #8]                   @ idle (far from the camera, not updated)
+    cmp r1, #0
+    bne actor_loop
+    ldr r1, [r0, #0x13C]                @ layout (2D): not interpolated
+    cmp r1, #0
+    bne actor_loop
+    ldr r1, [r0, #0x138]                @ model
+    cmp r1, #0
+    beq actor_loop
+    ldr r1, [r1, #0xC]                  @ its scene node: transform matrix +0x4C, flags +0x88
+    cmp r1, #0
+    beq actor_loop
+    add r0, r0, #0xB8                   @ Actor::matrix: the current state, as Actor::updateMatrix set it
+    mov r2, #52
+    mul r3, r11, r2
+    add r2, r5, r3
+    add r2, r2, #12                     @ r2: the saved state of this actor (block + 64 + index * 52)
+    cmp r6, #0
+    beq actor_save
+    ldr r3, [r2, #48]
+    bic r3, r3, #0x80000000
+    ldr r12, [r5]
+    sub r12, r12, #1
+    cmp r3, r12
+    bne actor_save                      @ nothing saved at the previous step
+    mov r3, #0
+actor_same:
+    ldr r12, [r0, r3]
+    ldr lr, [r2, r3]
+    cmp r12, lr
+    bne actor_moved
+    add r3, r3, #4
+    cmp r3, #48
+    blo actor_same
+    b actor_save                        @ it did not move
+actor_moved:
+    add r12, r1, #0x4C
+    mov r3, #0
+actor_node:
+    ldr r4, [r0, r3]
+    ldr lr, [r12, r3]
+    cmp r4, lr
+    bne actor_save                      @ its node is placed by something else (an attachment): left alone
+    add r3, r3, #4
+    cmp r3, #48
+    blo actor_node
+    vldr s0, [r0, #12]
+    vldr s1, [r2, #12]
+    vsub.f32 s0, s0, s1
+    vmul.f32 s0, s0, s0
+    vldr s1, [r0, #28]
+    vldr s2, [r2, #28]
+    vsub.f32 s1, s1, s2
+    vmul.f32 s1, s1, s1
+    vadd.f32 s0, s0, s1
+    vldr s1, [r0, #44]
+    vldr s2, [r2, #44]
+    vsub.f32 s1, s1, s2
+    vmul.f32 s1, s1, s1
+    vadd.f32 s0, s0, s1
+    ldr r3, limit_sq
+    vmov s1, r3
+    vcmpe.f32 s0, s1
+    vmrs APSR_nzcv, fpscr
+    bgt actor_save                      @ a jump, not a motion
+    ldr r3, half
+    vmov s2, r3
+    add r1, r1, #0x4C
+    mov r3, #12
+actor_middle:
+    vldr s0, [r0]
+    vldr s1, [r2]
+    vstr s0, [r2]                       @ saved = current
+    vadd.f32 s1, s1, s0
+    vmul.f32 s1, s1, s2
+    vstr s1, [r1]                       @ node = (previous + current) / 2
+    add r0, r0, #4
+    add r1, r1, #4
+    add r2, r2, #4
+    subs r3, r3, #1
+    bne actor_middle
+    ldr r3, [r1, #12]                   @ r1 = node + 0x7C: its flags at + 0x88, "transform changed"
+    orr r3, r3, #0x800
+    str r3, [r1, #12]
+    ldr r3, [r5]
+    orr r3, r3, #0x80000000
+    str r3, [r2]
+    add r7, r7, #1
+    b actor_loop
+actor_save:
+    mov r3, #12
+actor_copy:
+    ldr r12, [r0], #4
+    str r12, [r2], #4
+    subs r3, r3, #1
+    bne actor_copy
+    ldr r3, [r5]
+    str r3, [r2]
+    b actor_loop
+
+@ the camera of renderer 0 (Camera +0xC0, set by gfxCameraLookAt: position +0xC4, target +0xD0, direction +0xE8)
+prepare_camera:
+    mov r10, #0                         @ r10: the camera moved to the middle (its current values on the stack)
+    ldr r0, renderers
+    ldr r8, [r0]                        @ Renderer::getRenderer(0)
+    add r0, r8, #0x1000
+    ldr r0, [r0, #0x13C]
+    cmp r0, #0
+    beq prepare_scene                   @ no camera
+    add r2, r5, #24
+    vldr s0, [r2]                       @ the saved position and target
+    vldr s1, [r2, #4]
+    vldr s2, [r2, #8]
+    vldr s3, [r2, #12]
+    vldr s4, [r2, #16]
+    vldr s5, [r2, #20]
+    vldr s6, [r2, #24]                  @ and direction
+    vldr s7, [r2, #28]
+    vldr s8, [r2, #32]
+    ldr r12, [r2, #36]
+    mov r11, #0                         @ r11: changed since the previous step
+    add r0, r8, #0xC4
+    mov r3, #6
+camera_copy:
+    ldr r1, [r0], #4
+    ldr lr, [r2]
+    cmp r1, lr
+    movne r11, #1
+    str r1, [r2], #4
+    subs r3, r3, #1
+    bne camera_copy
+    ldr r1, [r8, #0xE8]
+    str r1, [r2]
+    ldr r1, [r8, #0xEC]
+    str r1, [r2, #4]
+    ldr r1, [r8, #0xF0]
+    str r1, [r2, #8]
+    ldr r1, [r5]
+    str r1, [r2, #12]
+    cmp r6, #0
+    beq prepare_scene
+    cmp r11, #0
+    beq prepare_scene                   @ the camera did not move
+    sub r1, r1, #1
+    cmp r12, r1
+    bne prepare_scene                   @ no camera at the previous step
+    vldr s9, [r8, #0xC4]
+    vsub.f32 s9, s9, s0
+    vmul.f32 s9, s9, s9
+    vldr s10, [r8, #0xC8]
+    vsub.f32 s10, s10, s1
+    vmul.f32 s10, s10, s10
+    vadd.f32 s9, s9, s10
+    vldr s10, [r8, #0xCC]
+    vsub.f32 s10, s10, s2
+    vmul.f32 s10, s10, s10
+    vadd.f32 s9, s9, s10
+    ldr r1, limit_sq
+    vmov s10, r1
+    vcmpe.f32 s9, s10
+    vmrs APSR_nzcv, fpscr
+    bgt prepare_scene                   @ a cut: the camera jumped
+    vldr s9, [r8, #0xE8]
+    vmul.f32 s9, s9, s6
+    vldr s10, [r8, #0xEC]
+    vmul.f32 s10, s10, s7
+    vadd.f32 s9, s9, s10
+    vldr s10, [r8, #0xF0]
+    vmul.f32 s10, s10, s8
+    vadd.f32 s9, s9, s10
+    ldr r1, half
+    vmov s15, r1
+    vcmpe.f32 s9, s15
+    vmrs APSR_nzcv, fpscr
+    blt prepare_scene                   @ a cut: the view turned by more than 60 degrees
+    sub sp, sp, #24
+    add r0, r8, #0xC4
+    mov r3, #0
+camera_keep:
+    ldr r1, [r0, r3]
+    str r1, [sp, r3]
+    add r3, r3, #4
+    cmp r3, #24
+    blo camera_keep
+    vldr s9, [r8, #0xC4]
+    vadd.f32 s9, s9, s0
+    vmul.f32 s9, s9, s15
+    vstr s9, [r8, #0xC4]
+    vldr s9, [r8, #0xC8]
+    vadd.f32 s9, s9, s1
+    vmul.f32 s9, s9, s15
+    vstr s9, [r8, #0xC8]
+    vldr s9, [r8, #0xCC]
+    vadd.f32 s9, s9, s2
+    vmul.f32 s9, s9, s15
+    vstr s9, [r8, #0xCC]
+    vldr s9, [r8, #0xD0]
+    vadd.f32 s9, s9, s3
+    vmul.f32 s9, s9, s15
+    vstr s9, [r8, #0xD0]
+    vldr s9, [r8, #0xD4]
+    vadd.f32 s9, s9, s4
+    vmul.f32 s9, s9, s15
+    vstr s9, [r8, #0xD4]
+    vldr s9, [r8, #0xD8]
+    vadd.f32 s9, s9, s5
+    vmul.f32 s9, s9, s15
+    vstr s9, [r8, #0xD8]
+    mov r10, #1
+    add r7, r7, #1
+
+@ the scene at the middle of the step: camera and world matrices, without moving time (paused)
+prepare_scene:
+    cmp r6, #0
+    beq prepare_no
+    cmp r7, #0
+    beq prepare_no                      @ nothing moved
+    ldr r4, paused_addr
+    ldrb r11, [r4]
+    mov r1, #1
+    strb r1, [r4]
+    mov r0, r8
+    bl 0x0010D630                       @ Renderer::preCullUpdate, which runs into Renderer::updateCamera
+    mov r0, r8
+    bl 0x0010D9B0                       @ Renderer::update
+    strb r11, [r4]
+    cmp r10, #0
+    beq prepare_yes
+    add r0, r8, #0xC4                   @ the renderer's camera back to the current values (scripts read them)
+    mov r3, #0
+camera_back:
+    ldr r1, [sp, r3]
+    str r1, [r0, r3]
+    add r3, r3, #4
+    cmp r3, #24
+    blo camera_back
+    add sp, sp, #24
+prepare_yes:
+    mov r0, #1
+    str r0, [r5, #16]
+    pop {r4-r11, pc}
+prepare_no:
+    mov r0, #0
+    pop {r4-r11, pc}
+
+@ finish(): after the image in the middle, shown for one VBlank; then the current state back into the scene.
+finish:
+    push {r4-r11, lr}
+finish_wait:
+    bl 0x0010E098                       @ Graphics::getVBlankCount
+    cmp r0, r9
+    bne finish_restore
+    bl 0x0024D610                       @ Graphics::waitVBlank
+    b finish_wait
+finish_restore:
+    ldr r4, pass_addr
+    ldr r5, [r4, #4]
+    ldr r0, world_addr
+    ldr r8, [r0]
+    cmp r8, #0
+    beq finish_scene
+    ldr r10, [r8, #0x414]
+    cmp r10, #256
+    movgt r10, #256
+    mov r11, #0
+finish_loop:
+    cmp r11, r10
+    bge finish_scene
+    ldr r0, [r8, r11, lsl #2]
+    add r11, r11, #1
+    mov r2, #52
+    mul r3, r11, r2
+    add r2, r5, r3
+    add r2, r2, #12
+    ldr r3, [r2, #48]
+    tst r3, #0x80000000
+    beq finish_loop                     @ not moved to the middle
+    bic r3, r3, #0x80000000
+    str r3, [r2, #48]
+    ldr r1, [r0, #0x138]
+    ldr r1, [r1, #0xC]
+    add r0, r0, #0xB8
+    add r1, r1, #0x4C
+    mov r3, #12
+finish_copy:
+    ldr r12, [r0], #4
+    str r12, [r1], #4
+    subs r3, r3, #1
+    bne finish_copy
+    ldr r3, [r1, #12]
+    orr r3, r3, #0x800
+    str r3, [r1, #12]
+    b finish_loop
+finish_scene:
+    ldr r4, paused_addr
+    ldrb r11, [r4]
+    mov r1, #1
+    strb r1, [r4]
+    ldr r0, renderers
+    ldr r0, [r0]
+    bl 0x0010D630                       @ the current camera
+    ldr r0, renderers
+    ldr r0, [r0]
+    bl 0x0010D9B0                       @ the current matrices
+    strb r11, [r4]
+    pop {r4-r11, pc}
+
+@ overrun(): after a step with an image in the middle, if the current state's image ran past the step's second
+@ VBlank, 30 images per second for a while (2 s, then twice as long each time, up to a minute).
+overrun:
+    push {r4, r5, lr}
+    ldr r4, pass_addr
+    ldr r5, [r4, #4]
+    cmp r5, #0
+    popeq {r4, r5, pc}
+    ldr r0, [r5, #16]
+    cmp r0, #0
+    popeq {r4, r5, pc}
+    bl 0x0010E098                       @ Graphics::getVBlankCount
+    sub r0, r0, r9
+    cmp r0, #2
+    blo overrun_ok
+    ldr r0, [r5, #8]
+    str r0, [r5, #4]
+    add r0, r0, r0
+    cmp r0, #1792
+    movhi r0, #1792
+    str r0, [r5, #8]
+    pop {r4, r5, pc}
+overrun_ok:
+    mov r0, #60
+    str r0, [r5, #8]
+    pop {r4, r5, pc}
+
+pass_addr:
+    .word 0x0038E630                    @ +0 the pass, +4 the block (main.o, written only by its static initializer)
+paused_addr:
+    .word 0x0038EB9E                    @ System::s_paused
+world_addr:
+    .word 0x0038E2B4                    @ g_world
+renderers:
+    .word 0x0038E50C                    @ the renderers (Renderer::getRenderer)
+block_size:
+    .word 13376                         @ 64 + 256 * 52
+limit_sq:
+    .word 0x47AFC800                    @ 300.0 * 300.0
+half:
+    .word 0x3F000000                    @ 0.5 (also cos 60 degrees)
+"""
+
+[[code]]
+address = 0x00100ABC                     # nnMain : bl Fader::update
+expect = "480800eb"
+arm = "bl ${arm_render_start}"
+
+[[code]]
+address = 0x00100DF4                     # nnMain : mov r4, #0, après Graphics::stopDraw
+expect = "0040a0e3"
+arm = "b ${arm_after_stopdraw}"
+
+[[code]]
+address = 0x00100E54                     # nnMain : mov r0, #0, après Graphics::runDraw
+expect = "0000a0e3"
+arm = "b ${arm_after_rundraw}"

@@ -76,6 +76,11 @@ cd server && python3 -m sdsw_server                        # le serveur (royaume
   la mémoire et se faisait tuer par le système. C'est un bug du JIT de shaders d'Azahar (et de Citra), déclenché
   par le geometry shader de la nappe d'huile ; le mod `correctifs`, inclus dans tous les mods, le contourne
   ([docs/mods.md](docs/mods.md#correctifs)).
+- **60 images par seconde** : le mod `60fps` dessine une image intermédiaire entre deux pas de simulation (acteurs
+  et caméra à mi-chemin) ; la partie elle-même reste à 30 pas par seconde, donc identique et compatible en ligne
+  avec des joueurs à 30. Dans Azahar, si le jeu reste à 30 dans les scènes chargées, monter Émulation >
+  Configurer > Débogage > Vitesse d'horloge du CPU à 200 %. 120 images/s : impossible dans un émulateur (l'écran
+  émulé est à 60 Hz), prévu dans le portage PC ([docs/mods.md](docs/mods.md#60-et-120-images-par-seconde)).
 - **Autres mods** : `missions` (les 21 missions jouables tout de suite, sans toucher à la sauvegarde), `vitesse`
   (votre sous-marin ×2, ×3, ×5, ×10 ou ×15), `triche` (invincible, torpilles infinies et tir sans délai…).
 
