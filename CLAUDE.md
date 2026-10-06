@@ -28,6 +28,9 @@ make azahar     tools/azahar.py prepare -> build/azahar/ (CIA without the encryp
 tools/mod.py build <name>... [--install] [--cxi]   mods/<name>/mod.toml -> build/mods/<a+b>/ -> Azahar load/mods/00040000000D7E00/
 tools/save.py, tools/subs.py                        save editor (Azahar save), submarine characteristics (mod "specs")
 tools/shbin.py <file.shbin> [--check]               PICA200 shader disassembler; --check: loops Azahar's JIT runs wrong
+make pawncc bots     build/pawncc (Pawn 3.3, built with -D_I32_MAX/_I32_MIN: else cellmin = 0 on 64 bits), then
+                     tools/pawn2pasm.py mods/en-ligne/src/*.p -> mods/en-ligne/*.pasm (Pawn source of the bots' AI)
+tools/botsim.py                                     bot sandbox: AMX interpreter + small world (docs/bots.md)
 python3 subwars.py                                  players' launcher: local web UI (tools/webui.py + webui.html)
 python3 -m unittest discover -s tools/tests         tests of the players' tools (no game file needed)
 cd server && python3 -m sdsw_server        online server (realms "emulateur" and "pc", serveur.toml); tests: python3 -m unittest discover -s tests -t .
@@ -73,6 +76,12 @@ Ghidra scripts are Java (`ghidra/scripts/`), compiled by Ghidra 12.1.4; check th
   `public_address = "auto"` (UPnP, then STUN), `upnp = true`. The launcher stops any `sdsw_server` holding the
   ports before starting its own, and starts it with `--exit-with-stdin`. Never `pkill -f` a pattern that also
   matches the shell running the command.
+- Online bots (docs/bots.md): our pilot replaces surface_sub's (which sets its position without reading its
+  collisions, and whose "enemy" torpedoes skip every computer sub and only damage the local player). Pawn source
+  in mods/en-ligne/src (`// @game g_X`, `// @call 0xADDR f()`, hooks in `/* asm */`); the generated .pasm are
+  committed. worldClipLine(from, dir, length, typeMask) returns the distance to the first hit;
+  worldFindActors(found, center, radius, typeMask, max) only finds visible actors. @eventCollide(other, point,
+  normal...): normal points away from the other actor.
 - Azahar crash "torpedo hits a sub underwater" = OOM kill, not a game bug: Azahar's x64 shader JIT clobbers the
   outer LOOP counter when a subroutine CALLed from a loop has its own LOOP (geometry shader of the oil metaballs,
   shaders/metaball.shbin) -> ~4e9 iterations emitting triangles. mods/correctifs (always = true, in every build)

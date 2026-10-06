@@ -331,9 +331,22 @@ asm_file = "bots_bataille.pasm"
 file = "amx/game_state.amx"
 asm_file = "bots_partie.pasm"
 
+# Les sous-marins pilotés par l'ordinateur des parties en ligne (bots du serveur, et ceux que le jeu ajoute pour
+# compléter les équipes) jouent comme des joueurs : physique et caractéristiques d'un sous-marin de joueur,
+# collisions avec la carte et les autres sous-marins, combat contre tout ennemi (joueurs et bots), visée
+# là où sera la cible, torpilles à tête chercheuse, esquive, masqueur et repli quand la coque est basse.
+# Écrits en Pawn (src/*.p), compilés en assembleur par tools/pawn2pasm.py ; les .pasm sont générés.
 [[amx]]
 file = "amx/surface_sub.amx"
 asm_file = "bots_ia.pasm"
+
+[[amx]]
+file = "amx/surface_torpedo.amx"
+asm_file = "bots_torpille.pasm"
+
+[[amx]]
+file = "amx/surface_torpedo_p_homing.amx"
+asm_file = "bots_torpille_tc.pasm"
 
 # -- Anti-triche (anti_triche_*.pasm), quand le serveur n'autorise pas la triche (server.anticheat) --------
 # Chaque console surveille son propre sous-marin en bataille : dégâts annulés sans raison du jeu,

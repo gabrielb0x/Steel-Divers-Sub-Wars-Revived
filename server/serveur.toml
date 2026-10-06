@@ -33,9 +33,10 @@ status_port = 0                 # page d'état (joueurs en ligne, parties) en HT
 #                   4 bots), "2v3"… de 1 à 4 par équipe ; si quelqu'un vous rejoint avant la bataille, il
 #                   joue avec vous et les bots complètent
 #   bots_map        "aleatoire", ou le numéro de la carte : 1, 2, 4 à 10 (le lanceur affiche leurs noms)
-#   bots_level      "normal" (les bots du jeu d'origine), "difficile" ou "expert" (plus rapides, visent
-#                   la cible la plus proche là où elle sera, tirent dès qu'ils sont alignés) ; vaut
-#                   pour tous les bots des parties en ligne, pas seulement ceux des parties à un joueur
+#   bots_level      "normal", "difficile" ou "expert" : des bots qui pilotent comme des joueurs (visée
+#                   là où sera la cible, esquive, masqueur…) ; le niveau règle leurs réflexes et leur
+#                   précision ; vaut pour tous les bots des parties en ligne, pas seulement ceux des
+#                   parties à un joueur
 #   bots_countdown  secondes de compte à rebours avant la bataille contre les bots (10)
 #   bots_duration   minutes d'une bataille contre les bots, de 1 à 30 (5) ; remplace duration pour elles
 # Pour bannir un joueur : son identifiant (journal du serveur : « login pid … ») sur une ligne de

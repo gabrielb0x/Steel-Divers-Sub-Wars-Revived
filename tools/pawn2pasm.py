@@ -1,0 +1,306 @@
+#!/usr/bin/env python3
+"""Compile Pawn source into Pawn assembly for tools/amxasm.py: new code for a script of the game, written
+in Pawn instead of assembly (mods/*/src/*.p -> mods/*/*.pasm).
+
+    tools/pawn2pasm.py mods/en-ligne/src/bots_ia.p        # writes mods/en-ligne/bots_ia.pasm
+
+A tool of the developers, not of the players: the .pasm it writes is committed, and tools/mod.py assembles it
+with Python alone. It needs the Pawn 3.3 compiler (`make pawncc`, build/pawncc) and the dump (the game's script,
+for the size of its data).
+
+The source is ordinary Pawn, compiled by pawncc, with three additions read by this tool:
+
+    // @target amx/surface_sub.amx                        the script the code goes into
+    // @game Float:g_1ca0[3]                              a global of that script (decomp/scripts/<name>.p)
+    // @call 0x2ea0 spawnActor(const name[], const Float:position[3])   a function of that script
+
+Globals of the game: the tool puts in front of the source a declaration of the script's whole data segment,
+the named globals at their addresses and fillers between them, so the compiled code reads and writes them at
+their real addresses, and everything the source adds (globals, strings) comes after the end of the script's
+data, where tools/amxasm.py appends new data: the .pasm starts with `.data_at <size>`, which checks it. No
+address of the compiled code has to be translated.
+
+Functions of the game: a stub of that name is compiled and its calls become `call <address>`.
+
+Assembly that stays hand-written (the hooks into the game's code) goes in comments `/* asm ... */` of the
+source, copied as they are after the compiled code; it calls the Pawn functions by their names (`call @name`;
+`call @name` of a Pawn function pushes its arguments and their size in bytes first, as Pawn does).
+"""
+
+from __future__ import annotations
+
+import argparse
+import os
+import re
+import struct
+import subprocess
+import sys
+import tempfile
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+
+from amxasm import AmxImage  # noqa: E402
+
+PAWNCC = Path(os.environ.get("PAWNCC", ROOT / "build" / "pawncc"))
+ROMFS = ROOT / "extracted" / "romfs"
+INCLUDES = [ROOT / "decomp" / "pawn"]
+
+_GAME = re.compile(r"^\s*//\s*@game\s+(?:(\w+):)?(g_([0-9a-fA-F]+))(?:\[(\w+)\])?(?:\s.*)?$")
+_CALL = re.compile(r"^\s*//\s*@call\s+(0x[0-9a-fA-F]+)\s+((?:\w+:)?(\w+)\s*\(([^)]*)\))(?:\s.*)?$")
+_TARGET = re.compile(r"^\s*//\s*@target\s+(\S+)\s*$")
+_ASM = re.compile(r"/\*\s*asm\b(.*?)\*/", re.S)
+_HEX = re.compile(r"^-?[0-9a-fA-F]{8}$")
+
+BRANCH = {"jump", "jzer", "jnz", "jeq", "jneq", "jless", "jleq", "jgrtr", "jgeq", "jsless", "jsleq",
+          "jsgrtr", "jsgeq", "jrel"}
+
+
+class Pawn2PasmError(Exception):
+    pass
+
+
+def _cells(n: str) -> int:
+    return int(n, 0)
+
+
+def _params(prototype: str) -> list[str]:
+    """Names of the parameters of a prototype's parameter list."""
+    names = []
+    for p in filter(None, (x.strip() for x in prototype.split(","))):
+        if p == "...":
+            continue
+        m = re.search(r"(\w+)\s*(?:\[[^\]]*\])*\s*(?:=.*)?$", p.lstrip("&"))
+        if m:
+            names.append(m[1])
+    return names
+
+
+def prelude(source: str, data_size: int) -> tuple[str, dict[str, int], int]:
+    """Pawn declarations of the script's data segment, the game functions' stubs (name -> address), and the
+    number of lines of the declarations (for the line numbers of the compiler's messages)."""
+    globals_: list[tuple[int, str, int, str]] = []
+    for line in source.splitlines():
+        m = _GAME.match(line)
+        if m:
+            address, size = int(m[3], 16), _cells(m[4]) if m[4] else 1
+            if address % 4:
+                raise Pawn2PasmError(f"{m[2]}: unaligned")
+            globals_.append((address, m[2], size, m[1] or ""))
+    globals_.sort()
+    lines = ["#pragma rational Float", "// data segment of the game's script (tools/pawn2pasm.py)"]
+    declared: list[tuple[str, int, str]] = []                  # (name, cells, tag)
+    at = 0
+    for n, (address, name, size, tag) in enumerate(globals_):
+        if address < at:
+            raise Pawn2PasmError(f"{name} overlaps the global before it")
+        if address > at:
+            declared.append((f"__game{n}", (address - at) // 4, ""))
+        declared.append((name, size, tag))
+        at = address + 4 * size
+    if at > data_size:
+        raise Pawn2PasmError(f"globals beyond the script's data ({data_size:#x} bytes)")
+    if at < data_size:
+        declared.append(("__game_end", (data_size - at) // 4, ""))
+    for name, size, tag in declared:
+        lines.append(f"new {tag + ':' if tag else ''}{name}{f'[{size}]' if size > 1 else ''};")
+    # Pawn leaves out the globals nothing uses: one function (not output) uses them all, in order
+    lines.append("forward __touch_game();\npublic __touch_game() {\n" + "".join(
+        f"    {name}{'[0]' if size > 1 else ''} = {tag + ':' if tag else ''}0;\n" for name, size, tag in declared)
+        + "}")
+    calls: dict[str, int] = {}
+    for line in source.splitlines():
+        m = _CALL.match(line)
+        if m:
+            calls[m[3]] = int(m[1], 16)
+            unused = _params(m[4])
+            body = (f"#pragma unused {', '.join(unused)}\n" if unused else "")
+            lines.append(f"stock {m[2]} {{\n{body}    return 0;\n}}")
+    text = "\n".join(lines) + "\n"
+    return text, calls, text.count("\n")
+
+
+def natives_of(amx: bytes) -> tuple[list[str], list[str]]:
+    """Native and public names of a compiled script."""
+    img = AmxImage.parse(amx)
+    return [name for _, name, _ in img.natives], [name for _, name, _ in img.publics]
+
+
+def _label(name: str) -> str:
+    """A label of amxasm for a Pawn function name (operators included)."""
+    ops = {"*": "mul", "/": "div", "+": "add", "-": "sub", "%": "mod", "<": "lt", ">": "gt", "=": "eq",
+           "!": "not", "(": "_", ")": "", ":": "", ",": "_", "&": "and", "|": "or", "^": "xor", "~": "inv",
+           "@": "at_"}
+    out = "".join(ops.get(c, c) for c in name)
+    out = re.sub(r"\W", "_", out)
+    return "pw_" + out
+
+
+def convert(listing: str, natives: list[str], publics: list[str], calls: dict[str, int], data_size: int,
+            module: str) -> tuple[list[str], list[str]]:
+    """The compiler's assembly listing -> amxasm code lines and data cells."""
+    code: list[str] = []
+    data: dict[int, int] = {}
+    section, at = None, 0
+    skip = False                      # inside a proc that is not output (game stubs, main)
+    for raw in listing.splitlines():
+        line = raw.split(";", 1)
+        text, comment = line[0].strip(), (line[1].strip() if len(line) > 1 else "")
+        if not text:
+            continue
+        words = text.split()
+        if words[0] in ("CODE", "DATA"):
+            section = words[0]
+            at = int(comment, 16) if section == "DATA" else 0
+            continue
+        if words[0] == "STKSIZE":
+            continue
+        if section == "DATA":
+            if words[0] != "dump":
+                raise Pawn2PasmError(f"unexpected data line: {raw}")
+            for w in words[1:]:
+                data[at] = s32(int(w, 16))
+                at += 4
+            continue
+        mnemonic = words[0]
+        if mnemonic == "halt" and not code:
+            continue                                           # the program's exit point
+        if mnemonic == "proc":
+            name = comment.split()[0] if comment else ""
+            skip = name in calls or name in ("main", "__touch_game")
+            if not skip:
+                if name in publics and name.startswith("@"):
+                    code.append(f".public {name}")       # other publics: only kept by the compiler
+                code.append(f"{_label(name)}:")
+                code.append("    proc")
+            continue
+        if skip:
+            continue
+        if re.fullmatch(r"l\.[0-9a-fA-F]+", mnemonic):
+            code.append(f"{module}_l{int(mnemonic[2:], 16)}:")
+            continue
+        if mnemonic in ("switch", "casetbl", "case", "icasetbl", "icase"):
+            raise Pawn2PasmError("switch statements are not supported: use if/else")
+        if mnemonic in ("break", "line", "file", "symbol", "srange", "symtag"):
+            continue
+        operands = words[1:]
+        if mnemonic == "sysreq.c":
+            index = int(operands[0], 16)
+            code.append(f"    sysreq.c {natives[index]}")
+            continue
+        if mnemonic == "call":
+            target = comment if comment else operands[0]
+            target = target.split()[0] if target else ""
+            if not target or _HEX.match(target.split(">")[0]):
+                raise Pawn2PasmError(f"call without a name: {raw}")
+            if target in calls:
+                code.append(f"    call {calls[target]:#x}")
+            else:
+                code.append(f"    call @{_label(target)}")
+            continue
+        if mnemonic in BRANCH:
+            code.append(f"    {mnemonic} @{module}_l{int(operands[0], 16)}")
+            continue
+        out = []
+        for o in operands:
+            if _HEX.match(o):
+                value = s32(int(o, 16))
+                out.append(f"{value:#x}" if value >= 0 else str(value))
+            else:
+                raise Pawn2PasmError(f"unexpected operand {o!r}: {raw}")
+        code.append(f"    {mnemonic} {', '.join(out)}".rstrip())
+
+    # push.c <bytes>, sysreq.c <native>, stack <bytes + 4> -> sysreq.n <native>, <arguments>: the form the
+    # game's scripts use (the compiler's macro instruction)
+    folded: list[str] = []
+    k = 0
+    while k < len(code):
+        if (k + 2 < len(code) and code[k].startswith("    push.c ") and code[k + 1].startswith("    sysreq.c ")
+                and code[k + 2].startswith("    stack ")):
+            nbytes = int(code[k].split()[1], 0)
+            if int(code[k + 2].split()[1], 0) == nbytes + 4 and nbytes % 4 == 0:
+                folded.append(f"    sysreq.n {code[k + 1].split()[1]}, {nbytes // 4}")
+                k += 3
+                continue
+        folded.append(code[k])
+        k += 1
+    code = folded
+
+    # data: the game's own (zeros of the declarations of the prelude), then ours
+    own = sorted(a for a in data if a >= data_size)
+    if own and own[0] != data_size:
+        raise Pawn2PasmError(f"the new data starts at {own[0]:#x}, not at the end of the script's ({data_size:#x})")
+    for a, b in zip(own, own[1:]):
+        if b != a + 4:
+            raise Pawn2PasmError(f"hole in the new data at {a:#x}")
+    if any(data[a] for a in data if a < data_size):
+        raise Pawn2PasmError("a global of the game has an initial value: declare it without one")
+    return code, [f"{data[a]:#x}" if data[a] >= 0 else str(data[a]) for a in own]
+
+
+def s32(value: int) -> int:
+    return struct.unpack("<i", struct.pack("<I", value & 0xFFFFFFFF))[0]
+
+
+def build(path: Path, out: Path | None = None) -> Path:
+    source = path.read_text(encoding="utf-8")
+    m = next((m for m in map(_TARGET.match, source.splitlines()) if m), None)
+    if m is None:
+        raise Pawn2PasmError(f"{path}: no // @target line")
+    target = m[1]
+    game = AmxImage.parse((ROMFS / target).read_bytes())
+    data_size = len(game.data)
+    head, calls, head_lines = prelude(source, data_size)
+    module = re.sub(r"\W", "_", path.stem)
+    pasm = out or path.parent.parent / f"{path.stem}.pasm"
+    if not PAWNCC.exists():
+        raise Pawn2PasmError(f"no Pawn compiler at {PAWNCC} (make pawncc)")
+    with tempfile.TemporaryDirectory() as tmp:
+        src = Path(tmp) / f"{module}.p"
+        src.write_text(head + f'#line 1\n#file "{path.name}"\n' + source, encoding="utf-8")
+        includes = [f"-i{p}" for p in [path.parent, *INCLUDES]]
+        common = [str(PAWNCC), str(src), "-d0", "-O1", "-;+", *includes]
+        result = subprocess.run(common + [f"-o{Path(tmp) / module}"], capture_output=True, text=True)
+        messages = [l for l in (result.stdout + result.stderr).splitlines()
+                    if re.search(r"\b(error|warning)\b", l)]
+        # warnings about the declarations of the prelude (unused fillers) are expected
+        from_asm = set(re.findall(r"@pw_(\w+)", "\n".join(_ASM.findall(source))))
+        messages = [l for l in messages if not re.search(r"__game|__touch_game|symbol is (never used|assigned a value that is never used): \"g_", l)
+                    and not any(f'symbol is never used: "{name}"' in l for name in from_asm)]
+        if result.returncode or messages:
+            raise Pawn2PasmError("\n".join(messages) or result.stdout)
+        natives, publics = natives_of((Path(tmp) / f"{module}.amx").read_bytes())
+        subprocess.run(common + ["-a", f"-o{Path(tmp) / module}"], capture_output=True, text=True, check=True)
+        listing = (Path(tmp) / f"{module}.asm").read_text(encoding="latin-1")
+    code, cells = convert(listing, natives, publics, calls, data_size, module)
+    hooks = [block.strip("\n") for block in _ASM.findall(source)]
+    lines = [f"; Generated by tools/pawn2pasm.py from src/{path.name}: edit the source, then run",
+             f";   tools/pawn2pasm.py mods/{path.parent.parent.name}/src/{path.name}",
+             f"; Target: {target}.", "",
+             f".data_at {data_size:#x}"]
+    if cells:
+        for k in range(0, len(cells), 16):
+            lines.append((f".cells $pawn_data {', '.join(cells[k:k + 16])}" if k == 0
+                          else f".cells $pawn_data{k // 16} {', '.join(cells[k:k + 16])}"))
+    lines += ["", "; ---- hand-written: hooks into the game's code ----", *hooks,
+              "", "; ---- compiled ----", *code, ""]
+    pasm.write_text("\n".join(lines), encoding="utf-8")
+    return pasm
+
+
+def main() -> int:
+    parser = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
+    parser.add_argument("sources", nargs="+", type=Path)
+    args = parser.parse_args()
+    for path in args.sources:
+        try:
+            print(build(path))
+        except Pawn2PasmError as e:
+            print(f"{path}: {e}", file=sys.stderr)
+            return 1
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())

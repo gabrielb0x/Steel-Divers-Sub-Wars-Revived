@@ -717,7 +717,7 @@ function renderPublic(s) {
 }
 // ---- server configuration --------------------------------------------------------------------------
 let serverConfig = null;
-const LEVELS = {normal: "normal (les bots du jeu)", difficile: "difficile", expert: "expert"};
+const LEVELS = {normal: "normal", difficile: "difficile", expert: "expert (visée parfaite)"};
 const CHEAT_LABELS = {separes: "séparés (entre eux)", autorises: "autorisés avec tout le monde", refuses: "refusés"};
 function formatLabel(f) {
   const [a, b] = f.split("v").map(Number);

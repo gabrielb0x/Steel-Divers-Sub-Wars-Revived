@@ -126,7 +126,7 @@ dans [../docs/formats.md](../docs/formats.md).
 
 ### Code Pawn (`.pasm`)
 
-*Avancement estimé : 90 % — tout le jeu d'instructions ; pas de compilateur Pawn de haut niveau.*
+*Avancement estimé : 95 % — tout le jeu d'instructions, et du Pawn compilé (`tools/pawn2pasm.py`).*
 
 `tools/amxasm.py` assemble du code Pawn (mnémoniques de `decomp/scripts/asm/`) et l'ajoute à la fin d'un
 script : rien de ce qui existe ne bouge. `.hook <adresse>` remplace la ou les instructions à cette adresse (8
@@ -149,6 +149,13 @@ entre guillemets (gardées dans les données du script), les globales du script 
 `float(1.5)`. Une native absente du script est ajoutée à sa table. Voir les `bots_*.pasm` de
 [en-ligne](en-ligne/).
 
+Pour du code plus long, on l'écrit en Pawn : `tools/pawn2pasm.py src/x.p` le compile avec le compilateur Pawn 3.3
+(`make pawncc`, outil des développeurs) et écrit `x.pasm`, qu'on publie. Les globales du script sont déclarées
+`// @game Float:g_1ca0[3]` et ses fonctions `// @call 0x2ea0 nom(paramètres)`. Le code compilé lit et écrit ces
+globales à leur vraie adresse, et ses propres données vont à la fin de celles du script (`.data_at`). Les hooks
+restent écrits à la main, dans des commentaires `/* asm … */` de la source. Exemple : le pilote des bots,
+[`en-ligne/src/bots_ia.p`](en-ligne/src/bots_ia.p) ([../docs/bots.md](../docs/bots.md)).
+
 ## Mods disponibles
 
 *Avancement estimé : 100 % — liste à jour.*
@@ -160,7 +167,7 @@ entre guillemets (gardées dans les données du script), les globales du script 
 | `version` | toujours inclus : la version de Sub Wars Open Sourced à la fin de la ligne sous le titre (« … v0.1.34 », même police que la ligne du dessus) |
 | `premium` | version complète, les 23 sous-marins, motifs et équipage débloqués, sans l'eShop ([détails](../docs/premium.md)) |
 | `missions` | les 21 missions du mode solo jouables tout de suite, sans toucher à la sauvegarde |
-| `en-ligne` | jeu en ligne sur un serveur [Sub Wars Open Sourced](../server/README.md), avec ses bots pour un joueur seul, son anti-triche, la durée des batailles réglée par le serveur et un dialogue qui dit quel serveur est utilisé |
+| `en-ligne` | jeu en ligne sur un serveur [Sub Wars Open Sourced](../server/README.md), avec ses bots pour un joueur seul et des bots qui jouent comme des joueurs ([bots.md](../docs/bots.md)), son anti-triche, la durée des batailles réglée par le serveur et un dialogue qui dit quel serveur est utilisé |
 | `specs` | vos propres caractéristiques de sous-marins (`tools/subs.py`) ; en ligne, comptées comme triche |
 | `mention-titre` | « © 2026 Nintendo Lawyers » et « Open Sourced by gabrielb0x. » sous le titre (options `ligne1`, `ligne2`) |
 | `triche` | invincible, torpilles et air infinis, tir sans délai, rechargement rapide, masqueur gratuit, moteur gonflé |
@@ -283,7 +290,7 @@ selon sa configuration, ne vous fait jouer qu'avec d'autres tricheurs.
 
 ## Jouer en ligne
 
-*Avancement estimé : 90 % — reste : des bots qui jouent vraiment comme des joueurs.*
+*Avancement estimé : 95 % — reste : voir les nouveaux bots dans Azahar.*
 
 ```sh
 make extract                                               # une fois : les fichiers du dump

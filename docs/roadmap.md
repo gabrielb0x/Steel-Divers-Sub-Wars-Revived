@@ -58,7 +58,7 @@ au final, mais rien ne tourne avant que tout soit terminé.
 
 ## Volet 3 — Serveur online (`server/`)
 
-*Avancement estimé : 85 % — reste : bots qui jouent comme des joueurs, une vraie partie entre deux maisons.*
+*Avancement estimé : 90 % — reste : voir les nouveaux bots dans Azahar, une vraie partie entre deux maisons.*
 
 Constat : le serveur ne gère que l'authentification, le matchmaking et le NAT traversal ; les parties elles-mêmes
 se jouent en P2P via Pia. Aucune bibliothèque NEX de classement ou de stockage n'est liée au jeu.
@@ -79,9 +79,13 @@ se jouent en P2P via Pia. Aucune bibliothèque NEX de classement ou de stockage 
    vrais sous-marins, leur nom et leur niveau, et comptent pour la victoire. Vérifié dans Azahar. Le serveur
    règle le jeu par des notifications à lui (variables de script, [online.md](online.md#8-serveur--jeu--les-variables-du-mod)).
    Options du serveur affichées et modifiables dans le lanceur.
-6. **À suivre** : des bots qui jouent vraiment comme des joueurs (collisions entre eux, combats entre bots,
-   déplacements naturels ; pour une IA apprise, estimation dans [ia.md](ia.md)) ; une vraie partie entre deux maisons ; relais pour les NAT stricts si besoin ;
-   migration d'hôte et départs en cours de partie à éprouver.
+6. ~~**Bots qui jouent comme des joueurs**~~ ([bots.md](bots.md)) : physique et caractéristiques d'un sous-marin
+   de joueur, collisions avec la carte et les sous-marins, combats contre tout ennemi (bots compris), visée là où
+   sera la cible, esquive, torpilles à tête chercheuse, masqueur et repli. Écrits en Pawn (`tools/pawn2pasm.py`),
+   vérifiés dans un bac à sable (`tools/botsim.py`) ; reste à les voir dans Azahar. Pour une IA apprise,
+   estimation dans [ia.md](ia.md).
+7. **À suivre** : une vraie partie entre deux maisons ; relais pour les NAT stricts si besoin ; migration d'hôte
+   et départs en cours de partie à éprouver.
 
 ## Volet 4 — Mods (Azahar, puis portage PC)
 

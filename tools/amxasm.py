@@ -28,6 +28,7 @@ Assembly, one instruction per line, with the mnemonics of the disassembly (decom
     .var $name [count]              a new global (zeroed), count cells (default 1)
     .cells $name 1, 2, 3            a new global array with these values
     .string $name "text"            a new string
+    .data_at 0x4524                 the new data must start there (code compiled by tools/pawn2pasm.py)
 
 Comments start with ';'. Pawn functions: PROC, arguments at frame offsets 12, 16..., RETN;
 `push.c <bytes>` + `call` to call one (see decomp/scripts/asm for the game's own code).
@@ -349,6 +350,10 @@ class Assembler:
                 items.append(_Insn(JUMP, [f"{current_hook[0] + current_hook[1]:#x}"], where))
             elif mnemonic == ".public":
                 pending_public.append(operands[0])
+            elif mnemonic == ".data_at":
+                if len(img.data) != self._number(operands[0], where):
+                    raise AsmError(f"{where}: the new data would start at {len(img.data):#x}: this code, "
+                                   "compiled by tools/pawn2pasm.py, must be the first to add data to the script")
             elif mnemonic in (".var", ".cells", ".string"):
                 name = operands[0].split()[0]
                 if not name.startswith("$"):

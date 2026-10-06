@@ -352,6 +352,55 @@ class PawnAssembler(unittest.TestCase):
             path.write_bytes(raw)
             self.assertIn("sysSetGlobal", disassemble(AmxFile.load(path)))
 
+    def test_data_at(self):
+        img = AmxImage.parse(make_amx())
+        img.assemble(".data_at 20\n.cells $x 1, 2")                # the data ends at 20: ours goes there
+        self.assertEqual(img.data_labels["$x"], 20)
+        with self.assertRaises(AmxAsmError):
+            img.assemble(".data_at 20\n.cells $y 3")               # no longer the first to add data
+
+    def test_compiled_pawn(self):
+        """tools/pawn2pasm.py: the compiler's listing -> amxasm, the game's functions called at their address."""
+        import pawn2pasm
+        listing = """CODE 0000\t; 00000000
+;program exit point
+\thalt 0
+
+DATA 0000\t; 00000000
+dump 00000000 00000000
+
+CODE 0000\t; 00000008
+\tproc\t; spawn
+\tzero.pri
+\tretn
+
+\tproc\t; @eventCollide
+\tload.s.pri 0000000c
+\tjzer 00000001
+\tadd.c -00000001
+\tpush.c 00000008
+\tsysreq.c 00000000\t; floatmul
+\tpush.c 00000000
+\tcall spawn
+l.00000001
+\tzero.pri
+\tretn
+
+DATA 0000\t; 00000008
+dump 00000041 00000000
+"""
+        code, cells = pawn2pasm.convert(listing, ["floatmul"], ["@eventCollide"], {"spawn": 0x2ea0}, 8, "m")
+        self.assertEqual(code, [".public @eventCollide", "pw_at_eventCollide:", "    proc", "    load.s.pri 0xc",
+                                "    jzer @m_l1", "    add.c -1", "    push.c 0x8", "    sysreq.c floatmul",
+                                "    push.c 0x0", "    call 0x2ea0", "m_l1:", "    zero.pri", "    retn"])
+        self.assertEqual(cells, ["0x41", "0x0"])
+        with self.assertRaises(pawn2pasm.Pawn2PasmError):          # the game's globals have no initial value
+            pawn2pasm.convert(listing, ["floatmul"], [], {}, 12, "m")
+        head, calls, _ = pawn2pasm.prelude("// @game Float:g_0008[2]  position\n"
+                                           "// @call 0x2ea0 spawn(const name[])  the game's\n", 0x20)
+        self.assertIn("new __game0[2];\nnew Float:g_0008[2];\nnew __game_end[4];", head)
+        self.assertEqual(calls, {"spawn": 0x2ea0})
+
     def test_refusals(self):
         for source in (".hook 0x24\n.return",                     # nop, then a PROC: cannot be moved
                        "jump @nowhere",

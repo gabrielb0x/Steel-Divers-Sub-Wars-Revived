@@ -98,11 +98,11 @@ centaines de parties** d'entraînement, et celui d'un bon joueur en ligne en **5
 
 ## Et pour des bots comme de vrais joueurs
 
-*Avancement estimé : 40 % — les bots du serveur rejoignent les parties comme des joueurs (noms, sous-marins,
-niveaux, victoire) ; ils n'ont pas encore de collisions entre eux, ne se battent pas entre eux et bougent de
-façon peu naturelle.*
+*Avancement estimé : 80 % — les bots écrits à la main pilotent maintenant comme des joueurs ([bots.md](bots.md)) ;
+une IA apprise reste à faire.*
 
-Une IA apprise pilote un sous-marin exactement comme un joueur (mêmes commandes, même physique, mêmes
-collisions), ce qui réglerait les limites des bots actuels, qui reprennent les sous-marins simplifiés des
-missions du jeu. La suite logique : la faire tourner sur le serveur, branchée à des consoles émulées sans écran
-qui rejoignent les parties comme des joueurs, ou directement dans le portage PC.
+Les bots en ligne ont désormais la physique, les collisions et les armes d'un joueur, et un pilote écrit à la
+main ([bots.md](bots.md)) : visée là où sera la cible, esquive, repli sous le masqueur. Une IA apprise irait plus
+loin (tactique d'équipe, sonar, ruses), avec les mêmes commandes. La suite logique : la faire tourner sur le
+serveur, branchée à des consoles émulées sans écran qui rejoignent les parties comme des joueurs, ou directement
+dans le portage PC.

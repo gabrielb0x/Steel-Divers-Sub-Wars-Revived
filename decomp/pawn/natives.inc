@@ -1,6 +1,6 @@
 /* Pawn prototypes of the natives the game registers (romfs:/amx scripts -> C++).
  *
- * Written from the C++ implementations (decomp/raw/source/amx/*.cpp, n_<name> functions);
+ * Written from the C++ implementations (the n_<name> functions of decomp/raw/source/amx/);
  * parameter names are ours. tools/amxdec.py reads these prototypes to type the arguments at call
  * sites (strings, arrays, Float, by-reference), and falls back on the types inferred automatically
  * by tools/native_types.py for the natives that are not listed here.
@@ -98,8 +98,8 @@ native BUTTON:sysGetButtonsRepeated(controller = 0);                       // pr
 native sysGetTouchPad(position[2]);                                  // returns true while the screen is touched
 native sysGetStick(stick[]);
 native Float:sysGetGyroBearing();
-native sysCheckExtraPadConnected(state[]);                           // Circle Pad Pro
-native sysCheckExtraPadBattery(state[]);
+native sysCheckExtraPadConnected(status[]);                           // Circle Pad Pro
+native sysCheckExtraPadBattery(status[]);
 native sysExtraPadStartSampling();
 native sysExtraPadStopSampling();
 native sysShowExtraPadCalibration();
@@ -186,7 +186,7 @@ native sysDLCAddBalance();
 native sysDLCDeleteItemAsync(item);
 
 /* ---- amxactor: properties ----
- * Actor properties are the attributes of its BXML node (worlds/*.bxml), plus dynamic ones. */
+ * Actor properties are the attributes of its BXML node (worlds/<name>.bxml), plus dynamic ones. */
 native actorGetPropInt(const name[], &value, actor = 0);             // returns true if the property exists
 native actorGetPropReal(const name[], &Float:value, actor = 0);
 native actorGetPropString(const name[], dest[], actor = 0);
@@ -307,10 +307,10 @@ native worldLoad(const world[], flags);                              // worlds/<
 native worldNewActor();                                              // id of a free actor
 native worldFindActor(const name[]);                                 // 0 if not found
 native worldFindActorUID(UID:uid);
-native worldFindActors(found[], const Float:center[3], unused, max, filter);
-native worldFindActorsSorted(found[], const Float:center[3], unused, max, filter);
+native worldFindActors(found[], const Float:center[3], Float:radius, mask, max);    // visible actors, type & mask
+native worldFindActorsSorted(found[], const Float:center[3], Float:radius, mask, max);
 native worldFindClosestActor(const Float:position[3], unused, filter);
-native worldClipLine(const Float:from[3], const Float:to[3], result, mask);
+native Float:worldClipLine(const Float:from[3], const Float:direction[3], Float:length, mask);  // distance to the first hit (type & mask), else length
 native worldGetHeightAt(value, unused, Float:position[], mask);
 native worldLogExplosion(const type[], const Float:position[3], value);
 native worldIsPlayingReplay();

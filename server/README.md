@@ -62,9 +62,11 @@ Chaque royaume a ses options de partie dans `serveur.toml` (le lanceur les affic
     complètent ;
   * `bots_map` : `"aleatoire"` ou le numéro d'une carte (1, 2, 4 à 10 ; le lanceur affiche leurs noms, lus
     dans votre jeu) ;
-  * `bots_level` : `"normal"` (les bots du jeu d'origine), `"difficile"` ou `"expert"` (plus rapides, ils
-    visent le sous-marin ennemi le plus proche là où il sera et tirent dès qu'ils sont alignés) ; vaut pour
-    tous les bots des parties en ligne ;
+  * `bots_level` : `"normal"`, `"difficile"` ou `"expert"` ; les bots pilotent comme des joueurs (physique et
+    caractéristiques de leur sous-marin, collisions, visée là où sera la cible, esquive, torpilles à tête
+    chercheuse, masqueur et repli quand leur coque est basse : `mods/en-ligne/src/bots_ia.p`), le niveau
+    règle leurs réflexes et leur précision (expert : visée parfaite) ; vaut pour tous les bots des parties
+    en ligne ;
   * `bots_duration` : durée de la bataille en minutes (5 ; une bataille en ligne du jeu dure 10 minutes) ;
   * `bots_names` : les noms des bots (au moins 7, 10 caractères au plus), tirés au hasard à chaque partie.
 

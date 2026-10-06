@@ -250,7 +250,7 @@ Variables utilisées (`server/sdsw_server/matchmaking.py` et `realm.py`, `mods/e
 | `server.bots` | 1 : la partie se joue contre des bots (remis à 0 à chaque nouveau salon) |
 | `server.bots.mine`, `server.bots.other` | tailles de l'équipe des joueurs et de l'autre |
 | `server.bots.stage` | carte (`player.stage`, 10 à 19), 0 : au hasard |
-| `server.bots.level` | 1 normal, 2 difficile, 3 expert : tous les bots des parties en ligne |
+| `server.bots.level` | 1 normal, 2 difficile (sans valeur), 3 expert : réflexes et précision de tous les bots des parties en ligne |
 | `server.bots.countdown`, `server.bots.duration` | compte à rebours (ms) et durée de la bataille (s) |
 | `server.bots.name<k>`, `sub<k>`, `lv<k>` | le bot k (1 à 7) : nom, sous-marin (1 à 23), niveau affiché |
 | `server.anticheat` | 1 : les jeux de cette partie se surveillent eux-mêmes (envoyé à chaque recherche ; 0 avec `cheats = "autorises"` et entre tricheurs) |

@@ -61,7 +61,7 @@ REALM_OPTIONS = (
     Option("bots_map", "choice", "aleatoire", "Carte", "aleatoire, ou le numéro d'une carte",
            choices=("aleatoire", "1", "2", "4", "5", "6", "7", "8", "9", "10")),
     Option("bots_level", "choice", "difficile", "Niveau des bots",
-           "normal : ceux du jeu ; difficile, expert : plus rapides, visent juste ; pour tous les bots en ligne",
+           "ils jouent comme des joueurs ; le niveau règle réflexes et précision ; pour tous les bots en ligne",
            choices=("normal", "difficile", "expert")),
     Option("bots_countdown", "int", 10, "Compte à rebours", "secondes avant la bataille contre les bots",
            low=6, high=120),

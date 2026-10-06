@@ -2,7 +2,7 @@
 PY := .venv/bin/python
 STAMPS := build/stamps
 
-.PHONY: all extract elf analyze export scripts data check-types azahar
+.PHONY: all extract elf analyze export scripts data check-types azahar pawncc bots
 
 all: export scripts data
 
@@ -48,3 +48,21 @@ check-types:
 # The game for the Azahar emulator: CIA without the encrypted manual, and CXI (build/azahar/).
 azahar: extracted/manifest.json
 	$(PY) tools/azahar.py prepare
+
+# Pawn 3.3 compiler (CompuPhase, Apache 2.0), a tool of the build only: build/pawncc, for tools/pawn2pasm.py.
+# _I32_MAX/_I32_MIN: without them a 64-bit build sets cellmax/cellmin from LONG_MAX/LONG_MIN (cellmin = 0).
+PAWN_SRC := build/ref/compuphase-pawn
+PAWN_33 := build/pawn33
+pawncc: build/pawncc
+build/pawncc:
+	test -d $(PAWN_SRC) || git clone https://github.com/compuphase/pawn $(PAWN_SRC)
+	test -d $(PAWN_33) || git -C $(PAWN_SRC) worktree add --detach $(CURDIR)/$(PAWN_33) 6d82fa4
+	cd $(PAWN_33)/compiler && gcc -O1 -w -DLINUX -DHAVE_STDINT_H -D_I32_MAX=2147483647 '-D_I32_MIN=(-2147483647-1)' \
+		-I. -I../amx -I../linux -o $(CURDIR)/$@ sc1.c sc2.c sc3.c sc4.c sc5.c sc6.c sc7.c scexpand.c sci18n.c \
+		sclist.c scmemfil.c scstate.c scvars.c lstring.c memfile.c ../linux/binreloc.c -lm
+
+# The bots of the online battles, written in Pawn (mods/en-ligne/src) -> mods/en-ligne/*.pasm (committed);
+# tools/botsim.py runs them in a sandbox.
+BOTS_SRC := $(wildcard mods/en-ligne/src/*.p)
+bots: build/pawncc
+	python3 tools/pawn2pasm.py $(BOTS_SRC)
