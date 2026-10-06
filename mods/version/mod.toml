@@ -3,8 +3,9 @@
 #
 # La version vient du fichier VERSION à la racine du projet, suivie du commit quand le projet est un
 # dépôt git (« + » : avec des changements pas encore enregistrés) : « v0.1 (3566be7) ». Elle s'ajoute à la
-# seconde ligne sous le titre (texte [title_codeveloped], toujours affiché, version gratuite ou premium),
-# après ce qu'y met un autre mod (mention-titre).
+# fin de la seconde ligne sous le titre, sur la même ligne (texte [title_codeveloped], toujours affiché,
+# version gratuite ou premium), après ce qu'y met un autre mod (mention-titre) :
+# « Open Sourced by gabrielb0x. v0.1 (3566be7) ».
 
 name = "Version"
 description = "La version de Sub Wars Open Sourced sur l'écran titre"
@@ -12,4 +13,4 @@ always = true
 
 [[text]]
 key = "title_codeveloped"
-append = "\nSub Wars Open Sourced ${sdsw_version}"
+append = " ${sdsw_version}"

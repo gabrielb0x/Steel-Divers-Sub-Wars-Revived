@@ -155,7 +155,7 @@ entre guillemets (gardées dans les données du script), les globales du script 
 |---|---|
 | `correctifs` | toujours inclus : corrige le plantage d'Azahar quand une torpille touche un sous-marin sous l'eau |
 | `pseudo` | toujours inclus : en ligne et en local, votre nom est le pseudo de la console (de l'émulateur), pas « Citra » |
-| `version` | toujours inclus : la version de Sub Wars Open Sourced sous le titre (« Sub Wars Open Sourced v0.1 (3566be7) ») |
+| `version` | toujours inclus : la version de Sub Wars Open Sourced à la fin de la ligne sous le titre (« … v0.1 (3566be7) ») |
 | `premium` | version complète, les 23 sous-marins, motifs et équipage débloqués, sans l'eShop ([détails](../docs/premium.md)) |
 | `missions` | les 21 missions du mode solo jouables tout de suite, sans toucher à la sauvegarde |
 | `en-ligne` | jeu en ligne sur un serveur [Sub Wars Open Sourced](../server/README.md), avec ses bots pour un joueur seul, son anti-triche, la durée des batailles réglée par le serveur et un dialogue qui dit quel serveur est utilisé |
