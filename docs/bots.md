@@ -81,7 +81,7 @@ vitesse de pointe, axe de chaque tir.
   vite, ou quand il est abîmé.
 - **Coque basse** (moins de 40 %) : il garde sa cible et recule en tirant. Quand un ennemi approche, il passe sous
   son masqueur (`masker`, `masker_on` : 300 images pour 33,3 d'air) et s'enfuit en profondeur. Comme un joueur,
-  il ne retrouve de l'air qu'en surface : trois masqueurs par vie au plus.
+  il ne retrouve de l'air qu'en surface : trois masqueurs par vie au plus, et jamais plus de trois.
 - **Ses torpilles** sont celles des joueurs (`surface_torpedo_lv0N`, 20 à 30 points de dégâts). Elles touchent
   comme celles d'un joueur ([`bots_tir.inc`](../mods/en-ligne/src/bots_tir.inc)) : la console de la cible prend
   le coup (`@eventMessageWeaponHitTorp` pour un joueur, `@torpedoHitOnNpcToOwner` pour un bot). Elles traversent
@@ -99,6 +99,26 @@ vitesse de pointe, axe de chaque tir.
   quand les joueurs gagnaient, il n'y avait pas de replay. Désormais, chaque torpille qui touche un bot le dit à
   toutes les consoles (`@botHitBy`). La mort du bot est inscrite comme celle d'un joueur, avec cette torpille et
   un nœud de son équipe (`0x7b070000` + équipe).
+
+- **Un joueur pour le jeu** : le jeu reconnaît les joueurs à leur nœud réseau (`player.<nœud>.name`, `.team`).
+  Chaque bot k en a un à lui, `0x7b070000` + k, avec son nom et son équipe
+  ([`bots_partie.p`](../mods/en-ligne/src/bots_partie.p)). Il a donc ce qu'a un joueur :
+  - « Vous avez touché <bot> ! » (`@pushTargetHitMessage`) et le marqueur de touche pour qui le touche ;
+  - « <bot> vous attaque ! » (`@pushHitByShooterMessage`) pour le joueur qu'il touche ;
+  - « <bot> a été coulé ! » pour tous, au lieu de « L'ennemi a été coulé ! » des sous-marins de l'ordinateur ;
+  - le kill compté à son tireur (`incrementKills`) ;
+  - le marqueur de touche du HUD n'apparaît plus quand un bot de cette console en touche un autre.
+- **Mort comme un joueur** : il explose et disparaît d'un coup (`explosion_player_dead`), sans couler lentement
+  pendant 6 s (`func_ba34`). Sur les autres consoles, sa copie explose comme celle d'un joueur.
+- **Vie et dégâts d'un joueur** :
+  - 100 points de vie, multipliés par la taille de l'équipe adverse sur la sienne quand la sienne est plus petite
+    (`pscope_player.p func_14f60`) ;
+  - le jeu ne comptait que les joueurs humains ; maintenant les bots sont comptés, pour les joueurs aussi
+    ([`bots_joueur.pasm`](../mods/en-ligne/bots_joueur.pasm)) : seul contre 4 bots, un joueur a 400 points de vie,
+    comme seul contre 4 joueurs ;
+  - chaque coup reçu est multiplié par le `damageRate` de son sous-marin, arrondi au-dessus
+    (`@eventDamageTorp`) ;
+  - le spectateur voit sa jauge baisser (`lifecapacity`, lue par `hud.p @setTelecastPlayer`).
 
 Le niveau du serveur (`bots_level`, `server.bots.level`) règle les réflexes et la précision, jamais ce que le
 sous-marin peut faire. Toutes les valeurs sont dans `bots_ia.p` :

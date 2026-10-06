@@ -333,7 +333,7 @@ class Assembler:
             if mnemonic == ".hook":
                 address = int(operands[0], 0)
                 size, cells, branch = self._hook(address)
-                hook_label = f".hook{hook_count}"
+                hook_label = f".hook{address:x}"         # unique in the script: hooks cannot overlap
                 hook_count += 1
                 hooks.append((address, size, hook_label))
                 current_hook = (address, size, cells, branch)

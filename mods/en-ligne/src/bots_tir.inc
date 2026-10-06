@@ -51,18 +51,41 @@ botHit(other, const Float:point[3], Float:toPlayer, Float:toBot, homing)
     //  shooter is a computer sub)
     netCallPublic(UID_PLAYER, "@eventMessageWeaponHitTorp", torpedo, victim, _:toPlayer, node,
                   _:point[0], _:point[1], _:point[2], 0, 0, 1);
+    if (sysGetGlobal("server.bots"))
+        netCallPublic(UID_GAME_STATE, "@botAttacks", victim, shooterNode());    // "<bot> vous attaque !"
     return (type & COLL_PLAYER) ? 3 : 2;
 }
 
+const BOT_NODE = 0x7b070000;         // the bot k is "node" BOT_NODE + k for the game (bots_partie.p)
+
+/* Who fired this torpedo, as the game names players: a player's node, or BOT_NODE + k for the bot k; -1 for
+ * a computer sub of the game. */
+shooterNode()
+{
+    new shot = 0;
+    actorGetPropInt("botshot", shot, 0);
+    if (!shot)
+        return netGetNodeId();
+    new shooter = 0;
+    new k = 0;
+    actorGetPropInt("actor_id", shooter, 0);
+    actorGetPropInt("botIndex", k, shooter);
+    return k ? BOT_NODE + k : -1;
+}
+
 /* A torpedo of this console (a player's or a bot's) hits a computer sub: every console notes it, for the
- * replay of the end of the battle if that sub sinks (bots_partie.p @botHitBy). */
-noteBotHit(other)
+ * kill, the messages and the replay of the end of the battle (bots_partie.p @botHitBy). */
+noteBotHit(other, homing)
 {
     new type = actorGetCollisionType(other);
     new npc = 0;
     actorGetPropInt("npc", npc, other);
     if (!npc || !(type & (COLL_NPC | COLL_REMOTE)) || !sysGetGlobal("server.bots"))
         return;
+    new k = 0;
+    new team = 0;
+    actorGetPropInt("botIndex", k, other);
+    actorGetPropInt("teamColor", team, other);
     netCallPublic(UID_GAME_STATE, "@botHitBy", actorGetSyncController(other), actorGetSyncID(other),
-                  netGetNodeId(), actorGetSyncID(0));
+                  netGetNodeId(), actorGetSyncID(0), shooterNode(), k, team, homing);
 }

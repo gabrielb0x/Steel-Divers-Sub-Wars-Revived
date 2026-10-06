@@ -31,6 +31,7 @@
 // @game Float:g_1cc8          yaw
 // @game Float:g_1e78          pitch
 // @game Float:g_1e7c          roll
+// @game g_1eac                frames before the sinking sub explodes (func_ba34)
 // @game g_1f28                online battle
 // @game Float:g_3064[3]       velocity of the last frame (network sync)
 // @game Float:g_3070[3]       rotation of the last frame (network sync: torque)
@@ -56,6 +57,9 @@ const Float:NO_CLIMB = 1000.0;             // half the height of a sub, what a t
 new lvl;                             // 0: the game's own bot (offline, or not a computer sub)
 new started;
 new sunk;
+new botIndex;                        // k of server.bots.*<k>, 0 for a bot of the game
+new Float:damageRate = 1.0;          // damage taken is multiplied by it, as a player's (table_damage_rate)
+new maskerUses;
 new frame;
 new me;                              // actor id
 new myTeam;
@@ -177,11 +181,12 @@ public botPilot()
         if (started && maskerTime)
             maskerOff();
         if (started && !sunk) {
-            // its team loses a sub: every console hears it (bots_partie.pasm @botDown), whatever sank it
+            // its team loses a sub: every console hears it (bots_partie.p @botDown), whatever sank it
             sunk = 1;
+            g_1eac = 0;                                 // no slow sinking: it blows up at once, as a player
             actorSetPropReal("life", 0.0, 0);
             if (sysGetGlobal("server.bots"))
-                netCallPublic(UID_GAME_STATE, "@botDown", myTeam, netGetNodeId(), actorGetSyncID(0));
+                netCallPublic(UID_GAME_STATE, "@botDown", myTeam, netGetNodeId(), actorGetSyncID(0), botIndex);
         }
         return 0;
     }
@@ -255,9 +260,22 @@ start()
     started = 1;
     me = actorGetID();
     actorGetPropInt("teamColor", myTeam, 0);
-    lifeMax = g_1c68 > 1.0 ? g_1c68 : 150.0;
-    lifeBefore = g_1c68;
     readSubmarine();
+    // a player's hull: 100, times the other team's size over its own when outnumbered (pscope_player.p
+    // func_14f60, the bots counted as players: bots_joueur.pasm)
+    lifeMax = 100.0;
+    if (sysGetGlobal("server.bots")) {
+        new own = teamSize(myTeam);
+        new other = teamSize(3 - myTeam);
+        if (own > 0 && other > own)
+            lifeMax = 100.0 * float(other) / float(own);
+        g_1c68 = lifeMax;
+    } else {
+        lifeMax = g_1c68 > 1.0 ? g_1c68 : 150.0;
+    }
+    lifeBefore = g_1c68;
+    actorSetPropReal("life", g_1c68, 0);
+    actorSetPropReal("lifecapacity", lifeMax, 0);      // the spectators' life meter (hud.p @setTelecastPlayer)
     torpedoes = torpedoMax;
     homing = HOMING[lvl];
     yawWant = g_1cc8;
@@ -270,6 +288,31 @@ start()
     floatveczero(push);
 }
 
+/* A team's size in a battle against the server's bots: its players, or the size the server set
+ * (server.bots.mine for the players' team, the one with more players; server.bots.other). */
+teamSize(team)
+{
+    new players = sysGetGlobal(team == 1 ? "team.01.players" : "team.02.players");
+    new playersTeam = sysGetGlobal("team.02.players") > sysGetGlobal("team.01.players") ? 2 : 1;
+    return max(players, sysGetGlobal(team == playersTeam ? "server.bots.mine" : "server.bots.other"));
+}
+
+/* @torpedoHit (and @explosionHitOnNpc) of a bot of the server: as a player is hit (pscope_player.p
+ * @eventDamageTorp): the damage times its damageRate, rounded up; no message of the game's computer subs
+ * ("L'ennemi a été coulé !", bots_partie.p says what players are told); and a bot's shot shows no hit on
+ * this console's HUD (func_7b8c shows it when the shooter's node is this console's). */
+forward botHitArgs(&Float:damage, &shooter, &fromNpc);
+public botHitArgs(&Float:damage, &shooter, &fromNpc)
+{
+    if (!lvl || !sysGetGlobal("server.bots"))
+        return 0;
+    damage = float(floatround(damage * damageRate, 2));
+    if (fromNpc)
+        shooter = -1;
+    fromNpc = 1;
+    return 1;
+}
+
 /* The characteristics of its submarine: server.bots.sub<k> for the server's bots, else the first one. */
 readSubmarine()
 {
@@ -277,6 +320,7 @@ readSubmarine()
     new sub = 1;
     new name[48];
     actorGetPropInt("botIndex", k, 0);
+    botIndex = k;
     if (k) {
         strformat(name, sizeof name, false, "server.bots.sub%d", k);
         sub = sysGetGlobal(name);
@@ -289,6 +333,8 @@ readSubmarine()
     new turnRating = 4;
     new accelRating = 4;
     new diveRating = 4;
+    new damageRating = 5;
+    actorGetPropInt("damageRate", damageRating, a);
     new replenish = 6;
     actorGetPropInt("maxTurn", turnRating, a);
     actorGetPropInt("belowAccel", accelRating, a);
@@ -311,7 +357,11 @@ readSubmarine()
     actorReadProperties("table_dive_rate", a);
     strformat(name, sizeof name, false, "diveRate_%d", diveRating);
     actorGetPropReal(name, diveRate, a);
+    actorReadProperties("table_damage_rate", a);
+    strformat(name, sizeof name, false, "damageRate_%d", damageRating);
+    actorGetPropReal(name, damageRate, a);
     actorKill(a);
+    damageRate = fclamp(damageRate, 0.5, 2.0);
     if (torpedoLevel < 1 || torpedoLevel > 3)
         torpedoLevel = 1;
     if (torpedoMax < 1)
@@ -974,6 +1024,9 @@ launch(const Float:tube[3], const name[])
 
 maskerOn()
 {
+    if (maskerUses >= floatround(100.0 / maskerCost, 1))
+        return;                                         // the air of a life: 3 maskers, never more
+    maskerUses++;
     air = air - maskerCost;
     maskerTime = 300;
     actorSetPropInt("masker", 1, 0);
@@ -1186,6 +1239,27 @@ main()
     zero.pri
     retn
 a848_game:
+    .original
+    .return
+
+; @torpedoHit(x, y, z, damage, exp, isOpponentNpc, critical, sameTeam, shooter's node, homing, fromNpc):
+; hit as a player is (botHitArgs).
+.hook 0x866c
+    push.adr 0x34                   ; fromNpc
+    push.adr 0x2c                   ; shooter's node
+    push.adr 0x18                   ; damage
+    push.c 12
+    call @pw_botHitArgs
+    .original
+    .return
+
+; @explosionHitOnNpc(damage, shooter's node, x, y, z, ..., fromNpc): the same.
+.hook 0x97e4
+    push.adr 0x2c                   ; fromNpc
+    push.adr 0x10                   ; shooter's node
+    push.adr 0xc                    ; damage
+    push.c 12
+    call @pw_botHitArgs
     .original
     .return
 

@@ -348,6 +348,10 @@ asm_file = "bots_torpille.pasm"
 file = "amx/surface_torpedo_p_homing.amx"
 asm_file = "bots_torpille_tc.pasm"
 
+[[amx]]
+file = "amx/pscope_player.amx"
+asm_file = "bots_joueur.pasm"
+
 # -- Anti-triche (anti_triche_*.pasm), quand le serveur n'autorise pas la triche (server.anticheat) --------
 # Chaque console surveille son propre sous-marin en bataille : dégâts annulés sans raison du jeu,
 # torpilles qui ne baissent pas, tirs trop rapprochés, vitesse qu'aucun sous-marin n'a. Au premier signe, elle

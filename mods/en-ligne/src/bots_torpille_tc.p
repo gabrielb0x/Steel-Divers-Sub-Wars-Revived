@@ -22,7 +22,7 @@ public botTorpedoCollide(other, Float:point[3])
         return 0;
     if (!shot) {
         if (!g_141c)
-            noteBotHit(other);                          // a player's torpedo: the game's code hits
+            noteBotHit(other, 1);                          // a player's torpedo: the game's code hits
         return 0;
     }
     if (g_141c)
@@ -31,7 +31,7 @@ public botTorpedoCollide(other, Float:point[3])
     if (r == 3)
         g_148c = 1;
     if (r == 2)
-        noteBotHit(other);
+        noteBotHit(other, 1);
     if (r >= 2)
         homingExplode();
     return 1;
