@@ -49,6 +49,7 @@ const COLL_PLAYER = 0x2;            // this console's player (pscope_player.p)
 const COLL_NPC = 0x4;               // computer subs of this console (surface_sub.p)
 const COLL_TORPEDO_NPC = 0x8;       // torpedoes of the computer subs, and the copies of the others'
 const COLL_TORPEDO = 0x10;          // this console's player's torpedoes
+const COLL_ITEM = 0x100;            // containers left by sunk subs (surface_item.p)
 const COLL_MINE = 0x2000;
 const COLL_SUB = 0x40000;           // every sub: this console's (with 0x2 or 0x4) and the others' copies
 const COLL_REMOTE = 0x80000;        // copies of the subs of the other consoles (netplay_dummy_sub.p)

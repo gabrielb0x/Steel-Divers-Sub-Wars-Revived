@@ -21,6 +21,9 @@
  */
 
 // @target amx/surface_sub.amx
+// @game g_11b4                the oil leak's (set when it starts, as @torpedoHit)
+// @game g_11b8
+// @game g_11c8                it leaks oil (the black smoke of a damaged sub)
 // @game Float:g_11f0          throttle shown (wake, propeller), -1..1
 // @game Float:g_1c68          life
 // @game g_1c90                afloat; 0: sinking (func_ba34)
@@ -45,7 +48,6 @@ new const SEE_EVERY[] =   { 0,  10,     6,         3 };          // frames betwe
 new const FIRE_PAUSE[] =  { 0,  40,     12,        0 };          // frames added to the reload
 new const Float:MISS_ALLOWED[] = { 0.0, 90.0, 60.0, 45.0 };     // how far off the target a shot may pass
 new const Float:DODGE[] = { 0.0, 0.35, 0.8, 1.0 };               // chance to see a torpedo coming
-new const HOMING[] =      { 0,  1,      1,         2 };          // homing torpedoes per life
 
 const Float:TORPEDO_ACCEL = 1.2;     // surface_torpedo.p main: func_2ef4(..., 1.2, ...)
 const Float:TORPEDO_KEEP = 0.99;     // 1 - friction (0.01, func_1488)
@@ -80,7 +82,6 @@ new torpedoLevel = 1;
 new torpedoMax = 6;
 new torpedoes;
 new replenishFrames = 180;
-new replenishIn;
 new fireInterval = 85;
 new reload;
 new homing;
@@ -137,9 +138,19 @@ new Float:lastKnown[3];
 new lastKnownTime;
 new Float:goal[3];                   // where to go without a target
 new goalValid;
+new Float:wanderTo[3];
 new mates[8];
 new mateCount;
 new hurtTime;
+new contacts[8];                     // the subs its last ping found
+new contactCount;
+new contactAt = -10000;
+new sonarIn;
+new pickedItem = -1;
+new container = -1;                  // a container it goes for
+new homingIn;                        // frames before the homing torpedoes can be fired (func_f878: 120 after a shot)
+new maskerIn;                        // frames before the masker can be used again (150 after one, periscope_move.p)
+new emptyFor;                        // frames since its last torpedo (all are reloaded torpedoReplenishTime later)
 new revealed = -1;                   // a masked enemy seen when it was hit
 new revealedAt = -1000;
 new lostAt = -10000;                 // when its target vanished under its masker
@@ -179,6 +190,14 @@ public botLevel()
     return lvl;
 }
 
+/* A bot of the server stays synced 215 frames after it sank (main), as the game's torpedoes do after they
+ * explode: the replay at the end of the battle can show it (bots_partie.p @botDown). */
+forward botKeepsSync();
+public botKeepsSync()
+{
+    return lvl && sysGetGlobal("server.bots");
+}
+
 /* func_a848, every frame: 1 when the pilot moved the sub, 0 to let the game do it (sinking). */
 forward botPilot();
 public botPilot()
@@ -205,6 +224,16 @@ public botPilot()
     if (!g_1c90 || g_1c68 <= 0.01)
         return 0;
     actorSetPropReal("life", g_1c68, 0);               // seen by the others (synced), and by bots_partie
+    // oil leaks below 40 % of the hull, as from a player's sub (netplay_dummy_sub.p: life < lifecapacity /
+    // 2.5); the game's @torpedoHit starts it below 100, whatever the hull
+    if (sysGetGlobal("server.bots")) {
+        new leak = g_1c68 < lifeMax / 2.5;
+        if (leak && !g_11c8) {
+            g_11b4 = 9;
+            g_11b8 = 0;
+        }
+        g_11c8 = leak;
+    }
     timers();
     if (frame % SEE_EVERY[lvl] == me % SEE_EVERY[lvl])
         lookAround();
@@ -254,6 +283,10 @@ public @eventCollide(other, Float:point[3], Float:normal[3])
     if (!lvl || !started)
         return 0;
     new type = actorGetCollisionType(other);
+    if (type & COLL_ITEM) {
+        pickUp(other);
+        return 0;
+    }
     if (!(type & (COLL_MAP | COLL_SUB | COLL_REMOTE)))
         return 0;
     floatvecaddscale(push, normal, 5.0);
@@ -263,6 +296,29 @@ public @eventCollide(other, Float:point[3], Float:normal[3])
     if (type & COLL_MAP)
         lastBump = frame;
     return 0;
+}
+
+/* A container, as a player picks one up (pscope_player.p @eventMessageLifeGet, @eventMessageHomingGet):
+ * repair, a fifth of its hull (all of it when less than 20 is missing); or a homing torpedo, 3 at most.
+ * Every console takes it away (bots_partie.p @botTakesItem), as the player's copy does on theirs. */
+pickUp(item)
+{
+    if (!sysGetGlobal("server.bots") || pickedItem == item)
+        return;
+    pickedItem = item;
+    new kind = 0;
+    actorGetPropInt("itemNum", kind, item);
+    if (kind == 1) {
+        if (homing < 3)
+            homing++;
+        homingIn = max(homingIn, 15);
+    } else {
+        g_1c68 = lifeMax - g_1c68 >= 20.0 ? g_1c68 + lifeMax / 5.0 : lifeMax;
+        lifeBefore = g_1c68;
+    }
+    new Float:p[3];
+    actorGetPosition(p, item);
+    netCallPublic(UID_GAME_STATE, "@botTakesItem", _:p[0], _:p[1], _:p[2]);
 }
 
 /* ---- start -------------------------------------------------------------------------------------- */
@@ -295,13 +351,13 @@ start()
         netCallPublic(UID_GAME_STATE, "@botJoin", botIndex, myTeam);
     }
     torpedoes = torpedoMax;
-    homing = HOMING[lvl];
+    homing = 0;                                         // a player has none: they are picked up
     yawWant = g_1cc8;
     yawSteer = g_1cc8;
     depthWant = fmin(g_1ca0[1], -300.0);
     stuckAt = g_1ca0;
     // the map, the subs (players, bots, the other consoles' copies) and the players' torpedoes
-    actorSetCollisionCheck(COLL_MAP | COLL_TORPEDO | COLL_SUB | COLL_REMOTE, 0);
+    actorSetCollisionCheck(COLL_MAP | COLL_TORPEDO | COLL_ITEM | COLL_SUB | COLL_REMOTE, 0);
     floatveczero(vel);
     floatveczero(push);
 }
@@ -451,10 +507,18 @@ timers()
 {
     if (reload)
         reload--;
-    if (torpedoes < torpedoMax && --replenishIn <= 0) {
-        torpedoes++;
-        replenishIn = replenishFrames;
+    // as a player: the torpedoes come back all at once, torpedoReplenishTime after the last one was fired
+    // (periscope_move.p: only while there is none left)
+    if (!torpedoes && ++emptyFor >= replenishFrames) {
+        torpedoes = torpedoMax;
+        emptyFor = 0;
     }
+    if (homingIn)
+        homingIn--;
+    if (maskerIn)
+        maskerIn--;
+    if (sonarIn)
+        sonarIn--;
     if (bumpTime)
         bumpTime--;
     if (hitWindow)
@@ -508,15 +572,61 @@ isMasked(actor)
     return on || masker;
 }
 
-/* The enemies around, and the torpedoes coming. */
+/* What a player sees (player_label.p func_32fc, func_305c): an enemy within 7000 with nothing of the map in
+ * between, not under its masker; or one its sonar found less than 300 frames ago, within 15000 (setSonarTime).
+ * Nothing else: no seeing through walls, no map of every sub. */
+const Float:SEE_RANGE = 7000.0;
+const Float:SONAR_RANGE = 15000.0;
+const SONAR_SHOWS = 300;             // frames a sonar contact shows (player_label.p @setSonarTime)
+const SONAR_EVERY = 120;             // frames between two pings (sonar.p func_414c)
+
+
+isContact(actor)
+{
+    if (frame - contactAt >= SONAR_SHOWS)
+        return 0;
+    for (new i = 0; i < contactCount; i++)
+        if (contacts[i] == actor)
+            return 1;
+    return 0;
+}
+
+/* A ping, as a player's (sonar.p func_414c, func_42d4): the subs within 15000, but not a sub of another
+ * console that is stopped (throttle under 0.05: the sonar does not hear it); every console sees the ping
+ * on its sonar (last_sonar, synced; this console's sonar is told here). */
+ping()
+{
+    sonarIn = SONAR_EVERY;
+    new pings = 0;
+    actorGetPropInt("last_sonar", pings, 0);
+    actorSetPropInt("last_sonar", pings + 1, 0);
+    sysCallPublic(UID_SONAR, "@addFound", me);
+    sysCallPublic(UID_PLAYER_LABEL, "@setSonarTime", me);
+    new found[16];
+    new count = worldFindActors(found, g_1ca0, SONAR_RANGE, COLL_SUB | COLL_REMOTE, sizeof found);
+    contactCount = 0;
+    for (new i = 0; i < count && contactCount < sizeof contacts; i++) {
+        new a = found[i];
+        if (a == me)
+            continue;
+        new Float:throttleOf = 1.0;
+        if (actorGetCollisionType(a) & COLL_REMOTE && actorGetPropReal("throttle", throttleOf, a)
+            && fabs(throttleOf) < 0.05)
+            continue;
+        contacts[contactCount++] = a;
+    }
+    contactAt = frame;
+}
+
+/* The enemies it sees or its sonar found, the teammates, the containers, and the torpedoes coming. */
 lookAround()
 {
     new found[16];
-    new count = worldFindActors(found, g_1ca0, 40000.0, COLL_SUB | COLL_REMOTE, sizeof found);
+    new count = worldFindActors(found, g_1ca0, SONAR_RANGE, COLL_SUB | COLL_REMOTE, sizeof found);
     new best = -1;
     new Float:bestScore = 1000000.0;
-    new nearest = -1;
-    new Float:nearestDistance = 1000000.0;
+    new heard = -1;
+    new Float:heardDistance = 1000000.0;
     mateCount = 0;
     for (new i = 0; i < count; i++) {
         new a = found[i];
@@ -538,15 +648,15 @@ lookAround()
         new Float:p[3];
         actorGetPosition(p, a);
         new Float:d = distance(p, g_1ca0);
-        new masked = isMasked(a);
-        if (!masked && d < nearestDistance) {
-            nearest = a;
-            nearestDistance = d;
+        new contact = isContact(a);
+        if (contact && d < heardDistance) {
+            heard = a;                                  // on its sonar, masked or not: where to go
+            heardDistance = d;
         }
-        if (d > 9000.0 || masked)
-            continue;                                   // under its masker it cannot be seen, near or far
-        new bool:seen = clearLine(g_1ca0, p, 200.0);
-        if (!seen && d > 3000.0)
+        if (isMasked(a))
+            continue;                                   // under its masker it cannot be aimed at
+        new bool:seen = d <= SEE_RANGE && clearLine(g_1ca0, p, 200.0);
+        if (!seen && !contact)
             continue;
         // the nearest, the weakest, the one it can shoot at; it keeps its target unless another is much better
         new Float:score = d + life * 12.0 + (seen ? 0.0 : 2500.0);
@@ -566,11 +676,38 @@ lookAround()
         tTurning = 0;
         tSwerve = -1000;
     }
-    if (target == -1 && nearest != -1 && (!goalValid || frame % 90 < SEE_EVERY[lvl])) {
-        actorGetPosition(goal, nearest);            // where the battle is, as the map shows it
+    if (target == -1 && heard != -1) {
+        actorGetPosition(goal, heard);                  // where its sonar heard one
         goalValid = 1;
     }
+    // no one to fight: a ping now and then, as a player looking for the others
+    if (target == -1 && !sonarIn && frandom() < 0.25)
+        ping();
+    lookForContainers();
     watchTorpedoes();
+}
+
+/* The containers the sunk subs leave (surface_item, type 0x100): a player picks them up, the game's
+ * computer subs cannot (surface_item.p @eventCollide). One in sight it goes for when it needs it. */
+lookForContainers()
+{
+    new found[6];
+    new count = worldFindActors(found, g_1ca0, 4000.0, COLL_ITEM, sizeof found);
+    container = -1;
+    new Float:best = 1000000.0;
+    for (new i = 0; i < count; i++) {
+        new kind = 0;
+        actorGetPropInt("itemNum", kind, found[i]);
+        if (kind == 1 ? homing >= 3 : g_1c68 > lifeMax - 1.0)
+            continue;                                   // homing torpedoes: 3 at most; repair: not needed
+        new Float:p[3];
+        actorGetPosition(p, found[i]);
+        new Float:d = distance(p, g_1ca0);
+        if (d < best && clearLine(g_1ca0, p, 150.0)) {
+            best = d;
+            container = found[i];
+        }
+    }
 }
 
 /* A torpedo that will pass close: change depth and turn across its path. */
@@ -686,6 +823,19 @@ decide()
         guess();
         return;
     }
+    if (container != -1 && (target == -1 || (health < 0.5 && distance(tPos, g_1ca0) > 3000.0))) {
+        new Float:p[3];
+        actorGetPosition(p, container);
+        new Float:to[3];
+        floatvecsubto(to, p, g_1ca0);
+        yawWant = yawOf(to);
+        depthWant = p[1];
+        throttleWant = 1.0;
+        if (evadeTime) {
+            yawWant = evadeYaw;
+        }
+        return;
+    }
     if (target == -1) {
         wander();
         if (evadeTime) {
@@ -713,7 +863,7 @@ decide()
 
     if (health < 0.4) {
         // it backs away still firing; under its masker only when the enemy closes in or hits it again
-        if (!maskerTime && air >= maskerCost && (d < 1800.0 || (hurtTime && d < 3500.0)))
+        if (!maskerTime && !maskerIn && air >= maskerCost && (d < 1800.0 || (hurtTime && d < 3500.0)))
             maskerOn();
         if (maskerTime) {
             // hidden: away from it, full speed, deep
@@ -793,9 +943,8 @@ guess()
             launch(tube, name);
             actorSetPropReal("bearing", g_1cc8, lastTorpedo);
             torpedoes--;
-            if (replenishIn <= 0)
-                replenishIn = replenishFrames;
             reload = fireInterval + FIRE_PAUSE[lvl];
+            homingIn = 120;
             brakeTime = brakeFrames;
             brake = 1.0;
             side = -side;
@@ -834,8 +983,15 @@ wander()
         throttleWant = 1.0;
         return;
     }
-    if (frame % 240 == 0)
-        yawWant = wrapAngle(yawWant + (frandom() - 0.5) * 2.0);
+    if (distance2D(g_1ca0, wanderTo) < 1500.0 || frame % 900 == 0) {
+        // nothing heard: somewhere around the middle of the map
+        wanderTo[0] = (frandom() - 0.5) * 12000.0;
+        wanderTo[2] = (frandom() - 0.5) * 12000.0;
+    }
+    new Float:to[3];
+    floatvecsubto(to, wanderTo, g_1ca0);
+    to[1] = 0.0;
+    yawWant = yawOf(to);
     depthWant = fmax(floorY + 300.0, -600.0);
     throttleWant = 0.6;
 }
@@ -991,7 +1147,7 @@ fire(Float:aim[3], Float:point[3], Float:d, flight)
     if (reload || maskerTime || sysGetGlobal("mode.gameover") || sysGetGlobal("player.timeOver"))
         return;
     holdReason = 2;
-    if (!torpedoes && !homing)
+    if (!torpedoes && (!homing || homingIn))
         return;
     holdReason = 3;
     if (frame - targetSince < 20 || !tVisible || !flight)
@@ -1019,7 +1175,7 @@ fire(Float:aim[3], Float:point[3], Float:d, flight)
     // homing: at a target that turns hard or crosses fast, or when hurt
     new Float:yaw = g_1cc8;
     new Float:across = floatsqroot(tVel[0] * tVel[0] + tVel[2] * tVel[2]) * floatsin(fabs(wrapAngle(tHeading - yaw)), 0);
-    if (homing && !isMasked(target) && d > 1200.0 && d < 5500.0
+    if (homing && !homingIn && frame - targetSince > 45 && !isMasked(target) && d > 1200.0 && d < 5500.0
         && (fabs(tOmega) > 0.012 || across > 6.0 || g_1c68 < lifeMax * 0.4 || !torpedoes)) {
         launch(tube, "surface_torpedo_p_homing");
         sysCallPublic(UID:lastTorpedo, "@lockOnTarget", target);
@@ -1031,12 +1187,11 @@ fire(Float:aim[3], Float:point[3], Float:d, flight)
         launch(tube, name);
         actorSetPropReal("bearing", yaw, lastTorpedo);
         torpedoes--;
-        if (replenishIn <= 0)
-            replenishIn = replenishFrames;
     } else {
         return;
     }
     reload = fireInterval + FIRE_PAUSE[lvl];
+    homingIn = 120;                                     // a player's weapons wait 120 frames after a shot
     brakeTime = brakeFrames;                            // a player's sub brakes when it fires
     brake = 1.0;
     side = -side;
@@ -1105,7 +1260,7 @@ launch(const Float:tube[3], const name[])
 
 maskerOn()
 {
-    if (maskerUses >= floatround(100.0 / maskerCost, 1))
+    if (maskerUses >= floatround(100.0 / maskerCost, 1) || maskerIn)
         return;                                         // the air of a life: 3 maskers, never more
     maskerUses++;
     air = air - maskerCost;
@@ -1117,6 +1272,7 @@ maskerOn()
 maskerOff()
 {
     maskerTime = 0;
+    maskerIn = 150;                                     // as a player's button (periscope_move.p, g_752c)
     actorSetPropInt("masker", 0, 0);
     actorSetPropInt("masker_on", 0, 0);
 }
@@ -1345,6 +1501,24 @@ a848_game:
     push.adr 0xc                    ; damage
     push.c 20
     call @pw_botExplosionArgs
+    .original
+    .return
+
+; main, after the sinking: actorSyncRemove(0), func_cb2c (the same) -> after the 215 frames that follow.
+.hook 0xdca4
+    push.c 0
+    call @pw_botKeepsSync
+    jnz 0xdcd0
+    .original
+    .return
+
+.hook 0xdd98
+    push.c 0
+    call @pw_botKeepsSync
+    jzer @sync_done
+    push.c 0
+    sysreq.n actorSyncRemove, 1
+sync_done:
     .original
     .return
 

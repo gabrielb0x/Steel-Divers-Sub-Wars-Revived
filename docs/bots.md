@@ -55,9 +55,15 @@ vitesse de pointe, axe de chaque tir.
   sous-marins, et retire la vitesse qui l'y enfoncerait. Il regarde aussi devant lui (`worldClipLine`, plusieurs
   caps) pour contourner un obstacle, toujours par le même côté tant que le passage est bouché. Il sonde le fond,
   et recule s'il n'a presque pas bougé pendant deux secondes.
-- **Les cibles** : tout sous-marin ennemi, joueur ou bot, de cette console ou d'une autre (`worldFindActors`,
-  types `0x40000` et `0x80000`). Il préfère le plus proche, le plus abîmé, celui qu'il voit. Sans cible en vue, il
-  va vers la bataille.
+- **Ce qu'il voit, comme un joueur** (`player_label.p func_32fc`, `func_305c`) : un ennemi à moins de 7 000
+  unités, sans rien de la carte entre eux, et pas masqué. Ou un ennemi que son sonar a trouvé il y a moins de
+  300 images, jusqu'à 15 000 unités. Rien d'autre : il ne voit pas à travers les murs et n'a pas la carte de tous
+  les sous-marins. Il vise tout ennemi, joueur ou bot, de cette console ou d'une autre. Il préfère le plus proche,
+  le plus abîmé, celui qu'il voit.
+- **Le sonar d'un joueur** (`sonar.p func_414c`, `func_42d4`) : sans ennemi en vue, il émet de temps en temps,
+  avec 120 images d'attente entre deux impulsions, et va vers ce qu'il a entendu, sinon fait le tour du milieu
+  de la carte. Le sonar n'entend pas un sous-marin d'une autre console arrêté (accélérateur sous 0,05). Toutes
+  les consoles voient son impulsion sur leur sonar (`last_sonar`), comme celle d'un joueur.
 - **Le masqueur le rend aveugle** : un ennemi masqué (`masker` ou `masker_on`) n'est jamais vu, de près ni de
   loin. Si sa cible se masque, le bot la perd. Il ne sait que vers où elle allait : il va la chercher là
   pendant 8 s et peut y tirer une ou deux torpilles au jugé. Une torpille à tête chercheuse perd elle aussi sa
@@ -76,9 +82,20 @@ vitesse de pointe, axe de chaque tir.
 - **Le combat** : il garde ses distances (2 200 à 3 000 unités, 1 700 contre une cible agile), recule face à un
   ennemi trop proche et ne l'éperonne jamais. Une torpille qui va passer près de lui, il la voit venir : il
   s'écarte de sa trajectoire et change de profondeur, parce qu'une torpille garde sa profondeur.
-- **Torpilles à tête chercheuse** : une ou deux par vie, celles des joueurs (`surface_torpedo_p_homing`,
-  verrouillées par `@lockOnTarget`), dans l'axe du sous-marin. Il les tire sur une cible qui vire fort ou passe
-  vite, ou quand il est abîmé.
+- **Les temps d'attente d'un joueur** (`periscope_move.p`) :
+  - entre deux torpilles, `torpedoFireInterval` de son sous-marin ;
+  - le rechargement, d'un coup, `torpedoReplenishTime` secondes après la dernière torpille, et seulement quand il
+    n'en reste aucune ;
+  - les armes, dont les têtes chercheuses, attendent 120 images après chaque tir (`func_f878`) ;
+  - le masqueur attend 150 images après le précédent.
+- **Torpilles à tête chercheuse** : aucune au départ. Comme un joueur, il n'en a qu'en ramassant les conteneurs
+  qu'un sous-marin coulé laisse, 3 au plus. Ce sont celles des joueurs (`surface_torpedo_p_homing`, verrouillées
+  par `@lockOnTarget`), tirées dans l'axe du sous-marin sur une cible suivie depuis 1,5 s. Il les tire sur une
+  cible qui vire fort ou passe vite, ou quand il est abîmé.
+- **Les conteneurs** : le jeu interdisait à ses sous-marins de les ramasser (`surface_item.p @eventCollide`).
+  Le bot les ramasse comme un joueur, et va chercher celui qu'il voit quand il en a besoin. Une réparation rend
+  un cinquième de sa coque, ou tout ce qui manque s'il manque moins de 20 ; une tête chercheuse s'ajoute à son
+  stock. Toutes les consoles retirent le conteneur ramassé (`@botTakesItem`).
 - **Coque basse** (moins de 40 %) : il garde sa cible et recule en tirant. Quand un ennemi approche, il passe sous
   son masqueur (`masker`, `masker_on` : 300 images pour 33,3 d'air) et s'enfuit en profondeur. Comme un joueur,
   il ne retrouve de l'air qu'en surface : trois masqueurs par vie au plus, et jamais plus de trois.
@@ -100,6 +117,9 @@ vitesse de pointe, axe de chaque tir.
   toutes les consoles (`@botHitBy`). La mort du bot est inscrite comme celle d'un joueur, avec cette torpille et
   un nœud de son équipe (`0x7b070000` + équipe).
 
+  Quand aucune torpille ne l'a coulé, ou que la dernière remonte à plus de 5 s (il s'est jeté contre la carte),
+  le replay le montre lui-même, comme celui d'un joueur (`pscope_player.p func_8d38`). Pour cela, il reste
+  synchronisé 215 images après sa mort, comme une torpille après son explosion.
 - **Un joueur pour le jeu** : le jeu reconnaît les joueurs à leur nœud réseau (`player.<nœud>.name`, `.team`).
   Chaque bot k en a un à lui, `0x7b070000` + k, avec son nom et son équipe
   ([`bots_partie.p`](../mods/en-ligne/src/bots_partie.p)). Il a donc ce qu'a un joueur :
@@ -130,6 +150,9 @@ vitesse de pointe, axe de chaque tir.
 
   - chaque coup est multiplié par le `damageRate` de son sous-marin, arrondi au-dessus ;
   - le spectateur voit sa jauge baisser (`lifecapacity`, lue par `hud.p @setTelecastPlayer`).
+- **La fuite d'huile** (la fumée noire d'un sous-marin abîmé) apparaît sous 40 % de sa coque, comme pour un
+  joueur (`netplay_dummy_sub.p` : `life < lifecapacity / 2,5`). Le jeu l'allumait sous 100 points, quelle que soit la
+  coque.
 - **Vu un instant sous son masqueur quand on le touche**, comme un joueur : `pscope_player.p func_a758` met le
   drapeau d'affichage 6 quand la vie baisse et `func_60b4` fait clignoter le sous-marin masqué. Personne ne le
   mettait pour `surface_sub`. Les bots voient aussi un instant un ennemi masqué qu'on vient de toucher.

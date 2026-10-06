@@ -64,6 +64,18 @@ public @botJoin(k, team)
     botAsPlayer(k, team);
 }
 
+/* A bot picked up the container there: every console takes its copy away (surface_item.p @kill). */
+forward @botTakesItem(Float:x, Float:y, Float:z);
+public @botTakesItem(Float:x, Float:y, Float:z)
+{
+    new Float:p[3];
+    floatvecset(p, x, y, z);
+    new found[4];
+    new count = worldFindActors(found, p, 400.0, COLL_ITEM, sizeof found);
+    for (new i = 0; i < count; i++)
+        sysCallPublic(UID:found[i], "@kill");
+}
+
 isPlayerNode(node)
 {
     return node > 0 && (node < BOT_NODE || node > BOT_NODE + 0xffff);
@@ -82,6 +94,10 @@ public @botHitBy(owner, sub, node, torpedo, shooter, k, team, homing)
     sysSetGlobal(name, torpedo);
     strformat(name, sizeof name, false, "bots.hitby.%x.%d", owner, sub);
     sysSetGlobal(name, shooter);
+    new time[2];
+    netGetSessionTime(time);
+    strformat(name, sizeof name, false, "bots.hittime.%x.%d", owner, sub);
+    sysSetGlobal(name, time[1]);
     new bot = botAsPlayer(k, team);
     if (shooter != netGetNodeId() || getPlayerTeam(shooter) == team)
         return;
@@ -137,6 +153,13 @@ public @botDown(team, owner, sub, k)
     new torpedo = sysGetGlobal(name);
     new time[2];
     netGetSessionTime(time);
+    strformat(name, sizeof name, false, "bots.hittime.%x.%d", owner, sub);
+    if (!torpedoNode || time[1] - sysGetGlobal(name) > 5000) {
+        // no torpedo sank it (it ran into the map, or its last hit is old): the replay shows the bot itself,
+        // as a player's shows its own sub (pscope_player.p func_8d38)
+        torpedoNode = owner;
+        torpedo = sub;
+    }
     scheduleCheckGameOver(bot, time[1], torpedoNode, torpedo);
 }
 

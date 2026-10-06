@@ -667,6 +667,8 @@ class Sim:
             target, name = p[0], amx.string(p[1])
             args = [amx.rd(x) for x in p[2:]]
             w.net.append(("sys", target, name, args))
+            if name == "@kill" and target in w.actors and w.actors[target].kind == "item":
+                w.actors[target].alive = False
             if name == "@lockOnTarget":
                 actor = w.actors.get(target)
                 if actor:
@@ -677,6 +679,12 @@ class Sim:
             name = amx.string(p[1])
             args = [amx.rd(x) for x in p[2:]]
             w.net.append(("net", p[0], name, args))
+            if name == "@botTakesItem":                     # bots_partie.p: every console removes it
+                p = [c2f(x) for x in args[:3]]
+                for o in w.actors.values():
+                    if o.kind == "item" and o.alive and math.dist(o.pos, p) < 400.0:
+                        o.alive = False
+                        w.log.append(f"{w.frame}: container {o.props.get('itemNum')} picked up")
             if name == "@torpedoHitOnNpcToOwner":
                 target = args[2]
                 w.hits.append((w.frame, amx.owner.props.get("actor_id", "?"), target, c2f(args[6])))
@@ -968,6 +976,11 @@ def contacts(world: World, bots: list[Bot], sim: Sim) -> None:
                 events.append((1, hit[1], hit[0]))
         if a.pos[1] < world.floor + 110.0:
             events.append((1, [a.pos[0], world.floor, a.pos[2]], [0.0, 1.0, 0.0]))
+        for o in world.actors.values():                   # containers (surface_item: a 170 sphere)
+            if o.kind == "item" and o.alive and math.dist(o.pos, a.pos) < 280.0:
+                d = [a.pos[k] - o.pos[k] for k in range(3)]
+                n = math.sqrt(sum(x * x for x in d)) or 1.0
+                events.append((o.id, o.pos, [x / n for x in d]))
         for o in world.actors.values():
             if o is a or not o.alive or o.kind not in ("bot", "player"):
                 continue
@@ -1029,6 +1042,13 @@ def scenario(name: str, level: int, seed: int, verbose: bool, pitch_sign: float 
         bots.append(Bot(world, sim, image, [0.0, -500.0, -3000.0], 0.0, 1, 1, 3))
         players.append(Player(world, [0.0, -500.0, 0.0], 2, 2, speed=7.0))
         world.masker = (300, 600, players[0])
+    elif name == "items":                     # hull at 50: a repair and a homing torpedo in sight
+        bots.append(Bot(world, sim, image, [0.0, -500.0, 0.0], 0.0, 1, 1, 1))
+        for kind, pos in ((0, [1500.0, -500.0, 1500.0]), (1, [-1500.0, -500.0, 2500.0])):
+            item = Actor(world, "item", pos)
+            item.type = 0x100
+            item.props["itemNum"] = str(kind)
+        world.hurt_at = (5, bots[0], 50.0)
     elif name == "melee":                     # four bots against four bots
         for k in range(4):
             bots.append(Bot(world, sim, image, [k * 900.0 - 1350.0, -500.0, -4000.0], 0.0, 1, k + 1, k * 5 + 1))
@@ -1070,7 +1090,7 @@ def scenario(name: str, level: int, seed: int, verbose: bool, pitch_sign: float 
                                  f"life {a.life:.0f}")
         alive_teams = {a.props.get("teamColor") for a in world.actors.values()
                        if a.alive and a.kind in ("bot", "player")}
-        if len(alive_teams) < 2 and name != "corner":
+        if len(alive_teams) < 2 and name not in ("corner", "items"):
             break
     return world, bots, players
 
