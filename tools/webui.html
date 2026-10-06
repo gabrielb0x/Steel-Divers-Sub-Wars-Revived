@@ -62,6 +62,9 @@ code { background: var(--chip); padding: 1px 5px; border-radius: 4px; word-break
 .mod .params label { display: flex; gap: 8px; align-items: center; font-size: 13.5px; }
 .tag { font-size: 11.5px; border-radius: 4px; padding: 0 6px; background: var(--chip); color: var(--muted); }
 .tag.cheat { color: var(--warn); }
+.tag.ok { color: var(--ok); } .tag.off { color: var(--muted); text-decoration: line-through; }
+.mod.unavailable { opacity: .65; }
+.note { font-size: 13px; margin: 6px 0 0 28px; color: var(--warn); }
 .subs { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 6px; }
 .sub { border: 1px solid var(--line); border-radius: 6px; padding: 4px 8px; font-size: 13px; }
 .sub.on { border-color: var(--ok); } .sub.off { color: var(--muted); }
@@ -121,10 +124,12 @@ ol.steps { margin: 6px 0 0; padding-left: 20px; } ol.steps li { margin-bottom: 4
   <div class="card">
     <h2>1. Les fichiers du jeu</h2>
     <div class="status" id="game-status"></div>
+    <div class="status" id="update-status" style="margin-top:4px"></div>
     <p class="small muted">Il faut <b>votre</b> copie de Steel Diver: Sub Wars, version européenne
       (<code>00040000000D7E00</code>), déchiffrée : le <code>.cia</code> de l'eShop, un <code>.cxi</code> ou un
       <code>.3ds</code>. Le lanceur la cherche dans le dossier <code>cia/</code> du projet et dans l'émulateur. Rien n'est
-      envoyé nulle part.</p>
+      envoyé nulle part. Sa <b>mise à jour v5200</b> (<code>0004000E000D7E00</code>, facultative : 16 sous-marins et
+      3 cartes de plus) se prépare en même temps si son <code>.cia</code> déchiffré est dans <code>cia/</code>.</p>
     <div class="row">
       <button class="btn primary" id="btn-extract-auto">Trouver le jeu et le préparer</button>
       <button class="btn" id="btn-extract-pick">Choisir le fichier…</button>
@@ -141,6 +146,14 @@ ol.steps { margin: 6px 0 0; padding-left: 20px; } ol.steps li { margin-bottom: 4
       <button class="btn" id="btn-prepare">Préparer le jeu pour Azahar</button>
       <button class="btn" id="btn-open-prepared">Ouvrir le dossier</button>
     </div>
+    <h3>La mise à jour dans l'émulateur</h3>
+    <p class="small muted">Installée, elle remplace le code du jeu, qu'il soit installé ou ouvert depuis son
+      <code>.cxi</code> : les mods sont alors construits pour elle. Les mods déjà installés pour l'autre version sont
+      retirés (ils empêcheraient le jeu de démarrer) : réinstallez-les ensuite.</p>
+    <div class="row">
+      <button class="btn" id="btn-update-install">Installer la mise à jour</button>
+      <button class="btn danger" id="btn-update-uninstall">Retirer la mise à jour</button>
+    </div>
   </div>
   <div class="card">
     <h2>3. Les mods</h2>
@@ -155,6 +168,7 @@ ol.steps { margin: 6px 0 0; padding-left: 20px; } ol.steps li { margin-bottom: 4
     <p class="small muted">Cochez les mods voulus puis « Installer » : ils sont construits à partir de votre jeu et
       copiés dans l'émulateur (<code>load/mods/00040000000D7E00/</code>, dans chaque émulateur trouvé). Il n'en
       charge qu'un dossier : tous les mods cochés y vont ensemble. Relancez le jeu ensuite.</p>
+    <div id="mods-version" class="small"></div>
     <div id="installed" class="small"></div>
   </div>
   <div id="mod-list"></div>
@@ -243,6 +257,10 @@ ol.steps { margin: 6px 0 0; padding-left: 20px; } ol.steps li { margin-bottom: 4
     <p class="small"><b>Le premium sans l'eShop ?</b> Tout le contenu premium est déjà dans le jeu gratuit ; l'achat
       n'ajoutait qu'un droit. Le mod le donne, et donne aux cinq sous-marins historiques leur coque à la place de leur
       proue, qui était dans le contenu payant.</p>
+    <p class="small"><b>La mise à jour v5200 ?</b> La dernière mise à jour du jeu (16 sous-marins, 3 cartes, des
+      règles revues). Avec son <code>.cia</code> déchiffré dans <code>cia/</code>, le lanceur la prépare et l'installe
+      dans l'émulateur (onglet Jeu). Les mods sont construits pour la version que l'émulateur fait tourner ; chaque mod
+      indique les versions avec lesquelles il marche (onglet Mods).</p>
     <p class="small"><b>Retirer les mods ?</b> Onglet Mods, « Retirer les mods de l'émulateur ». Les déblocages restent dans
       la sauvegarde.</p>
     <p class="small"><b>Le jeu affiche l'erreur 098-0101 au démarrage ?</b> La sauvegarde a été marquée « premium » :
@@ -332,26 +350,49 @@ document.addEventListener("click", e => {
 });
 
 // ---- state -----------------------------------------------------------------------------------------
+const byVersion = (a, b) => Number(a.slice(1)) - Number(b.slice(1));
+function allVersions() {
+  const found = new Set([...state.game.versions, ...state.emulator.versions, "v0"]);
+  for (const m of state.mods) for (const v of m.versions || []) found.add(v);
+  return [...found].sort(byVersion);
+}
+function versionLabel(v) { return v === "v0" ? "v0 (jeu d'origine)" : `${v} (mise à jour)`; }
 async function refresh() {
   state = await api("state");
-  const g = state.game, emu = state.emulator;
+  const g = state.game, emu = state.emulator, up = g.update;
+  const stale = emu.emulators.filter(e => e.stale);
   const chips = $("#chips");
   chips.replaceChildren(
     el("span", {class: "chip " + (g.ready ? "ok" : "warn")}, g.ready ? "● Jeu prêt" : "● Jeu à préparer"),
     el("span", {class: "chip " + (emu.dirs.length ? "ok" : "warn")}, emu.dirs.length
       ? "● " + [...new Set(emu.names.map(n => n.replace(/ \(.*\)$/, "")))].join(", ") + " trouvé" + (emu.names.length > 1 ? "s" : "")
       : "● Émulateur introuvable"),
-    el("span", {class: "chip " + (emu.mods_installed ? "ok" : "")},
-       emu.mods_installed ? "● Mods installés" + (emu.installed ? " : " + emu.installed.mods.join(", ") : "") : "● Aucun mod installé"));
+    ...emu.versions.map(v => el("span", {class: "chip ok"}, "● Jeu en " + versionLabel(v))),
+    el("span", {class: "chip " + (stale.length ? "warn" : emu.mods_installed ? "ok" : "")},
+       stale.length ? "● Mods à réinstaller (construits pour " + stale[0].mods_version + ")"
+       : emu.mods_installed ? "● Mods installés" + (emu.installed ? " : " + emu.installed.mods.join(", ") : "") : "● Aucun mod installé"));
   $("#game-status").replaceChildren(el("span", {class: "dot " + (g.ready ? "ok" : "warn")}),
     el("span", {}, g.ready ? `Prêts (${g.product}, depuis ${g.source_name}).`
       : g.found ? "Pas encore préparés. Jeu trouvé : " : "Pas encore préparés, et le jeu n'a pas été trouvé automatiquement.",
       g.ready || !g.found ? "" : el("code", {}, g.found)));
+  $("#update-status").replaceChildren(
+    el("span", {class: "dot " + (!up.found ? "" : up.encrypted ? "warn" : up.extracted.includes(up.version) ? "ok" : "warn")}),
+    el("span", {}, !up.found ? "Mise à jour : aucune (facultative ; mettez son .cia déchiffré dans cia/ pour la v5200)."
+      : up.encrypted ? el("span", {}, `Mise à jour ${up.version} trouvée, mais chiffrée (`, el("code", {}, up.name),
+          ") : déchiffrez-la (GodMode9, ou un outil de déchiffrement de CIA), puis remettez-la dans cia/.")
+      : up.extracted.includes(up.version) ? el("span", {}, `Mise à jour ${up.version} prête (`, el("code", {}, up.name), ").")
+      : el("span", {}, `Mise à jour ${up.version} trouvée (`, el("code", {}, up.name), ") : « Trouver le jeu et le préparer » la prépare aussi.")));
   $("#emu-status").replaceChildren(el("span", {class: "dot " + (emu.dirs.length ? "ok" : "warn")}),
-    el("span", {}, emu.dirs.length ? emu.dirs.map((d, i) => el("div", {}, emu.names[i] + " : ", el("code", {}, d)))
+    el("span", {}, emu.dirs.length ? emu.emulators.map(e => el("div", {}, e.name + " : ", el("code", {}, e.dir),
+        el("span", {class: "muted"}, " — jeu en " + e.label)))
       : "Aucun émulateur trouvé (Azahar, Lime3DS, Citra, Borked3DS) : lancez-le une fois. Version portable : "
         + "définissez la variable AZAHAR_DIR sur son dossier « user »."),
     g.prepared ? el("span", {class: "muted small"}, " — jeu préparé dans build/azahar/") : "");
+  const installedSomewhere = emu.emulators.some(e => e.version !== "v0");
+  $("#btn-update-install").disabled = !up.found || up.encrypted || !up.cia || !emu.dirs.length
+    || emu.emulators.every(e => e.version === up.version);
+  $("#btn-update-install").textContent = up.version ? `Installer la mise à jour ${up.version}` : "Installer la mise à jour";
+  $("#btn-update-uninstall").disabled = !installedSomewhere;
   $("#restart").style.display = state.restart ? "block" : "none";
   renderMods();
   if (state.task && !state.task.done) followTask(state.task);
@@ -389,6 +430,15 @@ async function runTask(path, body) {
 $("#btn-extract-auto").addEventListener("click", () => runTask("game/extract"));
 $("#btn-prepare").addEventListener("click", () => runTask("game/prepare"));
 $("#btn-open-prepared").addEventListener("click", () => guarded(() => api("open", {body: {path: state.game.prepared_dir}})));
+$("#btn-update-install").addEventListener("click", () => {
+  const v = state.game.update.version;
+  if (confirm(`Installer la mise à jour ${v} dans l'émulateur ? Le jeu démarrera en ${v}. Les mods installés pour une autre `
+      + "version seront retirés : réinstallez-les ensuite (onglet Mods).")) runTask("update/install");
+});
+$("#btn-update-uninstall").addEventListener("click", () => {
+  if (confirm("Retirer la mise à jour de l'émulateur ? Le jeu redevient la v0 (la sauvegarde ne change pas). Les mods "
+      + "installés pour la mise à jour seront retirés : réinstallez-les ensuite.")) runTask("update/uninstall");
+});
 $("#btn-extract-pick").addEventListener("click", () => browse(null));
 $("#files-cancel").addEventListener("click", () => $("#files-overlay").classList.remove("show"));
 $("#files-go").addEventListener("click", () => browse($("#files-path").value));
@@ -417,28 +467,45 @@ async function browse(dir) {
 const modChoices = JSON.parse(localStorageGet("mods") || "{}");
 function localStorageGet(k) { try { return localStorage.getItem("sdsw." + k); } catch (e) { return null; } }
 function localStorageSet(k, v) { try { localStorage.setItem("sdsw." + k, v); } catch (e) {} }
+function emulatorVersions() { return state.emulator.versions.length ? state.emulator.versions : ["v0"]; }
+function modWorksWith(m, v) { return !m.versions || m.versions.includes(v); }
 function renderMods() {
   const list = $("#mod-list");
   const installed = state.emulator.installed;
+  const targets = emulatorVersions();
+  const stale = state.emulator.emulators.filter(e => e.stale);
+  $("#mods-version").replaceChildren(
+    el("div", {}, "Version du jeu dans l'émulateur : ", el("b", {}, targets.map(versionLabel).join(", ")),
+      " — les mods sont construits pour elle. Chaque mod indique les versions avec lesquelles il marche."),
+    ...stale.map(e => el("div", {style: "color:var(--warn)"}, `Les mods installés dans ${e.name} ont été construits pour `
+      + `${e.mods_version}, mais le jeu y tourne en ${e.version} : ils l'empêcheraient de démarrer. Réinstallez-les.`)));
   $("#installed").replaceChildren(state.emulator.mods_installed
     ? el("span", {}, "Installés : ", el("b", {}, installed ? installed.mods.join(" + ") : "des mods"),
         installed ? el("span", {class: "muted"}, ` (le ${installed.date})`) : "")
     : el("span", {class: "muted"}, "Aucun mod installé dans l'émulateur."));
-  if (list.dataset.built) return;
-  list.dataset.built = "1";
+  const key = targets.join(",") + "|" + allVersions().join(",");
+  if (list.dataset.built === key) return;
+  list.dataset.built = key;
+  list.replaceChildren();
   for (const m of state.mods) {
     const choice = modChoices[m.id] || {on: installed ? installed.mods.includes(m.id) : m.id === "premium", params: {}};
     if (m.always) choice.on = true;
     modChoices[m.id] = choice;
+    const missing = targets.filter(v => !modWorksWith(m, v));
     const box = el("input", {type: "checkbox", "data-mod": m.id});
-    box.checked = choice.on;
-    box.disabled = m.always;
-    const card = el("div", {class: "mod card" + (choice.on ? " on" : ""), id: "mod-" + m.id});
+    box.checked = choice.on && !missing.length;
+    box.disabled = m.always || missing.length > 0;
+    const card = el("div", {class: "mod card" + (box.checked ? " on" : "") + (missing.length ? " unavailable" : ""), id: "mod-" + m.id});
     box.addEventListener("change", () => { choice.on = box.checked; card.classList.toggle("on", box.checked); saveChoices(); });
     const tags = [];
     if (m.flags.includes("triche") || m.flags.includes("specs")) tags.push(el("span", {class: "tag cheat"}, "triche en ligne"));
     if (m.online) tags.push(el("span", {class: "tag"}, "en ligne"));
     if (m.always) tags.push(el("span", {class: "tag"}, "toujours inclus"));
+    for (const v of allVersions()) {
+      const ok = modWorksWith(m, v);
+      tags.push(el("span", {class: "tag " + (ok ? "ok" : "off"), title: ok ? `marche avec ${versionLabel(v)}`
+        : `ne marche pas (encore) avec ${versionLabel(v)}`}, (ok ? "✓ " : "✗ ") + v));
+    }
     const params = el("div", {class: "params"});
     for (const p of m.params) {
       const value = choice.params[p.key] ?? (installed && installed.params[p.key]) ?? p.default;
@@ -461,7 +528,10 @@ function renderMods() {
     }
     card.append(el("label", {class: "title"}, box, m.name, ...tags),
                 el("div", {class: "small muted", style: "margin-left:28px"}, m.description),
-                m.params.length ? params : "");
+                missing.length ? el("div", {class: "note"}, m.always
+                  ? `Pas encore disponible pour ${missing.map(versionLabel).join(", ")} : laissé de côté pour cette version.`
+                  : `Pas encore disponible pour ${missing.map(versionLabel).join(", ")}, la version du jeu dans l'émulateur.`) : "",
+                m.params.length && !missing.length ? params : "");
     list.append(card);
   }
 }
@@ -483,7 +553,7 @@ function selectedMods() {
   const names = [], params = {};
   for (const m of state.mods) {
     const choice = modChoices[m.id];
-    if (!choice || !choice.on || m.always) continue;
+    if (!choice || !choice.on || m.always || emulatorVersions().some(v => !modWorksWith(m, v))) continue;
     names.push(m.id);
     for (const p of m.params) params[p.key] = choice.params[p.key] ?? p.default;
   }

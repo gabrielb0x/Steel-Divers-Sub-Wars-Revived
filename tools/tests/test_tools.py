@@ -3,6 +3,7 @@
     python3 -m unittest discover -s tools/tests
 """
 
+import json
 import socket
 import struct
 import subprocess
@@ -18,8 +19,10 @@ from unittest import mock
 TOOLS = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(TOOLS))
 
+import azahar                                  # noqa: E402
 import mod                                     # noqa: E402
 import shbin                                   # noqa: E402
+import versions                                # noqa: E402
 from amx import disassemble                    # noqa: E402
 from amxasm import AmxImage, AsmError as AmxAsmError   # noqa: E402
 import webui                                   # noqa: E402
@@ -171,14 +174,20 @@ class Assembler(unittest.TestCase):
                   "port": "61000", "server": "127.0.0.1", "debloquer": "oui", "dlc": "non"}
         from string import Template
         for recipe in sorted((TOOLS.parent / "mods").glob("*/mod.toml")):
-            values = dict(params)                       # the labels of an entry are ${arm_<label>} after it
-            for entry in tomllib.loads(recipe.read_text(encoding="utf-8")).get("code", []):
-                if "arm" in entry:
-                    with self.subTest(recipe=recipe.parent.name, address=hex(entry["address"])):
-                        symbols = {}
-                        code = assemble(Template(entry["arm"]).safe_substitute(values), entry["address"], symbols)
-                        values.update({f"arm_{k}": f"{v:#x}" for k, v in symbols.items()})
-                        self.assertLessEqual(len(code), entry.get("max_size", len(code)))
+            data = tomllib.loads(recipe.read_text(encoding="utf-8"))
+            for version in mod.recipe_versions(data) or ["v0"]:
+                resolved = mod.for_version(data, version, recipe.parent.name)
+                values = dict(params)                   # the labels of an entry are ${arm_<label>} after it
+                values.update({k: f"{v:#010x}" if isinstance(v, int) else v
+                               for k, v in resolved.get("symbols", {}).items()})
+                for entry in resolved.get("code", []):
+                    address = mod.entry_address(entry, values)
+                    if "arm" in entry:
+                        with self.subTest(recipe=recipe.parent.name, version=version, address=hex(address)):
+                            symbols = {}
+                            code = assemble(Template(entry["arm"]).safe_substitute(values), address, symbols)
+                            values.update({f"arm_{k}": f"{v:#x}" for k, v in symbols.items()})
+                            self.assertLessEqual(len(code), entry.get("max_size", len(code)))
 
     def test_errors(self):
         for line in ("mov r0, #0x12345", "ldr r0, [r1, #4096]", "b nowhere", "frob r0", "strsb r0, [r1]"):
@@ -269,7 +278,7 @@ class Shaders(unittest.TestCase):
             path = Path(folder) / "shaders" / "test.shbin"
             path.parent.mkdir()
             path.write_bytes(make_shbin(NESTED))
-            old, mod.ROMFS = mod.ROMFS, Path(folder)
+            old, mod.GAME = mod.GAME, versions.GameFiles("v0", Path(folder) / "code.bin", (Path(folder),))
             try:
                 shaders: dict[str, bytearray] = {}
                 entry = {"file": "shaders/test.shbin", "instruction": 8, "expect": 0xA4002800, "value": shbin.NOP}
@@ -280,7 +289,7 @@ class Shaders(unittest.TestCase):
                 with self.assertRaises(mod.ModError):
                     mod.edit_shader(shaders, {"file": "shaders/test.shbin", "instruction": 99, "value": 0})
             finally:
-                mod.ROMFS = old
+                mod.GAME = old
 
 
 def make_amx() -> bytes:
@@ -410,6 +419,77 @@ dump 00000041 00000000
                 AmxImage.parse(make_amx()).assemble(source)
 
 
+def make_update_cia(version: int = 5200) -> bytes:
+    """A decrypted CIA of the update: certificate chain, ticket and TMD (RSA-2048 signatures), one content: a
+    NCCH header (program id 0004000E000D7E00, NoCrypto)."""
+    def signed(body: bytes) -> bytes:
+        return struct.pack(">I", 0x10004) + bytes(0x100 + 0x3C) + body
+    def align(blob: bytes) -> bytes:
+        return blob + bytes(-len(blob) % 64)
+    ncch = bytearray(0x200)
+    ncch[0x100:0x104] = b"NCCH"
+    struct.pack_into("<Q", ncch, 0x108, 0x0004000E000D7E00)
+    struct.pack_into("<Q", ncch, 0x118, 0x0004000E000D7E00)
+    ncch[0x18F] = 0x04
+    tmd_body = bytearray(0xC4 + 64 * 0x24 + 0x30)
+    struct.pack_into(">QH", tmd_body, 0x4C, 0x0004000E000D7E00, 0)
+    struct.pack_into(">HH", tmd_body, 0x9C, version, 1)
+    struct.pack_into(">IHHQ", tmd_body, 0xC4 + 64 * 0x24, 6, 0, 0, len(ncch))
+    tmd = signed(bytes(tmd_body))
+    ticket = signed(bytes(0x164))
+    certs = bytes(0x40)
+    header = bytearray(0x2020)
+    struct.pack_into("<IHHIIIIQ", header, 0, 0x2020, 0, 0, len(certs), len(ticket), len(tmd), 0, len(ncch))
+    header[0x20] = 0x80
+    return align(bytes(header)) + align(certs) + align(ticket) + align(tmd) + bytes(ncch)
+
+
+class Versions(unittest.TestCase):
+    def test_layers(self):
+        with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder)
+            for path, text in (("romfs/a.bxml", "base"), ("romfs/b.bxml", "base"), ("v5200/romfs/a.bxml", "update"),
+                               ("v5200/romfs/c.bxml", "new")):
+                (root / path).parent.mkdir(parents=True, exist_ok=True)
+                (root / path).write_text(text)
+            with mock.patch.object(versions, "EXTRACTED", root):
+                game = versions.game_files("v5200")
+                self.assertEqual(game.path("a.bxml").read_text(), "update")
+                self.assertEqual(game.path("b.bxml").read_text(), "base")
+                self.assertEqual(game.glob("*.bxml"), ["a.bxml", "b.bxml", "c.bxml"])
+                self.assertEqual(versions.game_files("v0").glob("*.bxml"), ["a.bxml", "b.bxml"])
+                self.assertEqual(versions.extracted_versions(), [])          # no code.bin, no manifest
+                (root / "code.bin").write_bytes(b"")
+                (root / "v5200" / "code.bin").write_bytes(b"")
+                (root / "v5200" / "manifest.json").write_text("{}")
+                self.assertEqual(versions.extracted_versions(), ["v0", "v5200"])
+
+    def test_update_in_an_emulator(self):
+        """The update installed as Azahar does it is found, with its version; uninstalled, the game is v0 again."""
+        with tempfile.TemporaryDirectory() as folder:
+            base, cia = Path(folder) / "user", Path(folder) / "update.cia"
+            cia.write_bytes(make_update_cia())
+            self.assertEqual(versions.emulator_version(base), "v0")
+            content = azahar.install_update(cia, base)
+            self.assertEqual(sorted(p.name for p in content.iterdir()), ["00000000.tmd", "00000006.app"])
+            self.assertEqual(content.relative_to(base).as_posix(), "sdmc/Nintendo 3DS/" + "0" * 32 + "/" + "0" * 32
+                             + "/title/0004000e/000d7e00/content")
+            self.assertEqual(versions.installed_update(base), (5200, content / "00000006.app"))
+            self.assertEqual(versions.emulator_version(base), "v5200")
+            self.assertEqual(azahar.uninstall_update(base), [content.parent])
+            self.assertEqual(versions.emulator_version(base), "v0")
+
+    def test_installed_mods_marker(self):
+        with tempfile.TemporaryDirectory() as folder:
+            base = Path(folder)
+            self.assertIsNone(azahar.installed_mods(base))
+            mods = base / "load" / "mods" / azahar.TITLE_ID
+            mods.mkdir(parents=True)
+            self.assertEqual(azahar.installed_mods(base), {})              # installed before the markers
+            (mods / azahar.MARKER).write_text('{"version": "v5200", "mods": ["correctifs"]}')
+            self.assertEqual(azahar.installed_mods(base)["version"], "v5200")
+
+
 class Emulators(unittest.TestCase):
     def test_every_emulator_of_the_citra_family(self):
         import azahar
@@ -449,6 +529,57 @@ class Recipes(unittest.TestCase):
         self.assertEqual([(n.get("key"), n.get("text"), n.get("typeface")) for n in root],
                          [("a", "A", "f"), ("new", "N 1", "f"), ("title", "Titre\\nv2", None)])
         self.assertTrue(mod.project_version().startswith("v"))
+
+    def test_version_tables(self):
+        entry = {"address": {"v0": 0x100, "v5200": 0x200}, "set": {"timeLimit": "1"}, "list": [{"v0": 1, "v5200": 2}]}
+        self.assertEqual(mod.for_version(entry, "v5200"), {"address": 0x200, "set": {"timeLimit": "1"}, "list": [2]})
+        with self.assertRaises(mod.ModError):
+            mod.for_version(entry, "v1024")
+        self.assertTrue(mod.supports({"versions": ["v0"]}, "v0"))
+        self.assertFalse(mod.supports({"versions": ["v0"]}, "v5200"))
+        self.assertTrue(mod.supports({}, "v5200"))                     # data by name only: any version
+        self.assertEqual(mod.entry_address({"address": "${f}"}, {"f": "0x00123456"}), 0x123456)
+
+    def test_recipes_declare_their_versions(self):
+        """A recipe that patches by address (code, script, shader) says which versions it was written for, and
+        gives every value that depends on the version for each of them."""
+        for recipe in sorted((TOOLS.parent / "mods").glob("*/mod.toml")):
+            data = tomllib.loads(recipe.read_text(encoding="utf-8"))
+            with self.subTest(recipe=recipe.parent.name):
+                if any(data.get(kind) for kind in ("code", "amx", "shader")):
+                    self.assertTrue(mod.recipe_versions(data), "versions = [...] missing")
+                for version in mod.recipe_versions(data) or []:
+                    mod.for_version(data, version, recipe.parent.name)        # no value missing
+
+    def test_build_for_a_version(self):
+        """A mod that does not support the version is refused; a fix that does not is left aside."""
+        with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder)
+            (root / "mods" / "fix").mkdir(parents=True)
+            (root / "mods" / "fix" / "mod.toml").write_text('always = true\nversions = ["v0"]\n[[code]]\n'
+                                                            'address = 0x100000\nbytes = "00"\n', encoding="utf-8")
+            (root / "mods" / "old").mkdir()
+            (root / "mods" / "old" / "mod.toml").write_text('name = "Old"\nversions = ["v0"]\n', encoding="utf-8")
+            (root / "mods" / "any").mkdir()
+            (root / "mods" / "any" / "mod.toml").write_text('name = "Any"\n', encoding="utf-8")
+            game = root / "extracted"
+            (game / "romfs").mkdir(parents=True)
+            (game / "v5200" / "romfs").mkdir(parents=True)
+            for code in (game / "code.bin", game / "v5200" / "code.bin"):
+                code.write_bytes(bytes(16))
+            with mock.patch.object(mod, "MODS", root / "mods"), mock.patch.object(versions, "EXTRACTED", game), \
+                    mock.patch.object(mod, "project_version", return_value="v0.1"):
+                with self.assertRaises(mod.ModError) as refused:
+                    mod.build(["old"], root / "out", version="v5200")
+                self.assertIn("v5200", str(refused.exception))
+                built = mod.build(["any"], root / "out", version="v5200")
+                self.assertEqual(built.name, "any-v5200")
+                marker = json.loads((built / azahar.TITLE_ID / azahar.MARKER).read_text(encoding="utf-8"))
+                self.assertEqual(marker["version"], "v5200")
+                self.assertEqual(marker["mods"], ["any"])                  # the fix left aside
+                built = mod.build(["any"], root / "out", version="v0")
+                self.assertEqual(json.loads((built / azahar.TITLE_ID / azahar.MARKER).read_text())["mods"],
+                                 ["fix", "any"])
 
     def test_fixes_always_included(self):
         self.assertIn("correctifs", mod.fixes())

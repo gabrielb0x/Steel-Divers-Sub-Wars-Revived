@@ -13,6 +13,7 @@ from dataclasses import dataclass, field
 
 PAGE_SIZE = 0x1000
 GAME_TITLE_ID = 0x00040000000D7E00     # Steel Diver: Sub Wars, Europe (the version this project targets)
+UPDATE_TITLE_ID = 0x0004000E000D7E00   # its update (title version 5200, tools/versions.py)
 
 # Size of signature + padding for each signature type (Ticket/TMD/certificates).
 _SIG_SIZES = {
@@ -193,6 +194,11 @@ class ExHeader:
     @property
     def bss_address(self) -> int:
         return self.data.address + self.data.size
+
+
+def tmd_title_version(tmd: bytes) -> int:
+    """Title version of a TMD (signature included), e.g. 5200 for the game's update."""
+    return struct.unpack_from(">H", _sig_body(tmd), 0x9C)[0]
 
 
 def title_id_of(path) -> int | None:

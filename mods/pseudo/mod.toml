@@ -20,6 +20,7 @@
 
 name = "Pseudo de la console"
 description = "En ligne et en local, votre nom est le pseudo de la console (de l'émulateur), pas « Citra »"
+versions = ["v0"]
 always = true
 
 [[code]]

@@ -19,6 +19,7 @@
 
 name = "Toutes les missions"
 description = "Les 21 missions du mode solo jouables tout de suite, sans toucher à la sauvegarde"
+versions = ["v0"]
 
 [[amx]]
 file = "amx/mode_mission_select.amx"

@@ -6,12 +6,16 @@
               Azahar then refuses the whole installation ("Blocked unauthorized encrypted CIA
               installation"). The game itself (content 0) is not encrypted: the CIA written here
               holds it alone (TMD reduced to one content, its hashes recomputed), and the .cxi can
-              also be opened directly (File > Load File).
+              also be opened directly (File > Load File). With the decrypted CIA of the update in
+              cia/, also SteelDiverSubWars_update_v5200.cia, the update alone (Install CIA).
   patched-cxi a copy of the game's CXI with a mod's code patch applied (tools/mod.py build --cxi):
               SteelDiverSubWars_<mod>.cxi, to keep the original game and the modded one side by side
   install     copies a mod built by tools/mod.py into Azahar's load/mods/<title id>/
   uninstall   removes the mod files of the game from Azahar
-  where       prints the Azahar folders found
+  install-update    installs the update (its decrypted CIA) on the emulators' SD card, as Azahar's
+                    File > Install CIA does: the game then runs as v5200 (tools/versions.py)
+  uninstall-update  removes it: the game runs as v0 again
+  where       prints the Azahar folders found, the version of the game they run and the mods installed
 
 Nothing is sent anywhere: the files are written on this computer, from the player's own dump.
 """
@@ -20,16 +24,19 @@ from __future__ import annotations
 
 import argparse
 import hashlib
+import json
 import os
 import shutil
 import struct
 import sys
 from pathlib import Path
 
-from ctr import CIA, _SIG_SIZES, find_game_cia
+import versions
+from ctr import CIA, UPDATE_TITLE_ID, _SIG_SIZES, find_game_cia
 
 ROOT = Path(__file__).resolve().parent.parent
 TITLE_ID = "00040000000D7E00"   # Steel Diver: Sub Wars, Europe
+MARKER = "sdsw.json"            # in a built mod folder: the version of the game and the mods it holds
 TMD_HEADER, INFO_RECORDS, CHUNK = 0xC4, 64 * 0x24, 0x30
 
 
@@ -116,16 +123,77 @@ def mods_dirs(base: Path | None) -> list[Path]:
     return [d / "load" / "mods" / TITLE_ID for d in found]
 
 
-def install(built: Path, base: Path | None = None) -> list[Path]:
-    """Copies a mod built by tools/mod.py into the emulators (all of them, unless base is given)."""
+def install(built: Path, base: Path | None = None, only: list[Path] | None = None) -> list[Path]:
+    """Copies a mod built by tools/mod.py into the emulators: all of them, base only, or those of only (the
+    emulators that run the version of the game the mod was built for)."""
     src = built / TITLE_ID if (built / TITLE_ID).is_dir() else built
     done = []
-    for dest in mods_dirs(base):
+    targets = [b / "load" / "mods" / TITLE_ID for b in only] if only is not None else mods_dirs(base)
+    for dest in targets:
         if dest.exists():
             shutil.rmtree(dest)
         shutil.copytree(src, dest)
         done.append(dest)
     return done
+
+
+def installed_mods(base: Path) -> dict | None:
+    """What tools/mod.py installed in an emulator: {"version", "mods"} (its marker), {} for a mod folder
+    without marker (installed before 2026-10-06, or by hand), None without mod folder."""
+    folder = base / "load" / "mods" / TITLE_ID
+    if not folder.is_dir():
+        return None
+    try:
+        return json.loads((folder / MARKER).read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return {}
+
+
+# ---- the update on the emulator's SD card -------------------------------------------------------
+
+def sd_title_root(base: Path) -> Path:
+    """sdmc/Nintendo 3DS/<id0>/<id1>/title/ of an emulator: the existing one, else Azahar's (zero ids)."""
+    found = sorted((base / "sdmc" / "Nintendo 3DS").glob("*/*/title"))
+    return found[0] if found else base / "sdmc" / "Nintendo 3DS" / ("0" * 32) / ("0" * 32) / "title"
+
+
+def install_update(cia_path: Path, base: Path) -> Path:
+    """Installs the update on an emulator's SD card as Azahar's Install CIA does (AM CIAFile): the TMD as
+    content/00000000.tmd and each content as content/<id>.app. Only content 0, the program, is kept (the
+    manual of an eShop CIA may still be encrypted, which Azahar refuses)."""
+    with cia_path.open("rb") as f:
+        cia = CIA.parse(f)
+        if cia.title_id != UPDATE_TITLE_ID:
+            raise ValueError(f"{cia_path.name} is not the update ({UPDATE_TITLE_ID:016X})")
+        chunk, offset = next(cia.content_offsets())
+        if chunk.encrypted:
+            raise ValueError(f"{cia_path.name} : la mise à jour est chiffrée, déchiffrez-la d'abord")
+        f.seek(offset + 0x100)
+        if f.read(4) != b"NCCH":
+            raise ValueError(f"{cia_path.name}: content 0 is not a NCCH")
+        f.seek(offset + 0x18F)
+        if not f.read(1)[0] & 0x04:
+            raise ValueError(f"{cia_path.name} : la mise à jour est chiffrée (NCCH), déchiffrez-la d'abord")
+        f.seek(cia.tmd_offset)
+        tmd = one_content_tmd(bytearray(f.read(cia.tmd_size)), len(cia.contents))
+        high, low = f"{UPDATE_TITLE_ID:016x}"[:8], f"{UPDATE_TITLE_ID:016x}"[8:]
+        content = sd_title_root(base) / high / low / "content"
+        if content.parent.exists():
+            shutil.rmtree(content.parent)
+        content.mkdir(parents=True)
+        (content / "00000000.tmd").write_bytes(tmd)
+        f.seek(offset)
+        with (content / f"{chunk.id:08x}.app").open("wb") as out:
+            copy_range(f, out, chunk.size)
+    return content
+
+
+def uninstall_update(base: Path) -> list[Path]:
+    removed = []
+    for content in versions.update_folders(base):
+        shutil.rmtree(content.parent)
+        removed.append(content.parent)
+    return removed
 
 
 def align(x: int, a: int = 64) -> int:
@@ -150,19 +218,7 @@ def game_only_cia(src: Path, dest: Path) -> None:
         if game.encrypted:
             sys.exit("Content 0 is encrypted in this CIA: use a decrypted dump.")
 
-        # TMD: one content chunk record, info record 0 covering it, hashes recomputed. The signature
-        # no longer matches, which the emulator does not check.
-        body = 4 + _SIG_SIZES[struct.unpack_from(">I", tmd, 0)[0]]
-        chunks = body + TMD_HEADER + INFO_RECORDS
-        chunk0 = next(tmd[chunks + n * CHUNK:chunks + (n + 1) * CHUNK] for n in range(len(cia.contents))
-                      if struct.unpack_from(">H", tmd, chunks + n * CHUNK + 4)[0] == 0)
-        info = bytearray(INFO_RECORDS)
-        struct.pack_into(">HH", info, 0, 0, 1)
-        info[4:0x24] = hashlib.sha256(chunk0).digest()
-        new_tmd = bytearray(tmd[:body + TMD_HEADER])
-        struct.pack_into(">H", new_tmd, body + 0x9E, 1)
-        new_tmd[body + 0xA4:body + 0xC4] = hashlib.sha256(info).digest()
-        new_tmd += info + chunk0
+        new_tmd = one_content_tmd(tmd, len(cia.contents))
 
         # Header: sizes, and the content index bitmap with content 0 only.
         struct.pack_into("<I", header, 0x10, len(new_tmd))
@@ -179,6 +235,22 @@ def game_only_cia(src: Path, dest: Path) -> None:
             copy_range(f, out, game.size)
             out.write(bytes(align(out.tell()) - out.tell()))
             out.write(meta)
+
+
+def one_content_tmd(tmd: bytearray, count: int) -> bytes:
+    """A TMD reduced to content 0: one content chunk record, info record 0 covering it, hashes recomputed.
+    The signature no longer matches, which the emulator does not check."""
+    body = 4 + _SIG_SIZES[struct.unpack_from(">I", tmd, 0)[0]]
+    chunks = body + TMD_HEADER + INFO_RECORDS
+    chunk0 = next(tmd[chunks + n * CHUNK:chunks + (n + 1) * CHUNK] for n in range(count)
+                  if struct.unpack_from(">H", tmd, chunks + n * CHUNK + 4)[0] == 0)
+    info = bytearray(INFO_RECORDS)
+    struct.pack_into(">HH", info, 0, 0, 1)
+    info[4:0x24] = hashlib.sha256(chunk0).digest()
+    new_tmd = bytearray(tmd[:body + TMD_HEADER])
+    struct.pack_into(">H", new_tmd, body + 0x9E, 1)
+    new_tmd[body + 0xA4:body + 0xC4] = hashlib.sha256(info).digest()
+    return bytes(new_tmd + info + chunk0)
 
 
 def copy_range(src, dst, size: int) -> None:
@@ -207,6 +279,7 @@ GAME_FILES = {
     "SteelDiverSubWars_original.cia": "le jeu d'origine, sans le manuel chiffré : Azahar > Fichier > Installer un CIA",
     "SteelDiverSubWars_original.cxi": "le même jeu, à ouvrir sans l'installer : Azahar > Fichier > Charger un fichier",
 }
+UPDATE_FILE = "SteelDiverSubWars_update_{version}.cia"
 
 
 def apply_ips(code: bytearray, patch: bytes) -> None:
@@ -287,7 +360,10 @@ def write_readme(folder: Path) -> None:
         if path.suffix not in (".cia", ".cxi"):
             continue
         what = GAME_FILES.get(path.name)
-        if what is None and path.stem.startswith("SteelDiverSubWars_"):
+        if what is None and path.stem.startswith("SteelDiverSubWars_update_"):
+            what = (f"la mise à jour {path.stem.rsplit('_', 1)[1]}, sans son manuel : Azahar > Fichier > Installer "
+                    "un CIA (le jeu installé ou ouvert prend alors cette version ; mods à reconstruire)")
+        elif what is None and path.stem.startswith("SteelDiverSubWars_"):
             mod, _, server = path.stem.removeprefix("SteelDiverSubWars_").partition("_")
             what = (f"le jeu avec le mod « {mod} » déjà appliqué" + (f" (serveur {server})" if server else "")
                     + " : tools/mod.py build --cxi ; à ouvrir sans l'installer (Azahar > Fichier > Charger un fichier)")
@@ -295,6 +371,22 @@ def write_readme(folder: Path) -> None:
             continue
         lines.append(f"{path.name}\n    {what}")
     (folder / "LISEZMOI.txt").write_text("\n".join(lines) + "\n", encoding="utf-8")
+
+
+def prepare(src: Path, out: Path, update: Path | None = None) -> list[Path]:
+    """build/azahar/: the game alone as a CIA and a CXI, and the update alone as a CIA when given."""
+    for old in ("SteelDiverSubWars.cia", "SteelDiverSubWars.cxi"):      # names before 2026-10
+        (out / old).unlink(missing_ok=True)
+    written = [out / "SteelDiverSubWars_original.cia", out / "SteelDiverSubWars_original.cxi"]
+    game_only_cia(src, written[0])
+    game_cxi(src, written[1])
+    if update is not None:
+        with update.open("rb") as f:
+            version = versions.name(CIA.parse(f).title_version)
+        written.append(out / UPDATE_FILE.format(version=version))
+        game_only_cia(update, written[-1])
+    write_readme(out)
+    return written
 
 
 def main() -> None:
@@ -307,6 +399,9 @@ def main() -> None:
     p = sub.add_parser("install", help="install a mod built by tools/mod.py")
     p.add_argument("mod", type=Path, help="build/mods/<name> (or its <title id> folder)")
     sub.add_parser("uninstall", help="remove the game's mod files from Azahar")
+    p = sub.add_parser("install-update", help="install the update on the emulators' SD card")
+    p.add_argument("cia", nargs="?", type=Path, help="its decrypted CIA (default: found in cia/)")
+    sub.add_parser("uninstall-update", help="remove the update from the emulators' SD card")
     sub.add_parser("where", help="print Azahar's folders")
     args = ap.parse_args()
 
@@ -314,13 +409,16 @@ def main() -> None:
         src = args.cia or find_game_cia(ROOT / "cia")
         if src is None:
             sys.exit(f"No CIA of the game ({TITLE_ID}) in cia/.")
-        for old in ("SteelDiverSubWars.cia", "SteelDiverSubWars.cxi"):      # names before 2026-10
-            (args.out / old).unlink(missing_ok=True)
-        game_only_cia(src, args.out / "SteelDiverSubWars_original.cia")
-        game_cxi(src, args.out / "SteelDiverSubWars_original.cxi")
-        write_readme(args.out)
-        print(f"[+] {args.out / 'SteelDiverSubWars_original.cia'}: Azahar > File > Install CIA")
-        print(f"[+] {args.out / 'SteelDiverSubWars_original.cxi'}: or Azahar > File > Load File, without installing")
+        update = find_game_cia(ROOT / "cia", UPDATE_TITLE_ID)
+        if update is not None:
+            with update.open("rb") as f:
+                if next(CIA.parse(f).content_offsets())[0].encrypted:
+                    print(f"[!] {update.name}: the update is encrypted, left aside (decrypt it first)")
+                    update = None
+        for path in prepare(src, args.out, update):
+            how = "or Azahar > File > Load File, without installing" if path.suffix == ".cxi" else \
+                "Azahar > File > Install CIA"
+            print(f"[+] {path}: {how}")
     elif args.command == "install":
         for dest in install(args.mod, args.azahar_dir):
             print(f"[+] installed into {dest}")
@@ -329,10 +427,29 @@ def main() -> None:
             if dest.exists():
                 shutil.rmtree(dest)
                 print(f"[+] removed {dest}")
+    elif args.command == "install-update":
+        import extract_cia
+        src = args.cia or extract_cia.find_update()
+        if src is None or src.suffix.lower() != ".cia":
+            sys.exit("No decrypted CIA of the update (0004000E000D7E00) in cia/: pass its path.")
+        for base in [args.azahar_dir] if args.azahar_dir else azahar_dirs():
+            try:
+                print(f"[+] installed into {install_update(src, base)}")
+            except ValueError as e:
+                sys.exit(f"[!] {e}")
+        print("[!] the game now runs as this version: rebuild and reinstall the mods (tools/mod.py build ... "
+              "--install)")
+    elif args.command == "uninstall-update":
+        for base in [args.azahar_dir] if args.azahar_dir else azahar_dirs():
+            for path in uninstall_update(base):
+                print(f"[+] removed {path}")
     else:
         found = emulator_dirs()
         for name, d in found:
-            print(f"{name}: {d}\n  mods: {d / 'load' / 'mods' / TITLE_ID}")
+            mods = installed_mods(d)
+            built = f" (built for {mods['version']}: {' + '.join(mods.get('mods', []))})" if mods else ""
+            print(f"{name}: {d}\n  game: {versions.label(versions.emulator_version(d))}\n"
+                  f"  mods: {d / 'load' / 'mods' / TITLE_ID}" + (built if mods is not None else " (none)"))
         if not found:
             print("No emulator folder found (Azahar, Lime3DS, Citra, Borked3DS): set AZAHAR_DIR.")
 

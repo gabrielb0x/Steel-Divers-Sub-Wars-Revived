@@ -43,6 +43,17 @@ dit à quoi sert chaque fichier. Ce sont des copies du jeu : elles ne se partage
 automatiquement, ou la variable `AZAHAR_DIR`). Un seul mod est actif à la fois. Il faut d'abord avoir lancé
 `make extract` : les recettes s'appliquent aux fichiers extraits du dump.
 
+Le mod est construit pour la version du jeu que fait tourner l'émulateur : la v0, ou la **mise à jour v5200** si
+elle y est installée ([../docs/mise-a-jour.md](../docs/mise-a-jour.md)). `--version v0` ou `--version v5200` en
+choisit une ; `tools/mod.py list` dit avec quelles versions marche chaque mod. Une construction pour la v5200 va
+dans `build/mods/<nom>-v5200/`.
+
+```sh
+.venv/bin/python tools/azahar.py install-update            # la mise à jour (son CIA déchiffré dans cia/) dans Azahar
+.venv/bin/python tools/azahar.py where                     # la version du jeu dans chaque émulateur, les mods installés
+.venv/bin/python tools/azahar.py uninstall-update          # revenir à la v0
+```
+
 Chaque construction inclut les **correctifs** du jeu (`mods/correctifs`, `always = true`), sauf avec `--no-fixes` ;
 `tools/mod.py build correctifs --install` les installe seuls.
 
@@ -118,6 +129,32 @@ de recette : le mod fait partie de toutes les constructions (correctifs du jeu).
 git : « v0.1.34 »). `[[layout]]` (`file`, `pane`, `width`, `height`) change la taille d'un cadre d'une mise en
 page (`layouts/*.arc`) : le jeu comprime en largeur un texte plus large que son cadre.
 
+### Versions du jeu
+
+*Avancement estimé : 100 %.*
+
+Une recette qui patche par adresse (`[[code]]`, `[[amx]]`, `[[shader]]`) dit avec quelles versions du jeu elle
+marche ; une recette qui ne touche que des données par leur nom (textes, valeurs BXML) marche avec toutes :
+
+```toml
+versions = ["v0", "v5200"]                # en tête de la recette
+
+[[code]]
+address = { v0 = 0x00176C8C, v5200 = 0x00177FF0 }    # une table de versions : une valeur par version
+expect = "1f402de9"
+arm = "bl ${GetUserName}"
+
+[symbols]                                 # des adresses à utiliser dans le code (${GetUserName}), par version
+GetUserName = { v0 = 0x0018A458, v5200 = 0x0018FEA4 }
+```
+
+N'importe quelle valeur d'une entrée peut être une table de versions (toutes ses clés sont des versions : `v0`,
+`v5200`) : `address`, `expect`, `asm_file`, `asm`… `address` peut aussi être un texte comme `"${GetUserName}"`.
+Les fichiers lus sont ceux de la version construite : pour la v5200, ceux de la mise à jour d'abord, puis ceux du
+jeu. Chaque construction écrit `sdsw.json` (version et mods) dans le dossier du mod : le lanceur voit ainsi quand
+les mods installés ne correspondent plus à la version du jeu. Un mod toujours inclus (`always = true`) qui ne
+marche pas avec la version construite est laissé de côté, avec un message.
+
 **Plusieurs mods ensemble** : `tools/mod.py build en-ligne triche …` les construit dans un seul dossier
 (`build/mods/en-ligne+triche/`), puisqu'Azahar n'en charge qu'un.
 
@@ -160,19 +197,21 @@ restent écrits à la main, dans des commentaires `/* asm … */` de la source. 
 
 *Avancement estimé : 100 % — liste à jour.*
 
-| Mod | Effet |
-|---|---|
-| `correctifs` | toujours inclus : corrige le plantage d'Azahar quand une torpille touche un sous-marin sous l'eau |
-| `pseudo` | toujours inclus : en ligne et en local, votre nom est le pseudo de la console (de l'émulateur), pas « Citra » |
-| `version` | toujours inclus : la version de Sub Wars Open Sourced à la fin de la ligne sous le titre (« … v0.1.34 », même police que la ligne du dessus) |
-| `premium` | version complète, les 23 sous-marins, motifs et équipage débloqués, sans l'eShop ([détails](../docs/premium.md)) |
-| `missions` | les 21 missions du mode solo jouables tout de suite, sans toucher à la sauvegarde |
-| `en-ligne` | jeu en ligne sur un serveur [Sub Wars Open Sourced](../server/README.md), avec ses bots pour un joueur seul et des bots qui jouent comme des joueurs ([bots.md](../docs/bots.md)), son anti-triche, la durée des batailles réglée par le serveur et un dialogue qui dit quel serveur est utilisé |
-| `specs` | vos propres caractéristiques de sous-marins (`tools/subs.py`) ; en ligne, comptées comme triche |
-| `mention-titre` | « © 2026 Nintendo Lawyers » et « Open Sourced by gabrielb0x. » sous le titre (options `ligne1`, `ligne2`) |
-| `triche` | invincible, torpilles et air infinis, tir sans délai, rechargement rapide, masqueur gratuit, moteur gonflé |
-| `vitesse` | votre sous-marin va 2, 3, 5, 10 ou 15 fois plus vite (option `facteur`) ; en ligne, compté comme triche |
-| `texte-titre` | exemple : « Version gratuite » devient « Version moddée » sur l'écran titre |
+| Mod | Versions | Effet |
+|---|---|---|
+| `correctifs` | v0, v5200 | toujours inclus : corrige le plantage d'Azahar quand une torpille touche un sous-marin sous l'eau |
+| `pseudo` | v0 | toujours inclus : en ligne et en local, votre nom est le pseudo de la console (de l'émulateur), pas « Citra » |
+| `version` | toutes | toujours inclus : la version de Sub Wars Open Sourced à la fin de la ligne sous le titre (« … v0.1.34 », même police que la ligne du dessus) |
+| `premium` | v0 | version complète, les 23 sous-marins, motifs et équipage débloqués, sans l'eShop ([détails](../docs/premium.md)) |
+| `missions` | v0 | les 21 missions du mode solo jouables tout de suite, sans toucher à la sauvegarde |
+| `en-ligne` | v0 | jeu en ligne sur un serveur [Sub Wars Open Sourced](../server/README.md), avec ses bots pour un joueur seul et des bots qui jouent comme des joueurs ([bots.md](../docs/bots.md)), son anti-triche, la durée des batailles réglée par le serveur et un dialogue qui dit quel serveur est utilisé |
+| `specs` | v0 | vos propres caractéristiques de sous-marins (`tools/subs.py`) ; en ligne, comptées comme triche |
+| `mention-titre` | toutes | « © 2026 Nintendo Lawyers » et « Open Sourced by gabrielb0x. » sous le titre (options `ligne1`, `ligne2`) |
+| `triche` | v0 | invincible, torpilles et air infinis, tir sans délai, rechargement rapide, masqueur gratuit, moteur gonflé |
+| `vitesse` | toutes | votre sous-marin va 2, 3, 5, 10 ou 15 fois plus vite (option `facteur`) ; en ligne, compté comme triche |
+| `texte-titre` | toutes | exemple : « Version gratuite » devient « Version moddée » sur l'écran titre |
+
+« v0 » : le jeu sans sa mise à jour ; « v5200 » : avec la mise à jour ([../docs/mise-a-jour.md](../docs/mise-a-jour.md)).
 
 ## Pseudo de la console
 

@@ -21,6 +21,7 @@ import secrets
 import shutil
 import signal
 import socket
+import struct
 import subprocess
 import sys
 import threading
@@ -38,7 +39,8 @@ import extract_cia
 import mod
 import save
 import subs
-from ctr import GAME_TITLE_ID
+import versions
+from ctr import CIA, GAME_TITLE_ID, UPDATE_TITLE_ID
 
 ROOT = Path(__file__).resolve().parent.parent
 PAGE = Path(__file__).with_name("webui.html")
@@ -55,7 +57,7 @@ class UserError(Exception):
 
 # The tools, in import order. The launcher keeps running while the project is updated (git pull, a new
 # version unpacked over it): their code is reloaded when their files change, between two tasks.
-TOOL_MODULES = ["ctr", "ncch", "armasm", "bxml", "amx", "azahar", "extract_cia", "save", "subs", "mod"]
+TOOL_MODULES = ["ctr", "ncch", "armasm", "bxml", "amx", "versions", "azahar", "extract_cia", "save", "subs", "mod"]
 TOOLS = Path(__file__).resolve().parent
 
 
@@ -504,7 +506,30 @@ def game_state() -> dict:
             "source_name": manifest.get("source", {}).get("file") if manifest else None,
             "source": source, "found": str(found) if found else None,
             "prepared": (PREPARED / "SteelDiverSubWars_original.cia").exists(),
-            "prepared_dir": str(PREPARED), "title_id": f"{GAME_TITLE_ID:016X}"}
+            "prepared_dir": str(PREPARED), "title_id": f"{GAME_TITLE_ID:016X}",
+            "versions": versions.extracted_versions(), "update": update_state()}
+
+
+def update_state() -> dict:
+    """The update of the game: where it is (cia/ or an emulator), whether it is decrypted and extracted."""
+    found = None
+    with contextlib.suppress(OSError):
+        found = extract_cia.find_update()
+    version, encrypted, cia = None, False, False
+    if found is not None:
+        with contextlib.suppress(OSError, struct.error, KeyError, extract_cia.ExtractError):
+            if found.suffix.lower() == ".cia":
+                cia = True
+                with found.open("rb") as f:
+                    parsed = CIA.parse(f)
+                version = versions.name(parsed.title_version)
+                encrypted = next(parsed.content_offsets())[0].encrypted
+            else:
+                version = versions.name(extract_cia.update_version(found, None))
+    return {"found": str(found) if found else None, "name": found.name if found else None, "cia": cia,
+            "version": version, "encrypted": encrypted,
+            "extracted": [v for v in versions.extracted_versions() if v != versions.BASE],
+            "label": versions.label(version) if version else None}
 
 
 def emulator_state() -> dict:
@@ -512,10 +537,19 @@ def emulator_state() -> dict:
     dirs = [path for _, path in found]
     mods = [d / "load" / "mods" / azahar.TITLE_ID for d in dirs]
     installed = load_state().get("installed") if any(m.exists() for m in mods) else None
+    emulators = []
+    for name, base in found:
+        version = versions.emulator_version(base)
+        marker = azahar.installed_mods(base)
+        built = marker.get("version", versions.BASE) if marker is not None else None   # no marker: before v5200
+        emulators.append({"name": name, "dir": str(base), "version": version, "label": versions.label(version),
+                          "mods": marker.get("mods") if marker else None, "mods_version": built,
+                          "stale": built is not None and built != version})
     return {"dirs": [str(d) for d in dirs], "names": [name for name, _ in found],
             "mods_dir": str(mods[0]) if mods else None,
             "mods_installed": any(m.exists() for m in mods), "installed": installed,
-            "saves": [str(p) for p in azahar.save_files()]}
+            "saves": [str(p) for p in azahar.save_files()], "emulators": emulators,
+            "versions": sorted({e["version"] for e in emulators}, key=lambda v: int(v[1:]))}
 
 
 def mods_list() -> list[dict]:
@@ -533,7 +567,7 @@ def mods_list() -> list[dict]:
         out.append({"id": recipe.parent.name, "name": data.get("name", recipe.parent.name),
                     "description": data.get("description", ""), "params": params,
                     "flags": data.get("token_flags", []), "online": "identity" in data,
-                    "always": bool(data.get("always"))})
+                    "always": bool(data.get("always")), "versions": mod.recipe_versions(data)})
     rank = {name: i for i, name in enumerate(MOD_ORDER)}
     return sorted(out, key=lambda m: (rank.get(m["id"], len(rank)), m["id"]))
 
@@ -544,10 +578,27 @@ def extract_game(source: Path, log) -> dict:
     if not source.exists():
         raise UserError(f"{source} : fichier introuvable")
     print(f"Extraction de {source}…")
-    manifest = extract_cia.extract(source, EXTRACTED, log=print)
-    store_state(source=str(source))
+    manifest = extract_cia.extract(source, log=print)
+    if manifest["version"] == versions.BASE:
+        store_state(source=str(source))
+        update = extract_cia.find_update()
+        if update is not None:
+            print(f"Mise à jour trouvée : {update}")
+            try:
+                extract_cia.extract(update, log=print)
+            except extract_cia.ExtractError as e:          # encrypted: the game itself is ready anyway
+                print(f"[!] {e}")
     print("Fichiers du jeu prêts.")
-    return {"product": manifest["product_code"]}
+    return {"product": manifest["product_code"], "version": manifest["version"]}
+
+
+def decrypted_update() -> Path | None:
+    """The decrypted CIA of the update in cia/, if any."""
+    update = extract_cia.find_update()
+    if update is None or update.suffix.lower() != ".cia":
+        return None
+    with update.open("rb") as f:
+        return None if next(CIA.parse(f).content_offsets())[0].encrypted else update
 
 
 def prepare_for_azahar(source: Path, log) -> dict:
@@ -555,11 +606,11 @@ def prepare_for_azahar(source: Path, log) -> dict:
         raise UserError("Seul un .cia a besoin d'être préparé : un .cxi ou un .3ds s'ouvre tel quel dans "
                         "Azahar (Fichier > Charger un fichier).")
     PREPARED.mkdir(parents=True, exist_ok=True)
-    print("Copie du jeu sans le manuel chiffré (Azahar refuse le CIA de l'eShop entier)…")
-    azahar.game_only_cia(source, PREPARED / "SteelDiverSubWars_original.cia")
-    print("Copie du jeu en .cxi (à ouvrir sans l'installer)…")
-    azahar.game_cxi(source, PREPARED / "SteelDiverSubWars_original.cxi")
-    azahar.write_readme(PREPARED)
+    update = decrypted_update()
+    print("Copie du jeu sans le manuel chiffré (Azahar refuse le CIA de l'eShop entier), et en .cxi"
+          + (", et de la mise à jour seule" if update else "") + "…")
+    for path in azahar.prepare(source, PREPARED, update):
+        print(f"  {path.name}")
     print(f"Prêt : {PREPARED}")
     return {"dir": str(PREPARED)}
 
@@ -570,24 +621,40 @@ def build_mods(names: list[str], params: dict[str, str], install: bool, log) -> 
         raise UserError("Choisissez au moins un mod.")
     if not (EXTRACTED / "code.bin").exists():
         raise UserError("Il faut d'abord préparer les fichiers du jeu (onglet Jeu).")
-    built = mod.build(names, MODS_OUT, params)
-    result = {"built": str(built)}
+    targets = mod.emulator_versions()                  # the version each emulator runs the game as
+    if install and not targets:
+        raise UserError("Aucun émulateur trouvé (Azahar, Lime3DS, Citra, Borked3DS) : lancez-le une fois, "
+                        "puis réessayez.")
+    targets = targets or {versions.BASE: []}
+    problems = []
+    for version in targets:
+        if version not in versions.extracted_versions():
+            problems.append(f"Le jeu tourne en {versions.label(version)} dans l'émulateur, mais les fichiers de "
+                            "cette version ne sont pas préparés : onglet Jeu, avec la mise à jour déchiffrée dans "
+                            "cia/.")
+        for name in names:
+            recipe = mod.load_recipe(name)
+            if not mod.supports(recipe, version):
+                problems.append(mod.unsupported(name, recipe, version))
+    if problems:
+        raise UserError(" ".join(problems))
+    result = {"built": [], "installed": []}
+    for version, bases in sorted(targets.items()):
+        built = mod.build(names, MODS_OUT, params, version=version)
+        result["built"].append(str(built))
+        if install:
+            for base in bases:                         # every emulator of this computer gets the mod
+                dest = base / "load" / "mods" / azahar.TITLE_ID
+                if dest.exists():
+                    shutil.rmtree(dest)
+                shutil.copytree(built / azahar.TITLE_ID, dest)
+                print(f"Installé ({version}) : {dest}")
+                result["installed"].append(str(dest))
     if install:
-        found = azahar.emulator_dirs()
-        if not found:
-            raise UserError("Aucun émulateur trouvé (Azahar, Lime3DS, Citra, Borked3DS) : lancez-le une fois, "
-                            "puis réessayez.")
-        for name, base in found:                       # every emulator of this computer gets the mod
-            dest = base / "load" / "mods" / azahar.TITLE_ID
-            if dest.exists():
-                shutil.rmtree(dest)
-            shutil.copytree(built / azahar.TITLE_ID, dest)
-            print(f"Installé pour {name} : {dest}")
         public = {k: v for k, v in mod.build.params.items() if k not in ("pid", "password", "token")}
         store_state(installed={"mods": names or mod.fixes(), "params": public,
                                "date": time.strftime("%Y-%m-%d %H:%M")})
         print("Lancez (ou relancez) le jeu dans l'émulateur : le mod s'applique au démarrage.")
-        result["installed"] = [str(base / "load" / "mods" / azahar.TITLE_ID) for _, base in found]
     return result
 
 
@@ -600,6 +667,54 @@ def uninstall_mods() -> dict:
             shutil.rmtree(dest)
             removed.append(str(dest))
     store_state(installed=None)
+    return {"removed": removed}
+
+
+def drop_stale_mods(version: str) -> list[str]:
+    """After the update was installed or removed: the mods built for the other version would break the game
+    (their code patch no longer matches): they are removed, to be installed again."""
+    dropped = []
+    for name, base in azahar.emulator_dirs():
+        marker = azahar.installed_mods(base)
+        if marker is not None and marker.get("version", versions.BASE) != version:
+            shutil.rmtree(base / "load" / "mods" / azahar.TITLE_ID)
+            dropped.append(name)
+            print(f"Mods retirés de {name} : construits pour {marker.get('version', versions.BASE)}, ils ne "
+                  f"marchent pas avec {versions.label(version)}. Réinstallez-les (onglet Mods).")
+    if dropped and not any(azahar.installed_mods(base) is not None for base in azahar.azahar_dirs()):
+        store_state(installed=None)
+    return dropped
+
+
+def install_update(log) -> dict:
+    update = decrypted_update()
+    if update is None:
+        raise UserError("Pas de CIA déchiffré de la mise à jour dans cia/ : mettez-y le vôtre (déchiffré), ou "
+                        "installez-la vous-même dans Azahar (Fichier > Installer un CIA).")
+    found = azahar.emulator_dirs()
+    if not found:
+        raise UserError("Aucun émulateur trouvé (Azahar, Lime3DS, Citra, Borked3DS) : lancez-le une fois.")
+    with update.open("rb") as f:
+        version = versions.name(CIA.parse(f).title_version)
+    if version not in versions.extracted_versions():
+        print("Extraction de ses fichiers (les mods en ont besoin)…")
+        extract_cia.extract(update, log=print)
+    for name, base in found:
+        print(f"Mise à jour {version} installée pour {name} : {azahar.install_update(update, base)}")
+    drop_stale_mods(version)
+    print("Le jeu, installé ou ouvert depuis son .cxi, démarre maintenant avec la mise à jour.")
+    return {"version": version}
+
+
+def uninstall_update(log) -> dict:
+    removed = []
+    for name, base in azahar.emulator_dirs():
+        for path in azahar.uninstall_update(base):
+            print(f"Mise à jour retirée de {name} : {path}")
+            removed.append(str(path))
+    if not removed:
+        raise UserError("La mise à jour n'est installée dans aucun émulateur.")
+    drop_stale_mods(versions.BASE)
     return {"removed": removed}
 
 
@@ -781,6 +896,10 @@ class LauncherServer(ThreadingHTTPServer):
             return self.tasks.start(title, lambda log: build_mods(names, params, install, log)).json()
         if key == "POST mods/uninstall":
             return uninstall_mods()
+        if key == "POST update/install":
+            return self.tasks.start("Installer la mise à jour dans l'émulateur", install_update).json()
+        if key == "POST update/uninstall":
+            return self.tasks.start("Retirer la mise à jour de l'émulateur", uninstall_update).json()
         if key == "GET save":
             return save_summary(save_file(query))
         if key == "POST save/unlock":
@@ -877,7 +996,7 @@ def list_files(folder: str | None) -> dict:
                 if child.is_dir():
                     entries.append({"name": child.name, "path": str(child), "type": "dir"})
                 elif child.suffix.lower() in extract_cia.GAME_SUFFIXES:
-                    game = extract_cia.program_id(child) == GAME_TITLE_ID
+                    game = extract_cia.program_id(child) in (GAME_TITLE_ID, UPDATE_TITLE_ID)
                     entries.append({"name": child.name, "path": str(child), "type": "game" if game else "other",
                                     "size": child.stat().st_size})
     return {"dir": str(path), "parent": str(path.parent) if path.parent != path else None, "entries": entries,

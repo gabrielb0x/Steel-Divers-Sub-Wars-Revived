@@ -18,6 +18,7 @@
 
 name = "Jeu en ligne"
 description = "Jouer en ligne sur un serveur Sub Wars Open Sourced (server/), dans Azahar"
+versions = ["v0"]
 
 [params.server]
 help = "adresse IP ou nom du serveur (31 caractères au plus)"

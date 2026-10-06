@@ -9,7 +9,8 @@ replies in French, code and code comments in English.
 - Never commit game data or anything derived mechanically from it: `cia/`, `extracted/`, `decomp/raw/`,
   `ghidra/project/` stay gitignored. Tools must read the user's own dump at runtime. Mods are recipes
   (`mods/<name>/mod.toml`) applied to the dump at build time; built mods and modified game files are never committed.
-- Targets: the EUR v0 executable (no update available), mods for the Azahar emulator, then the PC port. Not real 3DS.
+- Targets: the EUR v0 executable and its update v5200 (title 0004000E000D7E00, docs/mise-a-jour.md), mods for the
+  Azahar emulator, then the PC port. Not real 3DS. The RE pipeline (Ghidra, decomp/) works on v0.
 - The repo is MIT-licensed: never copy GPL/AGPL code (Pretendo, Azahar/Citra) into it; use it as reference only.
 - Ghidra must live in a path without non-ASCII characters (its log4j config fails on `Téléchargements`):
   it is in `~/tools/ghidra_12.1.4_PUBLIC`, referenced by `local.env`.
@@ -18,14 +19,16 @@ replies in French, code and code comments in English.
 
 ```
 ./setup.sh      venv (.venv) + Ghidra detection -> local.env
-make extract    tools/extract_cia.py  -> extracted/{code.bin,exefs,ncch,romfs,manifest.json}
+make extract    tools/extract_cia.py  -> extracted/{code.bin,exefs,ncch,romfs,manifest.json}, the update -> extracted/v5200/
 make elf        tools/code2elf.py     -> extracted/nsub.elf
 make analyze    ghidra/analyze.sh     -> ghidra/project/ (import + romfs map symbols + auto-analysis)
 make export     ghidra/export.sh      -> decomp/raw/ (pseudo-code per original object file + functions.csv)
 make scripts    tools/native_types.py, tools/amx.py, tools/amxdec.py (+ amxsym.py) -> decomp/scripts/ (Pawn asm + pseudo-Pawn)
 make data       tools/bxml.py -> extracted/xml/ (BXML: levels, stats, texts; name hash = zlib CRC-32)
 make azahar     tools/azahar.py prepare -> build/azahar/ (CIA without the encrypted manual, which Azahar rejects; CXI)
-tools/mod.py build <name>... [--install] [--cxi]   mods/<name>/mod.toml -> build/mods/<a+b>/ -> Azahar load/mods/00040000000D7E00/
+tools/mod.py build <name>... [--install] [--cxi] [--version v5200]   mods/<name>/mod.toml -> build/mods/<a+b>[-v5200]/
+                    -> Azahar load/mods/00040000000D7E00/ (for the version each emulator runs; sdsw.json marker)
+tools/azahar.py install-update | uninstall-update | where    the update on the emulators' SD card
 tools/save.py, tools/subs.py                        save editor (Azahar save), submarine characteristics (mod "specs")
 tools/shbin.py <file.shbin> [--check]               PICA200 shader disassembler; --check: loops Azahar's JIT runs wrong
 make pawncc bots     build/pawncc (Pawn 3.3, built with -D_I32_MAX/_I32_MIN: else cellmin = 0 on 64 bits), then
@@ -89,5 +92,12 @@ Ghidra scripts are Java (`ghidra/scripts/`), compiled by Ghidra 12.1.4; check th
 - Testing in Azahar: portable profiles in `~/.var/app/org.azahar_emu.Azahar/sdsw-test/<p>/user/`
   (`flatpak run --cwd=<p>`), shown in Xephyr. The machine has 7 GB of RAM: OpenGL under Xephyr can reach 5 GB per
   instance (two got OOM-killed) and the software renderer runs at 3 %: one instance at a time.
+
+- Update v5200 (docs/mise-a-jour.md): new executable (all addresses move, no romfs:/map: names come from matching
+  v0 functions), 16 more subs, 3 maps, recompiled scripts. Its RomFS only holds changed/added files: the game
+  opens "rom2:/" (update RomFS, SelfNCCH path type 5) then "rom:/" (v5200 0x00257ACC); tools/versions.py layers
+  extracted/v5200/romfs over extracted/romfs. Azahar applies load/mods/00040000000D7E00/ to the update too, so a
+  mod is built per version: recipes declare `versions = [...]` and give version tables `{ v0 = ..., v5200 = ... }`
+  (+ `[symbols]`); tools/tests checks every recipe that patches by address declares its versions.
 
 See `docs/analyse-initiale.md` and `docs/roadmap.md`.

@@ -10,6 +10,10 @@ By default it is looked for in cia/, chosen by its title id (the folder may hold
 emulator. The game must be decrypted (Azahar needs it decrypted too). Only the game is read: the title id is
 checked from the headers before anything else.
 
+Its update (title 0004000E000D7E00, version 5200: tools/versions.py) is extracted the same way, into
+extracted/v<version>/, from its decrypted .cia in cia/ or from the emulator where it is installed. By default
+both are extracted, the update when there is one.
+
 Layout produced:
   extracted/cia/        certchain.bin, ticket.bin, tmd.bin, meta.bin (from a CIA)
   extracted/ncch/       header.bin, exheader.bin (incl. access descriptor), logo.bin
@@ -17,6 +21,7 @@ Layout produced:
   extracted/code.bin    decompressed .code (text | rodata | data, page aligned)
   extracted/romfs/      RomFS tree
   extracted/manifest.json
+  extracted/v5200/      the same for the update (its RomFS only holds the files it changes or adds)
 """
 
 from __future__ import annotations
@@ -29,11 +34,13 @@ import sys
 from pathlib import Path
 
 import azahar
-from ctr import CIA, GAME_TITLE_ID, ExHeader, find_game_cia
+import versions
+from ctr import CIA, GAME_TITLE_ID, UPDATE_TITLE_ID, ExHeader, find_game_cia, title_id_of, tmd_title_version
 from ncch import NCCH, NCCHError, decompress_code
 
 ROOT = Path(__file__).resolve().parent.parent
 GAME_SUFFIXES = (".cia", ".cxi", ".3ds", ".cci", ".app")
+TITLES = {GAME_TITLE_ID: "Steel Diver: Sub Wars", UPDATE_TITLE_ID: "la mise à jour de Steel Diver: Sub Wars"}
 
 
 class ExtractError(Exception):
@@ -41,17 +48,22 @@ class ExtractError(Exception):
 
 
 def ncch_offset(fp, path: Path) -> tuple[int, CIA | None]:
-    """Offset of the game's NCCH in a file, and the CIA when it is one. Refuses any other title."""
+    """Offset of the game's (or its update's) NCCH in a file, and the CIA when it is one. Refuses any
+    other title."""
     if path.suffix.lower() == ".cia":
         try:
             cia = CIA.parse(fp)
         except (struct.error, KeyError) as e:
             raise ExtractError(f"{path.name}: not a readable CIA") from e
-        if cia.title_id != GAME_TITLE_ID:
+        if cia.title_id not in TITLES:
             raise ExtractError(f"{path.name} is the title {cia.title_id:016X}, not Steel Diver: Sub Wars "
-                               f"(Europe, {GAME_TITLE_ID:016X})")
+                               f"(Europe, {GAME_TITLE_ID:016X}) or its update ({UPDATE_TITLE_ID:016X})")
         chunk, offset = next(cia.content_offsets())
         if chunk.encrypted:
+            if cia.title_id == UPDATE_TITLE_ID:
+                raise ExtractError(f"{path.name} : la mise à jour est chiffrée dans ce CIA. Déchiffrez-la "
+                                   "d'abord (GodMode9 sur la console, ou un outil de déchiffrement de CIA), puis "
+                                   "mettez le CIA déchiffré dans cia/ ou installez-le dans Azahar.")
             raise ExtractError("the game is encrypted in this CIA (title key): use a decrypted dump")
         return offset, cia
     fp.seek(0x100)
@@ -98,6 +110,37 @@ def find_game(folder: Path = ROOT / "cia") -> Path | None:
     return installed_game()
 
 
+def find_update(folder: Path = ROOT / "cia") -> Path | None:
+    """The update: its CIA in cia/ (the decrypted one when there are several, the highest version first),
+    or the update installed in an emulator."""
+    found = []
+    for path in sorted(folder.glob("*.cia")):
+        if title_id_of(path) == UPDATE_TITLE_ID:
+            with path.open("rb") as fp:
+                cia = CIA.parse(fp)
+            found.append((not next(cia.content_offsets())[0].encrypted, cia.title_version, path))
+    if found:
+        return max(found, key=lambda f: (f[0], f[1]))[2]
+    for base in azahar.azahar_dirs():
+        update = versions.installed_update(base)
+        if update:
+            return update[1]
+    return None
+
+
+def update_version(source: Path, cia: CIA | None) -> int:
+    """Title version of an update file: its CIA's TMD, or the TMD installed next to its .app."""
+    if cia is not None:
+        return cia.title_version
+    for tmd in sorted(source.parent.glob("*.tmd")):
+        try:
+            return tmd_title_version(tmd.read_bytes())
+        except (OSError, struct.error, KeyError):
+            continue
+    raise ExtractError(f"{source.name} : la version de cette mise à jour est inconnue (pas de TMD à côté) ; "
+                       "donnez plutôt son .cia")
+
+
 def sha256_file(path: Path) -> str:
     h = hashlib.sha256()
     with path.open("rb") as f:
@@ -119,19 +162,26 @@ def dump_romfs(ncch: NCCH, out: Path, progress=None) -> tuple[int, int]:
     return files, total
 
 
-def extract(source: Path, out: Path, skip_romfs: bool = False, log=print) -> dict:
+def extract(source: Path, out: Path | None = None, skip_romfs: bool = False, log=print) -> dict:
+    """Extracts the game, or its update, into out (by default extracted/ for the game and
+    extracted/v<version>/ for the update)."""
     with source.open("rb") as fp:
         offset, cia = ncch_offset(fp, source)
         try:
             ncch = NCCH(fp, offset)
         except NCCHError as e:
             raise ExtractError(f"{source.name}: {e}") from e
-        if ncch.program_id != GAME_TITLE_ID:
+        if ncch.program_id not in TITLES:
             raise ExtractError(f"{source.name} is the title {ncch.program_id:016X}, not Steel Diver: Sub Wars "
-                               f"(Europe, {GAME_TITLE_ID:016X})")
+                               f"(Europe, {GAME_TITLE_ID:016X}) or its update ({UPDATE_TITLE_ID:016X})")
         if ncch.encrypted:
             raise ExtractError("the game NCCH is encrypted; decrypt it first (Azahar needs it decrypted too)")
-        log(f"[+] NCCH {ncch.product_code}, program {ncch.program_id:016x}")
+        update = ncch.program_id == UPDATE_TITLE_ID
+        version = versions.name(update_version(source, cia)) if update else versions.BASE
+        if out is None:
+            out = versions.folder(version)
+        log(f"[+] NCCH {ncch.product_code}, program {ncch.program_id:016x}"
+            + (f" (update {version})" if update else ""))
         if cia:
             log(f"[+] CIA: version {cia.title_version}, {len(cia.contents)} content(s)")
             (out / "cia").mkdir(parents=True, exist_ok=True)
@@ -175,7 +225,8 @@ def extract(source: Path, out: Path, skip_romfs: bool = False, log=print) -> dic
     manifest = {
         "source": {"file": source.name, "sha256": sha256_file(source)},
         "title_id": f"{cia.title_id if cia else ncch.program_id:016X}",
-        "title_version": cia.title_version if cia else None,
+        "title_version": cia.title_version if cia else (int(version[1:]) if update else None),
+        "version": version,
         "product_code": ncch.product_code,
         "contents": [{"index": c.index, "id": f"{c.id:08x}", "type": c.type, "size": c.size,
                       "encrypted_cia_layer": c.encrypted} for c in cia.contents] if cia else [],
@@ -208,20 +259,27 @@ def extract(source: Path, out: Path, skip_romfs: bool = False, log=print) -> dic
 def main() -> None:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("game", nargs="?", type=Path,
-                    help="the game: .cia, .cxi, .3ds/.cci (default: found in cia/, then in the emulator)")
-    ap.add_argument("-o", "--out", type=Path, default=ROOT / "extracted")
+                    help="the game or its update: .cia, .cxi, .3ds/.cci (default: both, found in cia/, then in "
+                         "the emulator)")
+    ap.add_argument("-o", "--out", type=Path, help="default: extracted/ (the update: extracted/v<version>/)")
     ap.add_argument("--skip-romfs", action="store_true", help="do not extract the RomFS tree")
+    ap.add_argument("--no-update", action="store_true", help="only the game, not its update")
     args = ap.parse_args()
 
-    source = args.game or find_game()
-    if source is None:
+    sources = [args.game] if args.game else [find_game()]
+    if sources[0] is None:
         sys.exit(f"The game ({GAME_TITLE_ID:016X}) was found neither in cia/ nor in the emulator: "
                  "pass its path (.cia, .cxi, .3ds).")
-    print(f"[+] {source}")
-    try:
-        extract(source, args.out, args.skip_romfs)
-    except (ExtractError, OSError) as e:
-        sys.exit(f"[!] {e}")
+    if not args.game and not args.no_update and not args.out:        # -o: one folder, the game only
+        update = find_update()
+        if update:
+            sources.append(update)
+    for source in sources:
+        print(f"[+] {source}")
+        try:
+            extract(source, args.out, args.skip_romfs)
+        except (ExtractError, OSError) as e:
+            sys.exit(f"[!] {e}")
 
 
 if __name__ == "__main__":

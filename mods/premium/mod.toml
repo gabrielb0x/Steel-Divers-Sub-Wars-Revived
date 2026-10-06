@@ -21,6 +21,7 @@
 
 name = "Premium"
 description = "Version complète (premium) et les 23 sous-marins débloqués, sans l'eShop"
+versions = ["v0"]
 token_flags = ["premium"]                 # dit au serveur en ligne ; ce n'est pas de la triche
 
 [params.debloquer]

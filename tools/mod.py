@@ -110,15 +110,16 @@ from pathlib import Path
 import armasm
 import azahar
 import shbin
+import versions
 from amxasm import AmxImage, AsmError
 from bxml import TYPE_FLOATS, TYPE_INTS, Bxml, escape_string, float_text, from_xml, infer_type
 from ctr import find_game_cia
 
 ROOT = Path(__file__).resolve().parent.parent
 MODS = ROOT / "mods"
-ROMFS = ROOT / "extracted" / "romfs"
-CODE_BIN = ROOT / "extracted" / "code.bin"
 CODE_BASE = 0x00100000      # code.bin offset = address - CODE_BASE (text, rodata, data are contiguous)
+# The files of the version being built (tools/versions.py: the update's own RomFS, then the game's).
+GAME = versions.game_files(versions.BASE)
 
 
 class ModError(Exception):
@@ -127,19 +128,24 @@ class ModError(Exception):
 
 # ---- data -----------------------------------------------------------------------------------
 
+def game_file(file: str) -> Path:
+    """A file of the RomFS as the version being built reads it (the update's own files first)."""
+    path = GAME.path(file)
+    if not path.is_file():
+        raise ModError(f"{file}: not in the files of {GAME.version} (run make extract)")
+    return path
+
+
 def load_bxml(files: dict[str, ET.Element], file: str) -> ET.Element:
     """The tree of a BXML file of the game, as edited so far by this build."""
     if file not in files:
-        path = ROMFS / file
-        if not path.exists():
-            raise ModError(f"{file}: not in extracted/romfs (run make extract)")
-        files[file] = ET.fromstring(Bxml(path.read_bytes()).to_xml())
+        files[file] = ET.fromstring(Bxml(game_file(file).read_bytes()).to_xml())
     return files[file]
 
 
 def new_bxml(files: dict[str, ET.Element], file: str, source: str) -> None:
     """A new file of the mod, a copy of a file of the game (then edited by the entries that follow)."""
-    if file in files or (ROMFS / file).exists():
+    if file in files or GAME.exists(file):
         raise ModError(f"{file}: the game already has this file")
     files[file] = copy.deepcopy(load_bxml(files, source))
 
@@ -211,9 +217,9 @@ def enabled(entry: dict, params: dict[str, str]) -> bool:
 
 def bxml_files(entry: dict) -> list[str]:
     if "files" in entry:
-        found = sorted(str(p.relative_to(ROMFS)) for p in ROMFS.glob(entry["files"]))
+        found = GAME.glob(entry["files"])
         if not found:
-            raise ModError(f"{entry['files']}: no file in extracted/romfs (run make extract)")
+            raise ModError(f"{entry['files']}: no file in the game's files (run make extract)")
         return found
     return [entry["file"]]
 
@@ -222,10 +228,7 @@ def edit_amx(scripts: dict[str, AmxImage], entry: dict, params: dict[str, str] |
              folder: Path | None = None) -> None:
     file = entry["file"]
     if file not in scripts:
-        path = ROMFS / file
-        if not path.exists():
-            raise ModError(f"{file}: not in extracted/romfs (run make extract)")
-        scripts[file] = AmxImage.parse(path.read_bytes())
+        scripts[file] = AmxImage.parse(game_file(file).read_bytes())
     script = scripts[file]
     try:
         if "asm" in entry or "asm_file" in entry:
@@ -243,17 +246,14 @@ def edit_amx(scripts: dict[str, AmxImage], entry: dict, params: dict[str, str] |
             script.set_operand(entry["address"], entry.get("operand", 0), entry["value"], entry.get("expect"))
     except (ValueError, AsmError) as e:
         where = f" ({entry['asm_file']})" if "asm_file" in entry else ""
-        raise ModError(f"{file}{where}: {e} (not the EUR v0 scripts?)") from e
+        raise ModError(f"{file}{where}: {e} (not the scripts of {GAME.version}?)") from e
 
 
 def edit_shader(shaders: dict[str, bytearray], entry: dict) -> None:
     """Replaces an instruction of a PICA200 shader binary (DVLB), by its index in the shared code."""
     file = entry["file"]
     if file not in shaders:
-        path = ROMFS / file
-        if not path.exists():
-            raise ModError(f"{file}: not in extracted/romfs (run make extract)")
-        shaders[file] = bytearray(path.read_bytes())
+        shaders[file] = bytearray(game_file(file).read_bytes())
     data = shaders[file]
     try:
         code, size = shbin.code_location(data)
@@ -266,7 +266,7 @@ def edit_shader(shaders: dict[str, bytearray], entry: dict) -> None:
     found = struct.unpack_from("<I", data, offset)[0]
     if "expect" in entry and found != entry["expect"]:
         raise ModError(f"{file}: instruction {index:#x} is {found:#010x}, not {entry['expect']:#010x} "
-                       "(not the EUR v0 files?)")
+                       f"(not the files of {GAME.version}?)")
     struct.pack_into("<I", data, offset, entry["value"])
 
 
@@ -297,10 +297,7 @@ def edit_layout(binaries: dict[str, bytearray], entry: dict) -> None:
     """[[layout]]: the size of a pane of a layout (CLYT in a darc archive), by its name."""
     file = entry["file"]
     if file not in binaries:
-        path = ROMFS / file
-        if not path.exists():
-            raise ModError(f"{file}: not in extracted/romfs (run make extract)")
-        binaries[file] = bytearray(path.read_bytes())
+        binaries[file] = bytearray(game_file(file).read_bytes())
     data = binaries[file]
     pane = entry["pane"].encode("ascii")
     try:
@@ -322,11 +319,12 @@ def edit_layout(binaries: dict[str, bytearray], entry: dict) -> None:
     raise ModError(f"{file}: no pane {entry['pane']!r}")
 
 
-def font_characters(typeface: str, cache: dict[str, set[int] | None] = {}) -> set[int] | None:
+def font_characters(typeface: str, cache: dict[tuple, set[int] | None] = {}) -> set[int] | None:
     """Characters of fonts/<typeface>.bcfnt (its CMAP sections), or None if it cannot be read."""
-    if typeface not in cache:
-        cache[typeface] = None
-        path = ROMFS / "fonts" / f"{typeface}.bcfnt"
+    key = (GAME.version, typeface)
+    if key not in cache:
+        cache[key] = None
+        path = GAME.path(f"fonts/{typeface}.bcfnt")
         with contextlib.suppress(OSError, struct.error, ValueError):
             data = path.read_bytes()
             if data[:4] != b"CFNT":
@@ -347,12 +345,12 @@ def font_characters(typeface: str, cache: dict[str, set[int] | None] = {}) -> se
                     count = struct.unpack_from(end + "H", data, body)[0]
                     chars.update(struct.unpack_from(end + "H", data, body + 2 + 4 * i)[0] for i in range(count))
                 section = following
-            cache[typeface] = chars
-    return cache[typeface]
+            cache[key] = chars
+    return cache[key]
 
 
 def text_languages(entry: dict) -> list[str]:
-    return entry.get("languages") or sorted(p.stem for p in (ROMFS / "text").glob("*.bxml"))
+    return entry.get("languages") or sorted(Path(p).stem for p in GAME.glob("text/*.bxml"))
 
 
 def apply_texts(files: dict[str, ET.Element], entry: dict, params: dict[str, str] | None = None) -> int:
@@ -410,10 +408,21 @@ def fill(text: str, params: dict[str, str]) -> str:
         raise ModError(f"unknown parameter {e} in the recipe") from e
 
 
+def entry_address(entry: dict, params: dict[str, str]) -> int:
+    """address of a [[code]] entry: a number, or a text such as "${symbol}" (a [symbols] address)."""
+    address = entry["address"]
+    if isinstance(address, str):
+        try:
+            return int(fill(address, params), 0)
+        except ValueError as e:
+            raise ModError(f"address = {address!r}: not an address") from e
+    return address
+
+
 def patch_data(entry: dict, params: dict[str, str]) -> bytes:
     """The bytes of a [[code]] entry. The labels of its ARM code become parameters of the entries after it:
     ${arm_<label>} is the address of <label>, as 0x..."""
-    address = entry["address"]
+    address = entry_address(entry, params)
     if "arm" in entry:
         symbols: dict[str, int] = {}
         data = assemble(fill(entry["arm"], params), address, symbols)
@@ -429,11 +438,11 @@ def patch_data(entry: dict, params: dict[str, str]) -> bytes:
 
 
 def code_patches(entries: list[dict], params: dict[str, str] | None = None) -> dict[int, bytes]:
-    code = CODE_BIN.read_bytes()
+    code = GAME.code_bin.read_bytes()
     patches: dict[int, bytes] = {}
     params = dict(params or {})
     for entry in entries:
-        address = entry["address"]
+        address = entry_address(entry, params)
         data = patch_data(entry, params)
         if "max_size" in entry and len(data) > entry["max_size"]:
             raise ModError(f"code patch at {address:#x}: {len(data)} bytes, more than {entry['max_size']}")
@@ -443,7 +452,8 @@ def code_patches(entries: list[dict], params: dict[str, str] | None = None) -> d
         if "expect" in entry:
             expected = bytes.fromhex(entry["expect"].replace(" ", ""))
             if code[offset:offset + len(expected)] != expected:
-                raise ModError(f"code patch at {address:#x}: unexpected bytes, not the EUR v0 executable?")
+                raise ModError(f"code patch at {address:#x}: unexpected bytes, not the {GAME.version} "
+                               "executable?")
         patches[offset] = data
     return patches
 
@@ -526,6 +536,12 @@ def recipe_params(mods: list[dict], overrides: dict[str, str]) -> dict[str, str]
             raise ModError(f"{key}: {value!r} is not one of {', '.join(choices)}")
         params[key] = value
     params["sdsw_version"] = project_version()
+    for mod in mods:                                   # [symbols]: addresses of the version being built
+        for key, value in mod.get("symbols", {}).items():
+            text = f"{value:#010x}" if isinstance(value, int) else str(value)
+            if params.get(key, text) != text:
+                raise ModError(f"symbol {key} is declared differently by two of these mods")
+            params[key] = text
     flags = sorted({f for mod in mods for f in mod.get("token_flags", [])})
     scopes = {fill(mod["identity"]["scope"], params) for mod in mods if "identity" in mod}
     if len(scopes) > 1:
@@ -542,6 +558,55 @@ def load_recipe(name: str) -> dict:
     return tomllib.loads(recipe.read_text(encoding="utf-8"))
 
 
+# ---- versions of the game -------------------------------------------------------------------
+
+VERSION_KEY = re.compile(r"v\d+")
+
+
+def version_table(value) -> bool:
+    """A table whose keys are all versions ({ v0 = ..., v5200 = ... }) gives a value per version."""
+    return isinstance(value, dict) and bool(value) and all(VERSION_KEY.fullmatch(k) for k in value)
+
+
+def for_version(value, version: str, where: str = "recipe"):
+    """value with each version table replaced by its value for version (recursively)."""
+    if version_table(value):
+        if version not in value:
+            raise ModError(f"{where}: no value for {version}")
+        return for_version(value[version], version, where)
+    if isinstance(value, dict):
+        return {k: for_version(v, version, where) for k, v in value.items()}
+    if isinstance(value, list):
+        return [for_version(v, version, where) for v in value]
+    return value
+
+
+def recipe_versions(recipe: dict) -> list[str] | None:
+    """The versions a recipe works with (versions = [...] at its top), or None: any version, the recipe only
+    changes data by name (texts, values of BXML files)."""
+    return recipe.get("versions")
+
+
+def supports(recipe: dict, version: str) -> bool:
+    known = recipe_versions(recipe)
+    return known is None or version in known
+
+
+def unsupported(name: str, recipe: dict, version: str) -> str:
+    known = recipe_versions(recipe) or []
+    return (f"Le mod « {recipe.get('name', name)} » ne marche pas (encore) avec {versions.label(version)}"
+            + (f" : seulement avec {', '.join(versions.label(v) for v in known)}" if known else "") + ".")
+
+
+def emulator_versions() -> dict[str, list[Path]]:
+    """version -> user folders of the emulators where the game runs as that version (its update installed
+    or not)."""
+    found: dict[str, list[Path]] = {}
+    for base in azahar.azahar_dirs():
+        found.setdefault(versions.emulator_version(base), []).append(base)
+    return found
+
+
 # ---- build ----------------------------------------------------------------------------------
 
 def fixes() -> list[str]:
@@ -551,15 +616,35 @@ def fixes() -> list[str]:
 
 
 def build(names: list[str], out_root: Path, overrides: dict[str, str] | None = None,
-          with_fixes: bool = True) -> Path:
-    label = "+".join(names) or "+".join(fixes())
+          with_fixes: bool = True, version: str = versions.BASE) -> Path:
+    """Builds mods for a version of the game: build/mods/<names>/ (v0), build/mods/<names>-<version>/."""
+    global GAME
+    game = versions.game_files(version)
+    if not game.ready():
+        raise ModError(f"Les fichiers de {versions.label(version)} ne sont pas extraits : make extract "
+                       "(ou l'onglet Jeu du lanceur).")
+    GAME = game
+    asked = list(names)
     if with_fixes:
         names = [name for name in fixes() if name not in names] + list(names)
     if not names:
         raise ModError("no mod to build")
-    mods = [load_recipe(name) for name in names]
+    mods, kept = [], []
+    for name in names:
+        recipe = load_recipe(name)
+        if not supports(recipe, version):
+            if name not in asked:                      # a fix not yet ported to this version
+                print(f"[!] {recipe.get('name', name)} : pas encore disponible pour {version}, laissé de côté")
+                continue
+            raise ModError(unsupported(name, recipe, version))
+        mods.append(for_version(recipe, version, name))
+        kept.append(name)
+    names = kept
+    if not names:
+        raise ModError(f"no mod to build for {version}")
+    label = "+".join(asked) or "+".join(name for name in names if name in fixes())
     params = recipe_params(mods, overrides or {})
-    out = out_root / label / azahar.TITLE_ID
+    out = out_root / (label if version == versions.BASE else f"{label}-{version}") / azahar.TITLE_ID
     if out.exists():
         shutil.rmtree(out)
 
@@ -639,13 +724,20 @@ def build(names: list[str], out_root: Path, overrides: dict[str, str] | None = N
         dest = out / "exefs" / "code.ips"
         dest.parent.mkdir(parents=True, exist_ok=True)
         dest.write_bytes(ips(patches))
+    out.mkdir(parents=True, exist_ok=True)              # what the emulator's mod folder will hold
+    (out / azahar.MARKER).write_text(json.dumps({"version": version, "mods": names,
+                                                 "sdsw_version": params["sdsw_version"]}) + "\n", encoding="utf-8")
     title = " + ".join(mod.get("name", name) for mod, name in zip(mods, names))
-    print(f"[+] {title}: {len(edited) + len(scripts) + len(binaries)} file(s), {len(code)} code patch(es) -> {out}")
+    print(f"[+] {title} ({version}): {len(edited) + len(scripts) + len(binaries)} file(s), {len(code)} code "
+          f"patch(es) -> {out}")
     build.params = params
-    return out_root / label
+    return out.parent
 
 
 def write_cxi(name: str, built: Path, params: dict[str, str]) -> Path:
+    if GAME.version != versions.BASE:
+        raise ModError("--cxi : seulement pour le jeu sans sa mise à jour ; quand la mise à jour est installée, "
+                       "l'émulateur prend son code à elle, pas celui du .cxi")
     patch = built / azahar.TITLE_ID / "exefs" / "code.ips"
     if not patch.exists():
         raise ModError("this mod has no code patch: nothing to put in a CXI")
@@ -654,7 +746,7 @@ def write_cxi(name: str, built: Path, params: dict[str, str]) -> Path:
     cia = find_game_cia(ROOT / "cia")
     if cia is None:
         raise ModError(f"no CIA of the game ({azahar.TITLE_ID}) in cia/")
-    code = bytearray(CODE_BIN.read_bytes())
+    code = bytearray(GAME.code_bin.read_bytes())
     azahar.apply_ips(code, patch.read_bytes())
     label = name + (f"_{params['server']}" if "server" in params else "")
     label = "".join(c if c.isalnum() or c in "._-" else "-" for c in label)
@@ -670,33 +762,43 @@ def main() -> None:
     p = sub.add_parser("build", help="build mods/<name> (several: together) into build/mods/")
     p.add_argument("names", nargs="+", metavar="name")
     p.add_argument("--set", action="append", default=[], metavar="KEY=VALUE", help="a parameter of the recipe")
+    p.add_argument("--version", help="the version of the game to build for: v0, v5200 (default: the one "
+                                     "installed in each emulator found, v0 without emulator)")
     p.add_argument("--install", action="store_true",
-                   help="then install it into the emulators found (Azahar, Lime3DS, Citra, Borked3DS)")
-    p.add_argument("--cxi", action="store_true", help="also write the game with this code patch applied")
+                   help="then install it into the emulators found (Azahar, Lime3DS, Citra, Borked3DS) where the "
+                        "game runs as that version")
+    p.add_argument("--cxi", action="store_true", help="also write the game with this code patch applied (v0)")
     p.add_argument("--no-fixes", action="store_true", help="without the fixes of the game (mods/correctifs)")
     p.add_argument("-o", "--out", type=Path, default=ROOT / "build" / "mods")
-    sub.add_parser("list", help="list the mods of mods/")
+    sub.add_parser("list", help="list the mods of mods/ and the versions of the game they work with")
     args = ap.parse_args()
 
     if args.command == "list":
         for recipe in sorted(MODS.glob("*/mod.toml")):
             mod = tomllib.loads(recipe.read_text(encoding="utf-8"))
             always = " (toujours inclus)" if mod.get("always") else ""
-            print(f"{recipe.parent.name:24s} {mod.get('description', '')}{always}")
+            known = ", ".join(recipe_versions(mod) or ["toutes versions"])
+            print(f"{recipe.parent.name:14s} [{known}] {mod.get('description', '')}{always}")
         return
     try:
         overrides = dict(item.split("=", 1) for item in args.set)
     except ValueError:
         sys.exit("[!] --set expects KEY=VALUE")
-    try:
-        built = build(args.names, args.out, overrides, with_fixes=not args.no_fixes)
-        if args.cxi:
-            print(f"[+] {write_cxi('+'.join(args.names), built, build.params)}: Azahar > File > Load File")
-    except (ModError, KeyError, tomllib.TOMLDecodeError) as e:
-        sys.exit(f"[!] {e}")
-    if args.install:
-        for dest in azahar.install(built):              # every emulator found (Azahar, Citra family)
-            print(f"[+] installed into {dest}")
+    emulators = emulator_versions()
+    targets = [args.version] if args.version else sorted(emulators) or [versions.BASE]
+    for version in targets:
+        try:
+            built = build(args.names, args.out, overrides, with_fixes=not args.no_fixes, version=version)
+            if args.cxi:
+                print(f"[+] {write_cxi('+'.join(args.names), built, build.params)}: Azahar > File > Load File")
+        except (ModError, KeyError, tomllib.TOMLDecodeError) as e:
+            sys.exit(f"[!] {e}")
+        if args.install:
+            bases = emulators.get(version, [])
+            if not bases:
+                print(f"[!] no emulator runs the game as {version}: not installed")
+            for dest in azahar.install(built, only=bases):
+                print(f"[+] installed into {dest}")
 
 
 if __name__ == "__main__":

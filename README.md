@@ -22,14 +22,18 @@ Il faut [Python 3.11 ou plus récent](https://www.python.org/downloads/) (rien d
    (macOS ; la première fois, clic droit > Ouvrir), `lancer-linux.sh` (Linux), ou dans un terminal
    `python3 subwars.py`. Le lanceur s'ouvre dans votre navigateur ; il ne parle qu'à votre ordinateur.
 3. Onglet **Jeu** : il trouve votre jeu (dans le dossier `cia/` du projet ou dans Azahar, sinon choisissez le
-   fichier) et le prépare.
+   fichier) et le prépare. Avec le `.cia` déchiffré de la **mise à jour v5200** dans `cia/` (facultatif : 16
+   sous-marins et 3 cartes de plus), il la prépare aussi et peut l'installer dans l'émulateur
+   ([docs/mise-a-jour.md](docs/mise-a-jour.md)).
 4. Onglet **Mods** : cochez **Premium** (version complète et les 23 sous-marins), et si vous voulez **Toutes
    les missions**, la **Triche** (dont le tir sans délai), la **Vitesse du sous-marin** (×2 à ×15), vos
    **Caractéristiques** de sous-marins ou le **Jeu en ligne**, puis *Installer dans l'émulateur* (dans chaque
    émulateur trouvé). Toujours inclus : les **Correctifs** (sans eux, Azahar plante quand une torpille touche un
    sous-marin sous l'eau) et le **Pseudo** (votre nom en ligne et en local est le pseudo réglé dans
    l'émulateur, plus « Citra » pour tout le monde) et la **Version** (à la fin de la ligne sous le titre,
-   « v0.1.34 » : la version du projet et son nombre de commits, pour savoir quelle construction on joue).
+   « v0.1.34 » : la version du projet et son nombre de commits, pour savoir quelle construction on joue). Les
+   mods sont construits pour la version du jeu que fait tourner l'émulateur (v0 ou v5200) ; chacun indique
+   avec quelles versions il marche.
 5. Onglets **Sauvegarde** (tout débloquer, médailles, drapeau premium), **Sous-marins** (caractéristiques) et
    **Serveur** (héberger des parties en ligne).
 
@@ -41,6 +45,9 @@ Les mêmes outils existent en ligne de commande : `tools/mod.py`, `tools/save.py
 *Avancement estimé du projet : pseudo-code source 20 %, portage PC 0 %, serveur en ligne 85 %, mods 75 % (détail par section dans chaque page).*
 
 - Extraction complète du CIA (EUR, `00040000000D7E00`, v0), déjà déchiffré : aucune clé de console n'est nécessaire.
+- **Mise à jour v5200** (`0004000E000D7E00`) : extraite dans `extracted/v5200/`, installable dans Azahar ; les
+  mods se construisent pour la version installée, et ceux qui ne touchent que des données marchent déjà avec elle
+  ([docs/mise-a-jour.md](docs/mise-a-jour.md)).
 - **Table des symboles du linker trouvée dans le RomFS** (`romfs:/map`) : 9431 fonctions avec leur vrai nom, leur
   taille et leur fichier objet d'origine (84,7 % du code). Elle est appliquée automatiquement dans Ghidra.
 - 44 chemins de fichiers sources originaux retrouvés (`source/net/session.cpp`, `source/amx/amxactor.cpp`, …).
@@ -98,7 +105,7 @@ aussi forte qu'un joueur, combien de parties : [docs/ia.md](docs/ia.md)
 
 ```
 cia/               ton dump .cia (ignoré par git)
-extracted/         sortie de l'extraction : code.bin, nsub.elf, exefs/, romfs/ (ignoré)
+extracted/         sortie de l'extraction : code.bin, nsub.elf, exefs/, romfs/ ; v5200/ : la mise à jour (ignoré)
 tools/             scripts Python : extraction CIA, code.bin -> ELF, Pawn (amx*.py), BXML, Azahar, mods
 mods/              recettes de mods (aucune donnée du jeu : elles s'appliquent au dump du joueur)
 ghidra/scripts/    scripts Ghidra : symboles du map, SVC, pointeurs de code, export du pseudo-code

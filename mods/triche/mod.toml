@@ -23,6 +23,7 @@
 
 name = "Triche"
 description = "Invincible, torpilles et air infinis, tir sans délai, masqueur gratuit, moteur gonflé"
+versions = ["v0"]
 token_flags = ["triche"]
 
 [params.invincible]

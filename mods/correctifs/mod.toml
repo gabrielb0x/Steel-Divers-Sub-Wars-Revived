@@ -34,6 +34,7 @@
 
 name = "Correctifs"
 description = "Corrige le plantage d'Azahar quand une torpille touche un sous-marin sous l'eau"
+versions = ["v0", "v5200"]
 always = true
 
 [[shader]]
