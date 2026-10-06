@@ -32,47 +32,75 @@ un bac à sable (`tools/botsim.py`). Hors ligne (missions), le jeu garde ses pro
 
 *Avancement estimé : 90 % — essayé dans le bac à sable ; reste à le voir dans Azahar.*
 
-- **La physique d'un joueur** (`pscope_player.p func_12184`) : poussée et traînée (0,038), taux de virage qui suit
-  le manche avec de l'inertie, vitesse de plongée. Ce sont les caractéristiques de son sous-marin
-  (`bxml/pscope_plyNN_stats` et les tables `table_maxturn`, `table_below_accel`, `table_dive_rate`) : virage,
-  accélération, plongée, niveau et nombre de torpilles, rechargement, cadence, air du masqueur. Un bot du serveur
-  a celles du sous-marin qu'il montre (`server.bots.sub<k>`), un bot du jeu celles du premier.
+Le bot ne fait que ce qu'un joueur peut faire. Il pilote avec les mêmes commandes (manche de virage,
+accélérateur, ballasts, tir), dans les mêmes limites. Le bac à sable vérifie chaque image : vitesse de virage,
+vitesse de pointe, axe de chaque tir.
+
+- **La physique d'un joueur** (`pscope_player.p func_12184`, `func_13494`) :
+  - le taux de virage va vers `maxTurn × manche × facteur`, de 2 % par image quand on pousse le manche et de
+    3,8 % quand on le lâche ; le facteur vaut √(vitesse avant) / 10, au moins 0,4, donc 0,4 aux vitesses d'un
+    sous-marin ;
+  - la poussée vaut `accélérateur × belowAccel` ; la traînée de 0,038 s'applique le long du sous-marin et en
+    travers ;
+  - la marche arrière se fait à demi-puissance (`periscope_move.p`) ;
+  - le sous-marin freine un instant à chaque tir (`torpedoFireBrakeTime` images à `torpedoFireBrakeRate`) ;
+  - le ballast agit sur la vitesse verticale (`diveRate`, `diveDrag`) ;
+  - le nez s'incline avec la plongée (tangage → −0,1 × vitesse verticale) ;
+  - un contact le repousse de 5 unités par image, comme un joueur.
+
+  Ce sont les caractéristiques de son sous-marin (`bxml/pscope_plyNN_stats` et les tables `table_maxturn`,
+  `table_below_accel`, `table_dive_rate`). Un bot du serveur a celles du sous-marin qu'il montre
+  (`server.bots.sub<k>`), un bot du jeu celles du premier.
 - **Les collisions** : un `@eventCollide` ajouté à `surface_sub` le repousse de la carte et des autres
-  sous-marins, et retire la vitesse qui l'y enfoncerait. Il regarde aussi devant lui (`worldClipLine`, sept caps)
-  pour contourner un obstacle, toujours par le même côté tant que le passage est bouché. Il sonde le fond, et
-  recule s'il n'a presque pas bougé pendant deux secondes.
+  sous-marins, et retire la vitesse qui l'y enfoncerait. Il regarde aussi devant lui (`worldClipLine`, plusieurs
+  caps) pour contourner un obstacle, toujours par le même côté tant que le passage est bouché. Il sonde le fond,
+  et recule s'il n'a presque pas bougé pendant deux secondes.
 - **Les cibles** : tout sous-marin ennemi, joueur ou bot, de cette console ou d'une autre (`worldFindActors`,
-  types `0x40000` et `0x80000`). Il préfère le plus proche, le plus abîmé, celui qu'il voit. Un ennemi masqué
-  disparaît au-delà de 1 200 unités : il va voir là où il l'a perdu. Sans cible en vue, il va vers la bataille.
+  types `0x40000` et `0x80000`). Il préfère le plus proche, le plus abîmé, celui qu'il voit. Sans cible en vue, il
+  va vers la bataille.
+- **Le masqueur le rend aveugle** : un ennemi masqué (`masker` ou `masker_on`) n'est jamais vu, de près ni de
+  loin. Si sa cible se masque, le bot la perd. Il ne sait que vers où elle allait : il va la chercher là
+  pendant 8 s et peut y tirer une ou deux torpilles au jugé. Une torpille à tête chercheuse perd elle aussi sa
+  cible (le jeu, `surface_torpedo_p_homing.p func_4800`).
 - **La visée** : il vise là où la cible sera quand la torpille y arrivera. Il connaît la course exacte d'une
-  torpille partie de l'arrêt, 118,8 × (n − 100 × (1 − 0,99ⁿ)) unités en n images (`func_1778`, `func_2ef4`).
-  Il suppose que la cible garde sa vitesse et son taux de virage (un virage régulier est un cercle). Il trouve le
-  temps de rencontre par dichotomie et tire en trois dimensions : la torpille part inclinée vers la profondeur de
-  la cible. Il ne tire que si la ligne est dégagée, sans coéquipier à moins de 220 unités de la trajectoire, et
-  avec son cap à moins de 5°. Une cible qui change de sens de virage n'est visée que de près.
+  torpille, 118,8 × (n − 100 × (1 − 0,99ⁿ)) unités en n images (`func_1778`, `func_2ef4`), plus la vitesse du
+  sous-marin qu'elle garde au départ et qui s'amortit comme la sienne. Il suppose que la cible garde sa vitesse
+  et son taux de virage (un virage régulier est un cercle). Comme un joueur, il ne peut que tourner sa coque :
+  - la torpille part de son tube (`torpedoSpawnPoint`), dans l'axe du sous-marin, avec son tangage et sa
+    vitesse (`periscope_move.p func_fbdc`) ;
+  - pour viser plus haut ou plus bas, il monte ou plonge, ce qui incline son nez et le rapproche de la
+    profondeur de la cible ;
+  - il ne tire que si une torpille partie là, maintenant, passerait assez près de la cible ;
+  - la ligne doit être dégagée, sans coéquipier à moins de 220 unités de la trajectoire ;
+  - une cible qui change de sens de virage n'est visée que de près.
 - **Le combat** : il garde ses distances (2 200 à 3 000 unités, 1 700 contre une cible agile), recule face à un
-  ennemi trop proche et ne l'éperonne jamais. Il se met à la profondeur de sa cible. Une torpille qui va passer
-  près de lui, il la voit venir : il s'écarte de sa trajectoire et change de profondeur, parce qu'une torpille
-  garde sa profondeur.
+  ennemi trop proche et ne l'éperonne jamais. Une torpille qui va passer près de lui, il la voit venir : il
+  s'écarte de sa trajectoire et change de profondeur, parce qu'une torpille garde sa profondeur.
 - **Torpilles à tête chercheuse** : une ou deux par vie, celles des joueurs (`surface_torpedo_p_homing`,
-  verrouillées par `@lockOnTarget`). Il les tire sur une cible qui vire fort ou passe vite, ou quand il est
-  abîmé.
-- **Coque basse** (moins de 40 %) : il garde sa cible, recule en tirant, et quand un ennemi approche il passe sous
-  son masqueur (`masker`, `masker_on`, comme un joueur : 300 images pour 33,3 d'air) et s'enfuit en profondeur.
+  verrouillées par `@lockOnTarget`), dans l'axe du sous-marin. Il les tire sur une cible qui vire fort ou passe
+  vite, ou quand il est abîmé.
+- **Coque basse** (moins de 40 %) : il garde sa cible et recule en tirant. Quand un ennemi approche, il passe sous
+  son masqueur (`masker`, `masker_on` : 300 images pour 33,3 d'air) et s'enfuit en profondeur. Comme un joueur,
+  il ne retrouve de l'air qu'en surface : trois masqueurs par vie au plus.
 - **Ses torpilles** sont celles des joueurs (`surface_torpedo_lv0N`, 20 à 30 points de dégâts). Elles touchent
   comme celles d'un joueur ([`bots_tir.inc`](../mods/en-ligne/src/bots_tir.inc)) : la console de la cible prend
   le coup (`@eventMessageWeaponHitTorp` pour un joueur, `@torpedoHitOnNpcToOwner` pour un bot). Elles traversent
   leurs coéquipiers et leur tireur. Le tireur est signalé comme bot : le joueur de la console ne compte pas ses
   victimes.
+- **Sa mort compte** : le jeu ne prévient que pour un bot coulé par une torpille (`@eventMessageAISubDead`). Il
+  ne le fait pas pour un bot coulé par une explosion (`@explosionHitOnNpc`), et retrouve l'équipe du bot par son
+  numéro de synchronisation. La bataille pouvait donc ne jamais finir. C'est maintenant le pilote du bot qui
+  annonce sa mort, une fois, avec son équipe : toutes les consoles l'entendent (`@botDown`,
+  [`bots_partie.pasm`](../mods/en-ligne/bots_partie.pasm)) et retirent le bot du compteur de son équipe.
 
-Le niveau du serveur (`bots_level`, `server.bots.level`) règle les réflexes et la précision. Toutes les valeurs
-sont dans `bots_ia.p` :
+Le niveau du serveur (`bots_level`, `server.bots.level`) règle les réflexes et la précision, jamais ce que le
+sous-marin peut faire. Toutes les valeurs sont dans `bots_ia.p` :
 
-| Niveau | Regarde autour | Pause après rechargement | Erreur de visée | Voit venir les torpilles | Virages prévus |
+| Niveau | Regarde autour | Pause après rechargement | Tir passant au plus à | Voit venir les torpilles | Virages prévus |
 |---|---|---|---|---|---|
-| normal | toutes les 10 images | 40 images | 2° | 35 % | non |
-| difficile (par défaut) | toutes les 6 images | 12 images | 0,6° | 80 % | oui |
-| expert | toutes les 3 images | aucune | aucune | toujours | oui |
+| normal | toutes les 10 images | 40 images | 90 unités de la cible | 35 % | non |
+| difficile (par défaut) | toutes les 6 images | 12 images | 55 unités | 80 % | oui |
+| expert | toutes les 3 images | aucune | 35 unités | toujours | oui |
 
 ## Le bac à sable
 
@@ -80,30 +108,38 @@ sont dans `bots_ia.p` :
 
 ```sh
 make pawncc bots                        # le compilateur Pawn 3.3, puis src/*.p -> mods/en-ligne/*.pasm
-python3 tools/botsim.py                 # duel, close, walls, corner, retreat, dodge, melee, aux trois niveaux
+python3 tools/botsim.py                 # duel, close, walls, corner, retreat, dodge, masker, melee, aux trois niveaux
 python3 tools/botsim.py duel --level 3 --pitch-sign -1
 ```
 
 `tools/botsim.py` assemble `bots_ia.pasm` dans le vrai `surface_sub.amx` du dump. Il en exécute le code, comme
 amx.c de Pawn 3.3, dans un monde à lui : fond, blocs, sous-marins, et torpilles avec la physique du jeu. Les
 natives (`worldClipLine`, `worldFindActors`, propriétés…) y sont simulées. Il compte les tirs, les touches et les
-images passées contre la carte. Il signale toute faute de la machine (pile, mémoire, instruction inconnue).
+images passées contre la carte. Il signale tout mouvement qu'un joueur ne pourrait pas faire : vitesse de virage
+au-delà de 0,4 × `maxTurn`, vitesse au-delà de `belowAccel / linDrag`, torpille partie hors de l'axe du
+sous-marin. Il signale toute faute de la machine (pile, mémoire, instruction inconnue).
 
 Résultats (1 800 images, une minute de jeu) :
 
 | Scénario | normal | difficile | expert |
 |---|---|---|---|
-| duel contre un joueur qui zigzague et change de profondeur | 40 % des tirs touchent | 67 % | 75 % |
-| joueur qui tourne tout près | 30 % | 75 % | 75 % |
-| derrière un mur de 6 000 unités | 33 % | 100 % | 80 % |
-| coque basse, un joueur qui fonce sur lui (repli) | 43 %, joueur coulé | 80 %, coulé | 50 %, coulé |
-| tiré dessus toutes les 3 s | 5 torpilles reçues | 0 | 0 |
-| 4 bots contre 4 bots | 32 touches, 3 coulés | 31 touches, 2 coulés | 28 touches, 1 coulé |
+| duel contre un joueur qui zigzague et change de profondeur | 50 % des tirs touchent | 50 % | 67 % |
+| joueur qui tourne tout près | 100 % | 67 % | 67 % |
+| derrière un mur de 6 000 unités | 100 % | 100 % | 100 % |
+| coque basse, un joueur qui fonce sur lui : il recule en tirant | joueur coulé en 11 s | en 10 s | en 11 s |
+| tiré dessus toutes les 3 s | 0 torpille reçue | 0 | 0 |
+| joueur masqué 10 s | perdu de vue | perdu de vue | perdu de vue, 2 tirs au jugé, aucune touche |
+| 4 bots contre 4 bots | 32 touches | 20 touches | 22 touches |
 
-Le pilote coûte environ 3 500 instructions AMX par image et par bot. Contre une cible qui va tout droit, il
-touche à tous les coups. Des mesures dans le bac à sable ont fixé plusieurs choix :
+Sur tous les scénarios et à tous les niveaux, le bac à sable n'a relevé aucun mouvement ni aucun tir impossible pour
+un joueur. Tous les tirs partent dans l'axe du sous-marin, et les vitesses de virage et de pointe restent sous
+celles de son sous-marin.
+
+Le pilote coûte de 2 000 à 4 500 instructions AMX par image et par bot. Des mesures dans le bac à sable ont fixé
+plusieurs choix :
 
 - l'interception exacte, en formule fermée, a remplacé une simulation image par image six fois plus chère ;
 - la prévision d'une plongée est limitée à 25 images ;
 - le côté de contournement d'un mur reste le même tant que le passage est bouché ;
-- l'inclinaison des torpilles est vérifiée sur leur troisième axe, quelle que soit la convention du moteur.
+- pour viser en hauteur, il monte ou plonge : son nez s'incline et la torpille part dans son axe ;
+- le manche est réglé pour suivre un cap qui bouge (l'erreur tombe sous 0,01 rad).

@@ -2,8 +2,8 @@
 ;
 ; The game ends a battle when fewer than two teams have players afloat (checkGameOverTeamBattle, on the
 ; host); its bots do not count. Against the server's bots, a team's bots afloat count with its players
-; (bots.alive1, bots.alive2: set by bots_bataille.pasm, lowered here when a bot sinks), and a bot that
-; sinks is checked for the end of the battle like a player who sinks.
+; (bots.alive1, bots.alive2: set by bots_bataille.pasm, lowered by @botDown when a bot sinks), and a bot
+; that sinks is checked for the end of the battle like a player who sinks.
 
 ; checkGameOverTeamBattle: getTeamPlayerCount(team) (func_3fec) -> teamRemaining(team), at both calls.
 .hook 0x6854
@@ -39,74 +39,77 @@ players_only:
     pop.pri
     retn
 
-; @eventMessageAISubDead(node, syncId): every console hears that a bot sank (netCallPublic).
+; @eventMessageAISubDead(node, syncId): the game's message when a computer sub sinks from a torpedo. Not
+; sent when one sinks from an explosion (@explosionHitOnNpc), and its sub is found again by its sync id, which
+; can fail: the bots' pilot (bots_ia.p) says it itself, once, with its team, by @botDown below. Here, only a
+; check of the end of the battle.
 .hook 0x7160
     push.c "server.bots"
     sysreq.n sysGetGlobal, 1
     jzer @aisub_original
-    push.s 16
-    push.s 12
-    push.c 8
-    call @botSunk
+    push.c 0
+    call @scheduleCheck
 aisub_original:
     .original
     .return
 
-; locals: -4 actor, -8 its team, -12 name of the count, -20 session time (2 cells)
-botSunk:
+; @botDown(team): a bot of this team sank (netCallPublic of bots_ia.p, heard by every console).
+.public @botDown
+botDown:
     proc
-    stack -20
-    zero.pri
-    addr.alt -20
-    fill 20
-    push.s 16
-    push.s 12
-    sysreq.n actorGetFromSyncID, 2
-    stor.s.pri -4
-    eq.c.pri -1
-    jnz @sunk_done
-    push.s -4
-    push.adr -8
-    push.c "teamColor"
-    sysreq.n actorGetPropInt, 3
-    load.s.pri -8
+    load.s.pri 12
     eq.c.pri 1
-    jzer @sunk_red
+    jzer @down_red
     const.pri "bots.alive1"
-    jump @sunk_count
-sunk_red:
+    jump @down_count
+down_red:
     const.pri "bots.alive2"
-sunk_count:
-    stor.s.pri -12
-    push.s -12
+down_count:
+    push.pri
+    push.pri
     sysreq.n sysGetGlobal, 1
     add.c -1
     zero.alt
-    jsgeq @sunk_store
+    jsgeq @down_store
     zero.pri
-sunk_store:
+down_store:
+    pop.alt
     push.pri
-    push.s -12
+    push.alt
     sysreq.n sysSetGlobal, 2
-    push.s -8                       ; the HUD's team counter, bots included (bots_hud.pasm)
+    stack -4                        ; -4: the HUD's team counter, bots included (bots_hud.pasm)
+    push.s 12
     push.c 4
     call 0x3fec                     ; getTeamPlayerCount(team)
     stor.s.pri -4
     push.adr -4
-    push.adr -8
+    push.adr 12
     push.c "@setTeamCount"
     push.c 10010                    ; UID_HUD
     sysreq.n sysCallPublic, 4
-    push.c 2                        ; one second from now, checkGameOverMulti (func_6e70)
-    push.adr -20
+    stack 4
+    push.c 0
+    call @scheduleCheck
+    zero.pri
+    retn
+
+; scheduleCheck(): one second from now, checkGameOverMulti (func_6e70).
+; locals: -8 session time (2 cells)
+scheduleCheck:
+    proc
+    stack -8
+    zero.pri
+    addr.alt -8
+    fill 8
+    push.c 2
+    push.adr -8
     sysreq.n netGetSessionTime, 2
     push.c 0
     push.c 0
-    push.s -16
+    push.s -4
     push.c 0
     push.c 16
     call 0x6f44                     ; @scheduleCheckGameOver(0, time, 0, 0)
-sunk_done:
-    stack 20
+    stack 8
     zero.pri
     retn

@@ -41,7 +41,7 @@
 //                          -   normal  difficile  expert
 new const SEE_EVERY[] =   { 0,  10,     6,         3 };          // frames between two looks around
 new const FIRE_PAUSE[] =  { 0,  40,     12,        0 };          // frames added to the reload
-new const Float:AIM_ERROR[] = { 0.0, 0.035, 0.010, 0.0 };        // radians of random error per shot
+new const Float:MISS_ALLOWED[] = { 0.0, 90.0, 60.0, 45.0 };     // how far off the target a shot may pass
 new const Float:DODGE[] = { 0.0, 0.35, 0.8, 1.0 };               // chance to see a torpedo coming
 new const HOMING[] =      { 0,  1,      1,         2 };          // homing torpedoes per life
 
@@ -50,10 +50,12 @@ const Float:TORPEDO_KEEP = 0.99;     // 1 - friction (0.01, func_1488)
 const Float:LIN_DRAG = 0.038;        // linDrag of every pscope_plyNN_stats
 const Float:DIVE_DRAG = 0.16;        // diveDrag
 const Float:SURFACE = -70.0;         // highest point: under the waterline
-const Float:HULL = 70.0;             // half the height of a sub, what a torpedo can miss by vertically
+const Float:HULL = 70.0;
+const Float:NO_CLIMB = 1000.0;             // half the height of a sub, what a torpedo can miss by vertically
 
 new lvl;                             // 0: the game's own bot (offline, or not a computer sub)
 new started;
+new sunk;
 new frame;
 new me;                              // actor id
 new myTeam;
@@ -84,11 +86,23 @@ new Float:throttle;
 new Float:throttleWant;
 new Float:yawWant;
 new Float:yawSteer;
+new Float:steerBefore;
+new Float:steerRate;
 new Float:depthWant = -300.0;
+new Float:climbWant;                 // vertical speed wanted, NO_CLIMB: go to depthWant
 new Float:pitch;
+new Float:pitchRate;
+new Float:forwardSpeed;
+new brakeTime;
+new Float:brake = 1.0;
+new Float:brakeRate = 0.97;
+new brakeFrames = 30;
+new Float:diveDrag = 0.16;
+new Float:tubeLocal[3] = { 39.0, -14.0, 111.0 };
 new Float:push[3];
 new Float:bump[3];
 new bumpTime;
+new lastBump = -10000;               // when it last touched the map
 new Float:floorY = -100000.0;
 new Float:stuckAt[3];
 new stuckCheck;
@@ -116,10 +130,15 @@ new goalValid;
 new mates[8];
 new mateCount;
 new hurtTime;
+new lostAt = -10000;                 // when its target vanished under its masker
+new Float:lostPos[3];
+new Float:lostVel[3];
+new blindShots;
 new evadeTime;
 new Float:evadeYaw;
 
 forward Float:torpedoRange();
+forward Float:missNow(&frames);
 
 /* ---- what the hooks call (asm at the end) ----------------------------------------------------- */
 
@@ -152,14 +171,24 @@ public botLevel()
 forward botPilot();
 public botPilot()
 {
-    if (!lvl || !g_1c90 || g_1c68 <= 0.01) {
+    if (!lvl)
+        return 0;
+    if (!g_1c90 || g_1c68 <= 0.01) {
         if (started && maskerTime)
             maskerOff();
+        if (started && !sunk) {
+            // its team loses a sub: every console hears it (bots_partie.pasm @botDown), whatever sank it
+            sunk = 1;
+            actorSetPropReal("life", 0.0, 0);
+            if (sysGetGlobal("server.bots"))
+                netCallPublic(UID_GAME_STATE, "@botDown", myTeam);
+        }
         return 0;
     }
     if (!started)
         start();
     frame++;
+    actorSetPropReal("life", g_1c68, 0);               // seen by the others (synced), and by bots_partie
     timers();
     if (frame % SEE_EVERY[lvl] == me % SEE_EVERY[lvl])
         lookAround();
@@ -173,7 +202,9 @@ public botPilot()
 
 /* What the pilot thinks, for tools/botsim.py: target, its position and velocity, turn rate, wanted heading,
  * throttle and depth, torpedoes, the last shot's elevation. */
-new Float:lastElevation;
+new Float:lastMiss;
+new holdReason;
+new lastTorpedo;                    // the last torpedo fired
 new Float:aimDir[3];                 // the last intercept
 new Float:aimAt[3];
 new aimFlight;
@@ -192,7 +223,7 @@ public botDebug(Float:out[16])
     out[9] = throttleWant;
     out[10] = depthWant;
     out[11] = float(torpedoes);
-    out[12] = lastElevation;
+    out[12] = lastMiss + float(holdReason) * 100000.0;    // why it held fire, and the last miss
     out[13] = yawSteer;
     out[14] = float(tVisible);
     out[15] = floorY;
@@ -209,9 +240,11 @@ public @eventCollide(other, Float:point[3], Float:normal[3])
     new type = actorGetCollisionType(other);
     if (!(type & (COLL_MAP | COLL_SUB | COLL_REMOTE)))
         return 0;
-    floatvecaddscale(push, normal, (type & COLL_MAP) ? 6.0 : 4.0);
+    floatvecaddscale(push, normal, 5.0);
     bump = normal;
     bumpTime = 12;
+    if (type & COLL_MAP)
+        lastBump = frame;
     return 0;
 }
 
@@ -265,6 +298,10 @@ readSubmarine()
     actorGetPropInt("torpedoReplenishTime", replenish, a);
     actorGetPropInt("torpedoFireInterval", fireInterval, a);
     actorGetPropReal("maskerUseAir", maskerCost, a);
+    actorGetPropInt("torpedoFireBrakeTime", brakeFrames, a);
+    actorGetPropReal("torpedoFireBrakeRate", brakeRate, a);
+    actorGetPropReal("diveDrag", diveDrag, a);
+    actorGetPropVector("torpedoSpawnPoint", tubeLocal, a);
     actorReadProperties("table_maxturn", a);
     strformat(name, sizeof name, false, "maxTurn_%d", turnRating);
     actorGetPropReal(name, maxTurn, a);
@@ -287,6 +324,8 @@ readSubmarine()
     maxTurn = fclamp(maxTurn, 0.01, 0.09);
     accel = fclamp(accel, 0.3, 0.54);
     diveRate = fclamp(diveRate, 0.25, 0.7);
+    diveDrag = fclamp(diveDrag, 0.1, 0.3);
+    brakeRate = fclamp(brakeRate, 0.9, 1.0);
     g_1c78 = accel / LIN_DRAG;
 }
 
@@ -308,8 +347,8 @@ timers()
         backOutTime--;
     if (maskerTime && --maskerTime == 0)
         maskerOff();
-    if (!maskerTime && air < 100.0)
-        air = air + 0.05;
+    if (g_1ca0[1] > -30.0 && air < 100.0)
+        air = air + 0.2;                                // as a player: air comes back at the surface only
     if (g_1c68 < lifeBefore - 0.5)
         hurtTime = 120;
     lifeBefore = g_1c68;
@@ -331,9 +370,11 @@ bool:clearLine(const Float:from[3], const Float:to[3], Float:margin)
 
 isMasked(actor)
 {
-    new masked = 0;
-    actorGetPropInt("masker_on", masked, actor);
-    return masked;
+    new on = 0;
+    new masker = 0;
+    actorGetPropInt("masker_on", on, actor);
+    actorGetPropInt("masker", masker, actor);
+    return on || masker;
 }
 
 /* The enemies around, and the torpedoes coming. */
@@ -371,8 +412,8 @@ lookAround()
             nearest = a;
             nearestDistance = d;
         }
-        if (d > 9000.0 || (masked && d > 1200.0))
-            continue;
+        if (d > 9000.0 || masked)
+            continue;                                   // under its masker it cannot be seen, near or far
         new bool:seen = clearLine(g_1ca0, p, 200.0);
         if (!seen && d > 3000.0)
             continue;
@@ -459,8 +500,13 @@ follow()
         target = -1;
         return;
     }
-    if (isMasked(target) && distance(p, g_1ca0) > 1200.0) {
-        target = -1;                                    // vanished under its masker: look where it was
+    if (isMasked(target)) {
+        // vanished under its masker: it only knows where it was going
+        target = -1;
+        lostAt = frame;
+        lostPos = tPos;
+        lostVel = tVel;
+        blindShots = 0;
         return;
     }
     tPos = p;
@@ -504,6 +550,11 @@ decide()
 {
     new Float:health = g_1c68 / lifeMax;
     throttleWant = 0.8;
+    climbWant = NO_CLIMB;
+    if (target == -1 && frame - lostAt < 240) {
+        guess();
+        return;
+    }
     if (target == -1) {
         wander();
         if (evadeTime) {
@@ -530,7 +581,8 @@ decide()
     new Float:wanted = agile() ? 1700.0 : fclamp(range * 0.35, 2200.0, 3000.0);
 
     if (health < 0.4) {
-        if (!maskerTime && air >= maskerCost && (d < 3500.0 || hurtTime))
+        // it backs away still firing; under its masker only when the enemy closes in or hits it again
+        if (!maskerTime && air >= maskerCost && (d < 1800.0 || (hurtTime && d < 3500.0)))
             maskerOn();
         if (maskerTime) {
             // hidden: away from it, full speed, deep
@@ -541,7 +593,7 @@ decide()
         }
         // still firing, backing away
         yawWant = aimYaw;
-        throttleWant = d < range * 0.8 ? -0.6 : 0.2;
+        throttleWant = d < range * 0.8 ? -1.0 : 0.2;
     } else if (!tVisible) {
         yawWant = yawOf(toTarget);                      // round the obstacle (steerClear) to see it
         throttleWant = 1.0;
@@ -550,7 +602,7 @@ decide()
         throttleWant = 1.0;
     } else if (d < wanted - 1000.0) {
         yawWant = aimYaw;                               // too close: back off, facing it
-        throttleWant = -0.6;
+        throttleWant = -1.0;
     } else {
         yawWant = aimYaw;
         throttleWant = 0.35;
@@ -559,11 +611,69 @@ decide()
         yawWant = evadeYaw;
         throttleWant = 1.0;
     } else {
-        depthWant = tPos[1] + tVel[1] * 30.0;           // a torpedo goes straight: be at its depth
+        // a torpedo leaves along the sub, whose nose goes down as it dives (pitch -> -0.1 * vertical speed,
+        // pscope_player.p func_12184): dive or climb at the speed that points it at the target, which also
+        // brings it to the target's depth
+        depthWant = tPos[1] + tVel[1] * 30.0;
+        if (flight && fabs(aim[1]) < 0.5)
+            climbWant = fclamp(10.0 * aim[1], -diveRate / diveDrag, diveRate / diveDrag);
     }
     if (d < 900.0 && throttleWant > 0.0)
-        throttleWant = -0.5;                            // never ram it
+        throttleWant = -1.0;                            // never ram it
     fire(aim, aimPoint, d, flight);
+}
+
+/* Its target vanished under its masker: it goes where the target was heading (as far as 2 s of it), and may
+ * fire one or two torpedoes there at a guess. It does not see it. */
+guess()
+{
+    new Float:lost = float(min(frame - lostAt, 60));
+    new Float:p[3];
+    p = lostPos;
+    floatvecaddscale(p, lostVel, lost);
+    new Float:to[3];
+    floatvecsubto(to, p, g_1ca0);
+    yawWant = yawOf(to);
+    depthWant = p[1];
+    throttleWant = floatveclength(to) > 1500.0 ? 0.8 : 0.3;
+    if (evadeTime) {
+        yawWant = evadeYaw;
+        throttleWant = 1.0;
+    }
+    if (blindShots >= 2 || !torpedoes || torpedoes < torpedoMax / 2 || reload || frandom() > 0.05)
+        return;
+    // a shot at a guess: where it would be if it went on, with the same aim as a seen target
+    new Float:keepPos[3];
+    new Float:keepVel[3];
+    keepPos = tPos;
+    keepVel = tVel;
+    new Float:keepOmega = tOmega;
+    tPos = p;
+    tVel = lostVel;
+    tOmega = 0.0;
+    new frames = 0;
+    new Float:miss = missNow(frames);
+    if (miss < 120.0 && frames >= 8) {
+        new Float:tube[3];
+        tubePosition(tube);
+        if (clearLine(tube, p, 120.0) && !mateInTheWay(tube, p)) {
+            new name[32];
+            strformat(name, sizeof name, false, "surface_torpedo_lv%02d", torpedoLevel);
+            launch(tube, name);
+            actorSetPropReal("bearing", g_1cc8, lastTorpedo);
+            torpedoes--;
+            if (replenishIn <= 0)
+                replenishIn = replenishFrames;
+            reload = fireInterval + FIRE_PAUSE[lvl];
+            brakeTime = brakeFrames;
+            brake = 1.0;
+            side = -side;
+            blindShots++;
+        }
+    }
+    tPos = keepPos;
+    tVel = keepVel;
+    tOmega = keepOmega;
 }
 
 /* Without a target: where the battle is, or around. */
@@ -657,30 +767,87 @@ intercept(Float:aim[3], Float:point[3])
     new Float:low = 0.0;
     new Float:high = 240.0;
     new Float:p[3];
-    targetAt(high, p);
+    aimAhead(high, tube, p);
     if (torpedoRun(high) < distance(p, tube))
         return 0;
     for (new k = 0; k < 12; k++) {
         new Float:mid = (low + high) * 0.5;
-        targetAt(mid, p);
+        aimAhead(mid, tube, p);
         if (torpedoRun(mid) < distance(p, tube))
             low = mid;
         else
             high = mid;
     }
-    targetAt(high, p);
+    aimAhead(high, tube, p);
     if (torpedoRun(high) > torpedoRange())
         return 0;
     floatvecsubto(aim, p, tube);
     floatvecnormalize(aim, aim);
-    point = p;
+    targetAt(high, point);
     return floatround(high, 2) + 1;                  // 2: rounded up
 }
 
+/* The torpedo keeps the sub's velocity when it leaves (periscope_move.p func_fbdc), slowed as its own:
+ * 99 * (1 - 0.99^n) times it in n frames. Where to point so that, with that drift, it meets the target. */
+Float:drift(Float:n)
+{
+    return TORPEDO_KEEP / (1.0 - TORPEDO_KEEP) * (1.0 - floatpower(TORPEDO_KEEP, n));
+}
+
+aimAhead(Float:n, const Float:tube[3], Float:p[3])
+{
+    targetAt(n, p);
+    floatvecaddscale(p, vel, -drift(n));
+    #pragma unused tube
+}
+
+/* Where a torpedo fired now, along the sub's own axis (its rotation) and with its velocity, passes the
+ * target: the miss distance at the moment it overtakes it. 100000.0 if it never gets there. */
+Float:missNow(&frames)
+{
+    new Float:tube[3];
+    tubePosition(tube);
+    new Float:axis[3];
+    actorGetAxis(2, axis, 0);
+    new Float:low = 0.0;
+    new Float:high = 240.0;
+    new Float:p[3];
+    new Float:t[3];
+    torpedoAt(high, tube, axis, t);
+    targetAt(high, p);
+    floatvecsub(p, t);
+    if (floatvecdot(p, axis) > 0.0)
+        return 100000.0;                                // still ahead of it at the end of its run
+    for (new k = 0; k < 12; k++) {
+        new Float:mid = (low + high) * 0.5;
+        torpedoAt(mid, tube, axis, t);
+        targetAt(mid, p);
+        floatvecsub(p, t);
+        if (floatvecdot(p, axis) > 0.0)
+            low = mid;
+        else
+            high = mid;
+    }
+    torpedoAt(high, tube, axis, t);
+    targetAt(high, p);
+    frames = floatround(high, 2);
+    if (torpedoRun(high) > torpedoRange())
+        return 100000.0;
+    return distance(p, t);
+}
+
+torpedoAt(Float:n, const Float:tube[3], const Float:axis[3], Float:t[3])
+{
+    t = tube;
+    floatvecaddscale(t, axis, torpedoRun(n));
+    floatvecaddscale(t, vel, drift(n));
+}
+
+/* The tube of the next torpedo: torpedoSpawnPoint of the submarine, left and right in turn. */
 tubePosition(Float:tube[3])
 {
     new Float:local[3];
-    floatvecset(local, 15.0 * float(side), -10.0, 230.0);
+    floatvecset(local, tubeLocal[0] * float(side), tubeLocal[1], tubeLocal[2]);
     actorLocalPosToWorld(tube, local, 0);
 }
 
@@ -688,51 +855,50 @@ tubePosition(Float:tube[3])
 
 fire(Float:aim[3], Float:point[3], Float:d, flight)
 {
+    #pragma unused aim
+    holdReason = 1;
     if (reload || maskerTime || sysGetGlobal("mode.gameover") || sysGetGlobal("player.timeOver"))
         return;
+    holdReason = 2;
     if (!torpedoes && !homing)
         return;
+    holdReason = 3;
     if (frame - targetSince < 20 || !tVisible || !flight)
         return;
+    holdReason = 4;
     if (lvl >= 2 && agile() && flight > 60 && d > 1600.0)
         return;                                         // it would turn away: closer first
+    // a torpedo leaves along the sub's axis, as a player's: the sub must point where it hits
+    new frames = 0;
+    holdReason = 5;
+    if (fabs(wrapAngle(yawOf(aimDir) - g_1cc8)) > 0.05)
+        return;                                         // not pointing near it yet (cheap test first)
+    new Float:miss = missNow(frames);
+    lastMiss = miss;
+    if (miss > MISS_ALLOWED[lvl] || frames < 8)
+        return;
+    holdReason = 6;
     new Float:tube[3];
     tubePosition(tube);
-    new Float:flat = floatsqroot(aim[0] * aim[0] + aim[2] * aim[2]);
-    if (flat < 0.5)
-        return;
-    new Float:yaw = yawOf(aim);
-    new Float:elevation = floatatan2(aim[1], flat);
-    new Float:err = fabs(wrapAngle(yaw - g_1cc8));
-    if (err > 0.09 || fabs(elevation) > 0.3)
-        return;
-    new Float:run = distance(point, tube);
-    if (run < 400.0 || run > torpedoRange() * 0.92)
-        return;
-    flight = intercept(aimDir, aimAt);                  // now, exactly
-    if (!flight)
-        return;
-    aim = aimDir;
-    point = aimAt;
-    yaw = yawOf(aim);
-    elevation = floatatan2(aim[1], floatsqroot(aim[0] * aim[0] + aim[2] * aim[2]));
-    if (fabs(wrapAngle(yaw - g_1cc8)) > 0.09)
-        return;
     if (!clearLine(tube, point, 120.0))
         return;
     if (mateInTheWay(tube, point))
         return;
+    holdReason = 0;
     // homing: at a target that turns hard or crosses fast, or when hurt
+    new Float:yaw = g_1cc8;
     new Float:across = floatsqroot(tVel[0] * tVel[0] + tVel[2] * tVel[2]) * floatsin(fabs(wrapAngle(tHeading - yaw)), 0);
     if (homing && !isMasked(target) && d > 1200.0 && d < 5500.0
         && (fabs(tOmega) > 0.012 || across > 6.0 || g_1c68 < lifeMax * 0.4 || !torpedoes)) {
-        fireHoming(yaw, elevation);
+        launch(tube, "surface_torpedo_p_homing");
+        sysCallPublic(UID:lastTorpedo, "@lockOnTarget", target);
+        actorSetPropInt("p_homing", 1, lastTorpedo);
         homing--;
     } else if (torpedoes) {
-        yaw = yaw + (frandom() - 0.5) * 2.0 * AIM_ERROR[lvl];
-        elevation = elevation + (frandom() - 0.5) * 2.0 * AIM_ERROR[lvl];
-        fireTorpedo(tube, yaw, elevation);
-        lastElevation = elevation;
+        new name[32];
+        strformat(name, sizeof name, false, "surface_torpedo_lv%02d", torpedoLevel);
+        launch(tube, name);
+        actorSetPropReal("bearing", yaw, lastTorpedo);
         torpedoes--;
         if (replenishIn <= 0)
             replenishIn = replenishFrames;
@@ -740,6 +906,8 @@ fire(Float:aim[3], Float:point[3], Float:d, flight)
         return;
     }
     reload = fireInterval + FIRE_PAUSE[lvl];
+    brakeTime = brakeFrames;                            // a player's sub brakes when it fires
+    brake = 1.0;
     side = -side;
 }
 
@@ -790,45 +958,18 @@ arm(torpedo)
     actorSetPropInt("botshot", 1, torpedo);
 }
 
-/* A torpedo of its submarine's level, straight along yaw and elevation (its rotation is read by its
- * script, surface_torpedo.p func_1488, before it moves). */
-fireTorpedo(const Float:tube[3], Float:yaw, Float:elevation)
+/* A torpedo from the tube, as a player fires one (periscope_move.p func_fbdc): the sub's rotation and
+ * velocity, read by the torpedo's script before it moves (surface_torpedo.p func_1488). */
+launch(const Float:tube[3], const name[])
 {
-    new name[32];
-    strformat(name, sizeof name, false, "surface_torpedo_lv%02d", torpedoLevel);
     new t = spawn(name, tube);
     arm(t);
-    actorSetPropReal("bearing", yaw, t);
-    orient(t, yaw, elevation);
-}
-
-/* A torpedo along yaw and elevation (its rotation is read by its script, surface_torpedo.p func_1488, before
- * it moves); the sign of the pitch is checked on the torpedo's third axis, along which it goes. */
-orient(t, Float:yaw, Float:elevation)
-{
     new Float:rotation[3];
-    floatvecset(rotation, -elevation, yaw, 0.0);
+    actorGetRotation(rotation, 0);
     actorSetRotation(rotation, t);
+    actorSetVelocity(vel, t);
     actorUpdateMatrix(t);
-    new Float:axis[3];
-    actorGetAxis(2, axis, t);
-    if (fabs(elevation) > 0.002 && (axis[1] > 0.0) != (elevation > 0.0)) {
-        rotation[0] = elevation;
-        actorSetRotation(rotation, t);
-        actorUpdateMatrix(t);
-    }
-}
-
-/* A homing torpedo locked on the target, as a player fires one (periscope_move.p func_100e8). */
-fireHoming(Float:yaw, Float:elevation)
-{
-    new Float:tube[3];
-    tubePosition(tube);
-    new t = spawn("surface_torpedo_p_homing", tube);
-    arm(t);
-    orient(t, yaw, elevation);
-    actorSetPropInt("p_homing", 1, t);
-    sysCallPublic(UID:t, "@lockOnTarget", target);
+    lastTorpedo = t;
 }
 
 maskerOn()
@@ -922,41 +1063,68 @@ move()
     // stuck: barely moved for 2 s while trying to
     if (++stuckCheck >= 60) {
         stuckCheck = 0;
-        if (!backOutTime && fabs(throttle) > 0.3 && distance(stuckAt, g_1ca0) < 150.0) {
+        if (!backOutTime && fabs(throttle) > 0.3 && frame - lastBump < 60 && distance(stuckAt, g_1ca0) < 150.0) {
             backOutTime = 50;
             backOutTurn = frandom() > 0.5 ? 1.2 : -1.2;
         }
         stuckAt = g_1ca0;
     }
     if (backOutTime)
-        throttleWant = throttle > 0.0 ? -0.6 : 0.8;
+        throttleWant = throttle > 0.0 ? -1.0 : 0.8;
 
-    // throttle, as a player moves the stick
+    // throttle, as a player moves the slider: backwards at half power (periscope_move.p), and braked for a
+    // moment after each shot (func_18740: torpedoFireBrakeTime frames at torpedoFireBrakeRate)
     throttle = throttle + fclamp(throttleWant - throttle, -0.05, 0.05);
-    throttle = fclamp(throttle, -0.6, 1.0);
+    throttle = fclamp(throttle, -1.0, 1.0);
+    new Float:power = throttle < 0.0 ? throttle / 2.0 : throttle;
+    if (brakeTime) {
+        brakeTime--;
+        brake = brake * brakeRate;
+        power = power * brake;
+        if (!brakeTime)
+            brake = 1.0;
+    }
 
-    // turning: the turn rate follows the stick with inertia (pscope_player.p func_12184)
-    new Float:speed = floatsqroot(vel[0] * vel[0] + vel[2] * vel[2]);
-    new Float:factor = fmax(speed / 10.0, 0.4);
-    new Float:rateMax = maxTurn * factor;
+    // turning, as pscope_player.p func_12184: the turn rate goes toward maxTurn * stick * factor, by 2 % a
+    // frame while the stick is pushed, 3.8 % when it is let go; factor = sqrt(forward speed) / 10, at least
+    // 0.4 (so 0.4 at a sub's speeds)
+    new Float:factor = fmax(floatsqroot(fmax(forwardSpeed, 0.0)) / 10.0, 0.4);
     new Float:err = wrapAngle(yawSteer - g_1cc8);
-    new Float:stick = 0.0;
-    // coast to the wanted heading: let go when the turn already under way gets there
-    if (err * yawRate > 0.0 && fabs(err) <= fabs(yawRate) * 26.0)
+    new Float:rateMax = maxTurn * factor;
+    // the stick a pilot would hold: the turn rate wanted is how fast the wanted heading moves, plus a
+    // twentieth of the error a frame, within the sub's rate; the stick (-1..1) that gets the rate there
+    steerRate = steerRate * 0.8 + wrapAngle(yawSteer - steerBefore) * 0.2;
+    steerBefore = yawSteer;
+    new Float:want = fclamp(steerRate + err / 20.0, -rateMax, rateMax);
+    new Float:stick = fclamp((yawRate + (want - yawRate) / 0.02) / rateMax, -1.0, 1.0);
+    if (fabs(stick) < 0.001)
         stick = 0.0;
-    else
-        stick = fclamp(err / 0.12, -1.0, 1.0);
-    yawRate = yawRate + (stick != 0.0 ? 0.038 : 0.02) * (rateMax * stick - yawRate);
+    yawRate = yawRate + (stick != 0.0 ? 0.02 : 0.038) * (rateMax * stick - yawRate);
     g_1cc8 = wrapAngle(g_1cc8 + yawRate);
+    yawRate = 0.999 * yawRate;
 
-    // thrust and drag
+    // thrust, then drag along and across the sub (linDrag, latDrag)
     new Float:ahead[3];
     headingOf(ahead, g_1cc8);
-    vel[0] = vel[0] - vel[0] * LIN_DRAG + ahead[0] * throttle * accel;
-    vel[2] = vel[2] - vel[2] * LIN_DRAG + ahead[2] * throttle * accel;
-    // diving toward the wanted depth, kept between the floor and the surface
+    vel[0] = vel[0] + ahead[0] * power * accel;
+    vel[2] = vel[2] + ahead[2] * power * accel;
+    new Float:flat = floatsqroot(vel[0] * vel[0] + vel[2] * vel[2]);
+    if (flat > 0.001) {
+        new Float:along = fabs((vel[0] * ahead[0] + vel[2] * ahead[2]) / flat);
+        new Float:across = fabs((vel[0] * ahead[2] - vel[2] * ahead[0]) / flat);
+        new Float:drag = 1.0 - LIN_DRAG * along - LIN_DRAG * across;
+        vel[0] = vel[0] * drag;
+        vel[2] = vel[2] * drag;
+    }
+    forwardSpeed = vel[0] * ahead[0] + vel[2] * ahead[2];
+    // ballast toward the wanted depth (-1..1), kept between the floor and the surface: vy -= vy * diveDrag,
+    // vy += ballast * diveRate
     new Float:depth = fclamp(depthWant, fmax(floorY + 140.0, -20000.0), SURFACE - 30.0);
-    vel[1] = vel[1] - vel[1] * DIVE_DRAG + fclamp((depth - g_1ca0[1]) * 0.01, -1.0, 1.0) * diveRate;
+    new Float:ballast = fclamp((depth - g_1ca0[1]) * 0.01, -1.0, 1.0);
+    if (climbWant != NO_CLIMB && g_1ca0[1] + climbWant * 40.0 < SURFACE - 30.0
+        && g_1ca0[1] + climbWant * 40.0 > floorY + 140.0)
+        ballast = fclamp(climbWant * diveDrag / diveRate, -1.0, 1.0);  // the vertical speed wanted
+    vel[1] = vel[1] - vel[1] * diveDrag + ballast * diveRate;
 
     // collisions: no going into what it touches, and out of it
     if (bumpTime) {
@@ -965,8 +1133,8 @@ move()
             floatvecaddscale(vel, bump, -into * 1.3);
     }
     new Float:out = floatveclength(push);
-    if (out > 18.0)
-        floatvecscale(push, 18.0 / out);
+    if (out > 5.0)
+        floatvecscale(push, 5.0 / out);                 // as a player is pushed: 5 a frame
     floatvecadd(g_1ca0, vel);
     floatvecadd(g_1ca0, push);
     floatveczero(push);
@@ -976,7 +1144,9 @@ move()
     // attitude: roll from the hits (as the game), nose down when diving
     g_1e7c = g_1e7c + g_1c74;
     g_1c74 = 0.8 * g_1c74 - 0.02 * g_1e7c;
-    pitch = pitch + (fclamp(-vel[1] * 0.04, -0.12, 0.12) - pitch) * 0.1;
+    pitchRate = pitchRate + 0.005 * (-0.1 * vel[1] - pitch);     // as a player's sub (func_12184)
+    pitch = pitch + pitchRate;
+    pitchRate = 0.6 * pitchRate;
     g_1e78 = pitch;
     actorSetRoll(g_1e7c, 0);
     actorSetYaw(g_1cc8, 0);

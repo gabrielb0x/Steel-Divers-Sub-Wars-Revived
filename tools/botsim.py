@@ -512,6 +512,7 @@ class World:
         self.shots: list[tuple[int, int, str]] = []
         self.net: list[tuple] = []
         self.wall_frames: dict[int, int] = {}
+        self.off_axis: list[float] = []
 
     # rays and contacts against the map
     def clip(self, o, d, length) -> float:
@@ -708,7 +709,10 @@ class Sim:
             amx.put_vec(p[0], [x * f(p[2]) for x in a])
 
         def set_rot(amx, p):
-            sim.actor_of(amx, p[1]).rot = amx.vec(p[0])
+            actor = sim.actor_of(amx, p[1])
+            actor.rot = amx.vec(p[0])
+            if actor.kind == "torpedo" and actor is not amx.owner:
+                actor.launcher_axis = amx.owner.axis(2)       # its shooter's axis when it fired
 
         def set_angle(k):
             def fn(amx, p):
@@ -729,7 +733,9 @@ class Sim:
             "floatround": lambda amx, p: {0: round, 1: math.floor, 2: math.ceil, 3: int}[p[1]](f(p[0])),
             "floatrnd": lambda amx, p: f2c(w.rng.randrange(10000) / 10000.0),
             "random": lambda amx, p: w.rng.randrange(max(p[0], 1)),
+            "min": lambda amx, p: min(s32(p[0]), s32(p[1])), "max": lambda amx, p: max(s32(p[0]), s32(p[1])),
             "floatvecsubto": vec_sub,
+            "floatvecsub": lambda amx, p: amx.put_vec(p[0], [a - b for a, b in zip(amx.vec(p[0]), amx.vec(p[1]))]),
             "floatveclength": lambda amx, p: f2c(math.sqrt(sum(x * x for x in amx.vec(p[0])))),
             "floatvecset": lambda amx, p: amx.put_vec(p[0], [f(p[1]), f(p[2]), f(p[3])]),
             "floatvecaddscale": vec_addscale,
@@ -799,6 +805,7 @@ class Bot:
         a.life = 150.0
         a.props.update({"npc": "1", "teamColor": str(team), "botIndex": str(k), "life": "150.0", "npcActorId": str(a.id)})
         world.globals[f"server.bots.sub{k}"] = sub
+        self.sub = sub
         a.amx = Amx(image, sim.natives)
         a.amx.owner = a
         self.amx = a.amx
@@ -835,9 +842,16 @@ class Bot:
             m.wr(G["afloat"], 0)
             a.alive = False
             return
+        before_yaw, before = a.rot[1], list(a.pos)
         if not self.call("pw_botPilot"):
             raise AmxFault("the pilot gave the sub back to the game while afloat")
         a.pos = m.vec(G["pos"])
+        # what a player's sub can do (pscope_player.p func_12184): turn rate <= 0.4 * maxTurn of the sub,
+        # forward speed <= accel / linDrag, backwards at half power
+        turn = abs((a.rot[1] - before_yaw + math.pi) % (2 * math.pi) - math.pi)
+        speed = math.hypot(a.pos[0] - before[0], a.pos[2] - before[2])
+        self.max_turn = max(getattr(self, "max_turn", 0.0), turn)
+        self.max_speed = max(getattr(self, "max_speed", 0.0), speed)
 
 
 class Player:
@@ -875,6 +889,10 @@ def torpedo_step(world: World, t: Actor) -> None:
     """surface_torpedo.p: v -= v*0.01; pos += v; v += forward*1.2 (gravity compensated); range; hits."""
     t.age += 1
     if t.age == 1:
+        shooter = world.actors.get(int(t.props.get("actor_id", "0") or 0))
+        if shooter is not None and shooter.kind == "bot":
+            a, b = t.axis(2), getattr(t, "launcher_axis", shooter.axis(2))
+            world.off_axis.append(math.acos(max(-1.0, min(1.0, sum(x * y for x, y in zip(a, b))))))
         t.start = list(t.pos)
         t.vel = list(t.vel)
         homing = "homing" in t.props.get("_name", "")
@@ -883,6 +901,9 @@ def torpedo_step(world: World, t: Actor) -> None:
         world.shots.append((world.frame, t.props.get("actor_id"), t.props.get("_name")))
         return
     lock = getattr(t, "lock", None)
+    if lock and lock in world.actors and "1" in (world.actors[lock].props.get("masker_on"),
+                                                  world.actors[lock].props.get("masker")):
+        t.lock = lock = None                             # lost under the masker (func_4800)
     if lock and t.age > 45 and lock in world.actors and world.actors[lock].alive:
         target = world.actors[lock]                      # steers in yaw and pitch, 0.03 rad per frame
         d = [target.pos[k] - t.pos[k] for k in range(3)]
@@ -987,13 +1008,17 @@ def scenario(name: str, level: int, seed: int, verbose: bool, pitch_sign: float 
         bots.append(Bot(world, sim, image, [0.0, -500.0, 0.0], 0.7, 1, 1, 5))
     elif name == "retreat":                   # hull low, a player coming at it
         bots.append(Bot(world, sim, image, [0.0, -500.0, 0.0], 0.0, 1, 1, 2))
-        players.append(Player(world, [0.0, -500.0, 3000.0], 2, 2, speed=8.0, weave=False))
+        players.append(Player(world, [0.0, -500.0, 6000.0], 2, 2, speed=8.0, weave=False))
         players[0].actor.rot[1] = math.pi
         world.hurt_at = (5, bots[0], 50.0)
     elif name == "dodge":                     # a player that fires at it every 3 s, from 2500
         bots.append(Bot(world, sim, image, [0.0, -500.0, 0.0], 0.0, 1, 1, 6))
         players.append(Player(world, [2500.0, -500.0, 0.0], 2, 2, speed=0.0, weave=False))
         world.shooter = players[0]
+    elif name == "masker":                    # the player hides under its masker from 10 s to 20 s
+        bots.append(Bot(world, sim, image, [0.0, -500.0, -3000.0], 0.0, 1, 1, 3))
+        players.append(Player(world, [0.0, -500.0, 0.0], 2, 2, speed=7.0))
+        world.masker = (300, 600, players[0])
     elif name == "melee":                     # four bots against four bots
         for k in range(4):
             bots.append(Bot(world, sim, image, [k * 900.0 - 1350.0, -500.0, -4000.0], 0.0, 1, k + 1, k * 5 + 1))
@@ -1004,6 +1029,12 @@ def scenario(name: str, level: int, seed: int, verbose: bool, pitch_sign: float 
         hurt = getattr(world, "hurt_at", None)
         if hurt and world.frame == hurt[0]:
             hurt[1].actor.life = hurt[2]
+        masker = getattr(world, "masker", None)
+        if masker:
+            on = masker[0] <= world.frame < masker[1]
+            masker[2].actor.props["masker_on"] = "1" if on else "0"
+            if on:
+                world.masked_frames = getattr(world, "masked_frames", 0) + 1
         shooter = getattr(world, "shooter", None)
         if shooter and world.frame % 90 == 45 and shooter.actor.alive:
             target = bots[0].actor
@@ -1041,17 +1072,34 @@ def report(name: str, level: int, world: World, bots, players) -> list[str]:
              + (f" ({100 * hits / shots:.0f} %)" if shots else "")]
     for b in bots:
         a = b.actor
+        stats = props_of(f"pscope_ply{b.sub:02d}_stats")
+        turn = float(props_of("table_maxturn")[f"maxTurn_{stats['maxTurn']}"]) * 0.4
+        top = float(props_of("table_below_accel")[f"belowAccel_{stats['belowAccel']}"]) / 0.038
+        flag = "" if getattr(b, "max_turn", 0) <= turn * 1.02 and getattr(b, "max_speed", 0) <= top * 1.05 + 5.0 \
+            else "  NOT A PLAYER'S MOVE"
         lines.append(f"    bot {a.id} team {a.props['teamColor']}: life {max(a.life, 0):.0f}, "
-                     f"{world.wall_frames.get(a.id, 0)} frames against the map, steps {b.amx.steps}")
+                     f"{world.wall_frames.get(a.id, 0)} frames against the map, steps {b.amx.steps}, "
+                     f"turn {getattr(b, 'max_turn', 0):.4f}/{turn:.4f}, speed {getattr(b, 'max_speed', 0):.1f}/"
+                     f"{top:.1f}{flag}")
+    off = [x for x in world.off_axis if x > 0.002]
+    if off:
+        lines.append(f"    {len(off)} torpedoes off the sub's axis (up to {max(off):.3f} rad)  NOT A PLAYER'S SHOT")
     for p in players:
         lines.append(f"    player {p.actor.id}: life {max(p.actor.life, 0):.0f}")
+    masker = getattr(world, "masker", None)
+    if masker:
+        start, end, _ = masker
+        during = [f for f, _, _ in world.shots if start <= f < end]
+        hit = [f for f, *_ in world.hits if start <= f < end + 150]
+        lines.append(f"    player masked from frame {start} to {end}: {len(during)} torpedoes fired at a guess, "
+                     f"{len(hit)} hits while masked (or by those)")
     return lines
 
 
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
     parser.add_argument("scenarios", nargs="*",
-                        default=["duel", "close", "walls", "corner", "retreat", "dodge", "melee"])
+                        default=["duel", "close", "walls", "corner", "retreat", "dodge", "masker", "melee"])
     parser.add_argument("--level", type=int, action="append")
     parser.add_argument("--seed", type=int, default=1)
     parser.add_argument("--frames", type=int, default=1800)
