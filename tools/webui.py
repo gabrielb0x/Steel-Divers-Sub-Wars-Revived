@@ -45,7 +45,7 @@ PAGE = Path(__file__).with_name("webui.html")
 EXTRACTED = ROOT / "extracted"
 MODS_OUT = ROOT / "build" / "mods"
 PREPARED = ROOT / "build" / "azahar"
-MOD_ORDER = ["correctifs", "pseudo", "premium", "missions", "specs", "triche", "vitesse", "en-ligne"]
+MOD_ORDER = ["correctifs", "pseudo", "version", "premium", "missions", "specs", "triche", "vitesse", "en-ligne"]
 STATE_FILE = "lanceur.json"
 
 
@@ -388,7 +388,8 @@ class GameServer:
     def json(self) -> dict:
         data = self.config()
         realms = [{"name": r.get("name"), "auth_port": r.get("auth_port"), "cheats": r.get("cheats", "separes"),
-                   "max_players": r.get("max_players", 8), "bots": r.get("bots", True),
+                   "max_players": r.get("max_players", 8), "duration": r.get("duration", 10),
+                   "bots": r.get("bots", True),
                    "bots_delay": r.get("bots_delay", 60), "bots_format": r.get("bots_format", "4v4"),
                    "bots_level": r.get("bots_level", "difficile")} for r in data.get("realm", [])]
         settings = data.get("server", {})

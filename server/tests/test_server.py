@@ -108,14 +108,14 @@ class Formats(unittest.TestCase):
         self.assertEqual((q.supported_functions, q.conn_sig, q.max_substream_id), (3, b"s" * 16, 0))
 
 
-def run_realm(test, max_players=8, cheats="separes", bots=None, anticheat_ban=30):
+def run_realm(test, max_players=8, cheats="separes", bots=None, anticheat_ban=30, duration=10):
     """Starts a realm on free ports, runs test(realm, port) inside the event loop."""
     async def main():
         with tempfile.TemporaryDirectory() as tmp:
             config = RealmConfig(name="test", listen="127.0.0.1", public_address="127.0.0.1",
                                  auth_port=free_udp_port(), secure_port=free_udp_port(), data_dir=Path(tmp),
                                  max_players=max_players, cheats=cheats, anticheat_ban=anticheat_ban,
-                                 bots=bots or BotSettings(enabled=False))
+                                 duration=duration, bots=bots or BotSettings(enabled=False))
             realm = Realm(config, NatCheckService())
             await realm.start()
             try:
@@ -383,6 +383,18 @@ class Options(unittest.TestCase):
         with self.assertRaises(ValueError):
             RealmConfig(name="x", listen="", public_address="", auth_port=1, secure_port=2, data_dir=Path("."),
                         max_players=9)
+        with self.assertRaises(ValueError):
+            RealmConfig(name="x", listen="", public_address="", auth_port=1, secure_port=2, data_dir=Path("."),
+                        duration=0)
+
+    def test_battle_duration(self):
+        async def test(realm, port):
+            secure, _ = await testclient.login("127.0.0.1", port, 0x10000001, "password")
+            await testclient.matchmake(secure, 3)
+            await asyncio.sleep(0.2)
+            return secure.game_globals().get("server.duration")
+        self.assertEqual(run_realm(test), 600)
+        self.assertEqual(run_realm(test, duration=3), 180)
 
 
 class Session(unittest.TestCase):

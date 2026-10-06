@@ -708,7 +708,7 @@ function renderPublic(s) {
       el("code", {}, "127.0.0.1"), " ; sur votre réseau local : ", el("code", {}, lan), "."));
   }
   if (realm) parts.push(el("div", {class: "small muted"}, `Royaume « ${realm.name} » : jusqu'à ${realm.max_players} joueurs humains par partie `
-    + `(des bots complètent les équipes) · tricheurs : ${CHEATS[realm.cheats] || realm.cheats}`
+    + `(des bots complètent les équipes) · batailles de ${realm.duration} min · tricheurs : ${CHEATS[realm.cheats] || realm.cheats}`
     + (realm.bots ? ` · seul ${realm.bots_delay} s : bots en ${realm.bots_format}, niveau ${realm.bots_level}.` : " · pas de bots pour un joueur seul.")));
   parts.push(s.status_page ? el("div", {class: "small"}, "Page d'état : ", el("a", {href: s.status_page, target: "_blank"}, s.status_page))
     : el("div", {class: "small muted"}, "Page d'état : désactivée (status_port dans la configuration)."));

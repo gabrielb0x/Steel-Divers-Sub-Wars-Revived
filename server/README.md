@@ -45,6 +45,11 @@ Chaque royaume a ses options de partie dans `serveur.toml` (le lanceur les affic
 
 * **`max_players`** (2 à 8) : nombre de joueurs humains par partie. La console hôte complète chaque équipe à
   4 sous-marins avec les bots du jeu (`mode_periscope` › `@setNpc`) : limiter les humains donne plus de bots.
+* **`duration`** (1 à 30 minutes, 10 par défaut comme le jeu) : durée d'une bataille en ligne. Le serveur
+  l'envoie à chaque console quand elle cherche une partie (`server.duration`) et le mod
+  [`en-ligne`](../mods/en-ligne/mod.toml) la met à la place des 600 secondes fixées par le jeu
+  (`mode_periscope` › `inputProperties`) ; un mod en-ligne plus ancien garde 10 minutes. Les batailles contre
+  les bots ont leur propre durée, `bots_duration` (5 minutes).
 * **Bots pour un joueur seul** (`bots = true`, avec le mod [`en-ligne`](../mods/en-ligne/mod.toml) à jour) :
   un joueur resté seul dans une partie `bots_delay` secondes (60) joue contre des bots. Le jeu d'origine
   attend sans fin un adversaire ; ici le serveur envoie au jeu les réglages de la partie, et les bots

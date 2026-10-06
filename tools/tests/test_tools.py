@@ -12,6 +12,7 @@ import tomllib
 import unittest
 import zlib
 from pathlib import Path
+import xml.etree.ElementTree as ET
 from unittest import mock
 
 TOOLS = Path(__file__).resolve().parent.parent
@@ -388,6 +389,17 @@ class Recipes(unittest.TestCase):
         self.assertEqual(mod.recipe_params([recipe], {"facteur": "5"})["facteur"], "5")
         with self.assertRaises(mod.ModError):
             mod.recipe_params([recipe], {"facteur": "4"})
+
+    def test_new_and_appended_texts(self):
+        files = {"text/EU_French.bxml": ET.fromstring(
+            '<text><string key="a" text="A" typeface="f"/><string key="title" text="Titre"/></text>')}
+        mod.apply_texts(files, {"key": "new", "like": "a", "text": "N ${x}", "languages": ["EU_French"]},
+                        {"x": "1"})
+        mod.apply_texts(files, {"key": "title", "append": "\nv${v}", "languages": ["EU_French"]}, {"v": "2"})
+        root = files["text/EU_French.bxml"]
+        self.assertEqual([(n.get("key"), n.get("text"), n.get("typeface")) for n in root],
+                         [("a", "A", "f"), ("new", "N 1", "f"), ("title", "Titre\\nv2", None)])
+        self.assertTrue(mod.project_version().startswith("v"))
 
     def test_fixes_always_included(self):
         self.assertIn("correctifs", mod.fixes())

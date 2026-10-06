@@ -59,6 +59,10 @@ key = "title_version"                     # clé <string key=...> de extracted/x
 text = "Version moddée"                   # \n pour un retour à la ligne, ${option} pour une valeur donnée
                                           # à la construction ; un caractère absent de la police est signalé
 languages = ["EU_French"]                 # facultatif
+# like = "internet_mode_warning"          # facultatif : une clé que le jeu n'a pas, créée sur le modèle de
+                                          # celle-ci (police, interligne)
+# ou append = "\nligne de plus"           # au lieu de text : ajouté à la fin, après tous les text = de la
+                                          # construction (plusieurs mods sur la même ligne)
 
 [[bxml]]                                  # n'importe quel fichier BXML, modifié comme son XML (make data)
 file = "worlds/scope00_online_stage01.bxml"
@@ -109,7 +113,8 @@ Autres possibilités : `from = "bxml/x.bxml"` dans `[[bxml]]` crée un nouveau f
 `if = "${option}"` sur n'importe quelle entrée (appliquée seulement si l'option vaut `oui`), ou
 `unless = "${option}"` (seulement si elle vaut `non`) ;
 `token_flags = ["triche"]` en tête de recette (annoncé au serveur en ligne dans le jeton) ; `always = true` en tête
-de recette : le mod fait partie de toutes les constructions (correctifs du jeu).
+de recette : le mod fait partie de toutes les constructions (correctifs du jeu). Toute recette reçoit aussi
+`${sdsw_version}`, la version de Sub Wars Open Sourced (fichier `VERSION`, et le commit dans un dépôt git).
 
 **Plusieurs mods ensemble** : `tools/mod.py build en-ligne triche …` les construit dans un seul dossier
 (`build/mods/en-ligne+triche/`), puisqu'Azahar n'en charge qu'un.
@@ -150,9 +155,10 @@ entre guillemets (gardées dans les données du script), les globales du script 
 |---|---|
 | `correctifs` | toujours inclus : corrige le plantage d'Azahar quand une torpille touche un sous-marin sous l'eau |
 | `pseudo` | toujours inclus : en ligne et en local, votre nom est le pseudo de la console (de l'émulateur), pas « Citra » |
+| `version` | toujours inclus : la version de Sub Wars Open Sourced sous le titre (« Sub Wars Open Sourced v0.1 (3566be7) ») |
 | `premium` | version complète, les 23 sous-marins, motifs et équipage débloqués, sans l'eShop ([détails](../docs/premium.md)) |
 | `missions` | les 21 missions du mode solo jouables tout de suite, sans toucher à la sauvegarde |
-| `en-ligne` | jeu en ligne sur un serveur [Sub Wars Open Sourced](../server/README.md), avec ses bots pour un joueur seul et son anti-triche |
+| `en-ligne` | jeu en ligne sur un serveur [Sub Wars Open Sourced](../server/README.md), avec ses bots pour un joueur seul, son anti-triche, la durée des batailles réglée par le serveur et un dialogue qui dit quel serveur est utilisé |
 | `specs` | vos propres caractéristiques de sous-marins (`tools/subs.py`) ; en ligne, comptées comme triche |
 | `mention-titre` | « © 2026 Nintendo Lawyers » et « Open Sourced by gabrielb0x. » sous le titre (options `ligne1`, `ligne2`) |
 | `triche` | invincible, torpilles et air infinis, tir sans délai, rechargement rapide, masqueur gratuit, moteur gonflé |

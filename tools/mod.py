@@ -16,6 +16,8 @@ mod.toml:
   key = "title_version"             # <string key=...> of extracted/xml/text/*.xml
   text = "My text"                  # \\n for a new line; ${param} for a value given at build time
   languages = ["EU_French"]         # optional: only these files
+  like = "internet_mode_warning"    # optional: a new key (key the game lacks), a copy of that text
+  # or append = " text": added to the end of the text, after every text = of the build (mods share a line)
 
   [[bxml]]                          # any BXML file, edited as the XML of `make data`
   file = "worlds/scope00_online_stage01.bxml"     # or files = "bxml/pscope_ply??_stats.bxml" (glob)
@@ -65,6 +67,8 @@ mod.toml:
   token_flags = ["triche"]          # optional, top level: told to the online server in the token
   always = true                     # optional, top level: part of every build (fixes of the game)
 
+Every recipe also gets ${sdsw_version}, the version of Sub Wars Open Sourced (VERSION, and the git commit).
+
 Any entry may have if = "${param}": it is applied only when the parameter is yes (oui, 1, true...),
 or unless = "${param}": only when it is no.
 
@@ -90,6 +94,7 @@ import secrets
 import shutil
 import string
 import struct
+import subprocess
 import sys
 import tomllib
 import xml.etree.ElementTree as ET
@@ -287,14 +292,32 @@ def font_characters(typeface: str, cache: dict[str, set[int] | None] = {}) -> se
     return cache[typeface]
 
 
+def text_languages(entry: dict) -> list[str]:
+    return entry.get("languages") or sorted(p.stem for p in (ROMFS / "text").glob("*.bxml"))
+
+
 def apply_texts(files: dict[str, ET.Element], entry: dict, params: dict[str, str] | None = None) -> int:
-    languages = entry.get("languages") or sorted(p.stem for p in (ROMFS / "text").glob("*.bxml"))
-    text = fill(entry["text"], params or {})
+    """[[text]]: text replaces the text of the key, append adds to its end (after every replacement of the
+    build); like = "<key>" creates the key when the game has none, as a copy of that one (font, spacing)."""
+    languages = text_languages(entry)
+    appended = "append" in entry
+    text = fill(entry["append" if appended else "text"], params or {})
     count = 0
     for language in languages:
-        count += edit_bxml(files, f"text/{language}.bxml", f"string[@key='{entry['key']}']",
-                           {"text": escape_string(text)})
-        node = files[f"text/{language}.bxml"].find(f"string[@key='{entry['key']}']")
+        file = f"text/{language}.bxml"
+        select = f"string[@key='{entry['key']}']"
+        root = load_bxml(files, file)
+        if root.find(select) is None and "like" in entry:
+            model = root.find(f"string[@key='{entry['like']}']")
+            if model is None:
+                raise ModError(f"{file}: no text {entry['like']!r}")
+            node = copy.deepcopy(model)
+            node.set("key", entry["key"])
+            root.insert(list(root).index(model) + 1, node)
+        node = root.find(select)
+        new = (node.get("text", "") if node is not None else "") + escape_string(text) if appended \
+            else escape_string(text)
+        count += edit_bxml(files, file, select, {"text": new})
         chars = font_characters(node.get("typeface", "")) if node is not None else None
         missing = sorted({c for c in text if c not in "\n" and chars is not None and ord(c) not in chars})
         if missing and language == languages[0]:
@@ -407,6 +430,21 @@ def identity(scope: str, flags: list[str] | None = None) -> dict[str, str]:
     return {"pid": str(pid), "password": password, "token": token}
 
 
+def project_version() -> str:
+    """The version of Sub Wars Open Sourced: VERSION, and the commit when this is a git checkout
+    ("+": with changes not committed), e.g. "v0.1 (3566be7+)"."""
+    version = "v" + (ROOT / "VERSION").read_text(encoding="utf-8").strip()
+    if (ROOT / ".git").exists():
+        with contextlib.suppress(OSError, subprocess.SubprocessError):
+            git = ["git", "-C", str(ROOT)]
+            commit = subprocess.run(git + ["rev-parse", "--short", "HEAD"], capture_output=True, text=True,
+                                    timeout=10, check=True).stdout.strip()
+            changed = subprocess.run(git + ["status", "--porcelain", "--untracked-files=no"], capture_output=True,
+                                     text=True, timeout=10, check=True).stdout.strip()
+            version += f" ({commit}{'+' if changed else ''})"
+    return version
+
+
 def recipe_params(mods: list[dict], overrides: dict[str, str]) -> dict[str, str]:
     specs: dict[str, dict] = {}
     for mod in mods:
@@ -428,6 +466,7 @@ def recipe_params(mods: list[dict], overrides: dict[str, str]) -> dict[str, str]
         if choices and value not in choices:
             raise ModError(f"{key}: {value!r} is not one of {', '.join(choices)}")
         params[key] = value
+    params["sdsw_version"] = project_version()
     flags = sorted({f for mod in mods for f in mod.get("token_flags", [])})
     scopes = {fill(mod["identity"]["scope"], params) for mod in mods if "identity" in mod}
     if len(scopes) > 1:
@@ -472,10 +511,9 @@ def build(names: list[str], out_root: Path, overrides: dict[str, str] | None = N
     code: list[dict] = []
     for mod, name in zip(mods, names):
         for entry in mod.get("text", []):
-            if enabled(entry, params):
+            if enabled(entry, params) and "append" not in entry:
                 apply_texts(files, entry, params)
-                edited.update(f"text/{language}.bxml" for language in
-                              entry.get("languages") or [p.stem for p in (ROMFS / "text").glob("*.bxml")])
+                edited.update(f"text/{language}.bxml" for language in text_languages(entry))
         for entry in mod.get("bxml", []):
             if enabled(entry, params):
                 scale = None
@@ -510,6 +548,11 @@ def build(names: list[str], out_root: Path, overrides: dict[str, str] | None = N
             if enabled(entry, params):
                 edit_shader(shaders, entry)
         code += [entry for entry in mod.get("code", []) if enabled(entry, params)]
+    for mod in mods:                                   # after every replacement: mods add to the same line
+        for entry in mod.get("text", []):
+            if enabled(entry, params) and "append" in entry:
+                apply_texts(files, entry, params)
+                edited.update(f"text/{language}.bxml" for language in text_languages(entry))
     for file, root in files.items():
         if file not in edited:
             continue

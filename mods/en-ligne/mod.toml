@@ -265,6 +265,37 @@ prefix:
     .ascii "server."
 """
 
+# -- Le serveur utilisé : un dialogue du jeu au bouton « Internet » du menu Bataille en ligne ----------------
+# Le menu multijoueur (mode_multi_menu) a un état inutilisé « dialogue ouvert, OK -> mode_internet_menu »
+# (sans doute l'avertissement d'une version antérieure) : le bouton Internet y passe maintenant, après
+# avoir mis dans le dialogue un texte ajouté au jeu (sdsw_server, sur le modèle de internet_mode_warning,
+# l'avertissement de mode_select).
+[[text]]
+key = "sdsw_server"
+like = "internet_mode_warning"
+languages = ["EU_French", "US_French"]
+text = "Serveur en ligne utilisé :\n${server} (port ${port})\n\nSub Wars Open Sourced ${sdsw_version}"
+
+[[text]]
+key = "sdsw_server"
+like = "internet_mode_warning"
+languages = ["EU_English", "US_English", "EU_German", "EU_Italian", "EU_Spanish", "US_Spanish", "JP_Japanese"]
+text = "Online server in use:\n${server} (port ${port})\n\nSub Wars Open Sourced ${sdsw_version}"
+
+[[amx]]
+file = "amx/mode_multi_menu.amx"        # update<Top>, bouton Internet, après sysEulaConfirm()
+asm = """
+.hook 0x96a8
+    push.c "sdsw_server"
+    push.c 4
+    call 0x4aac                     ; dialogSetMessage
+    push.c 0
+    call 0x40a4                     ; dialogOpenConfirm
+    const.pri 3
+    stor.pri g_0000                 ; state 3: OK -> sysSetMode("mode_internet_menu")
+    jump 0x96cc
+"""
+
 # -- Parties contre les bots du serveur (bots_*.pasm, assembleur Pawn de tools/amxasm.py) -------------
 # Seul dans une partie depuis bots_delay secondes (server/serveur.toml), le joueur reçoit server.bots.* :
 # les bots rejoignent le salon un par un, comme des joueurs (nom, sous-marin, niveau), le compte à

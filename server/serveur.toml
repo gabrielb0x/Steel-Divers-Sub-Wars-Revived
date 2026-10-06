@@ -15,6 +15,8 @@ status_port = 0                 # page d'état (joueurs en ligne, parties) en HT
 #   max_players  joueurs humains par partie, de 2 à 8. Le jeu complète toujours chaque équipe à 4 sous-marins
 #                avec des bots (sous-marins pilotés par la console hôte) : moins d'humains, plus de bots.
 #                2 = toujours un contre un, plus 3 bots de chaque côté.
+#   duration     minutes d'une bataille en ligne, de 1 à 30 (le jeu : 10) ; chaque console la reçoit du
+#                serveur en cherchant une partie (il faut le mod en-ligne à jour, sinon c'est 10)
 #   cheats       joueurs dont le mod triche : mods/triche, ou caractéristiques de sous-marins modifiées
 #                (mods/specs) ; le mod premium n'en fait pas partie.
 #                "autorises" (ils jouent avec tout le monde), "separes" (seulement entre eux) ou "refuses".
@@ -35,6 +37,7 @@ status_port = 0                 # page d'état (joueurs en ligne, parties) en HT
 #                   la cible la plus proche là où elle sera, tirent dès qu'ils sont alignés) ; vaut
 #                   pour tous les bots des parties en ligne, pas seulement ceux des parties à un joueur
 #   bots_countdown  secondes de compte à rebours avant la bataille contre les bots (10)
+#   bots_duration   minutes d'une bataille contre les bots, de 1 à 30 (5) ; remplace duration pour elles
 # Pour bannir un joueur : son identifiant (journal du serveur : « login pid … ») sur une ligne de
 # <data_dir>/bannis.txt ; le fichier est relu à chaque connexion, sans redémarrer le serveur.
 
@@ -44,6 +47,7 @@ auth_port = 61000               # serveur d'authentification (UDP)
 secure_port = 61001             # serveur sécurisé (UDP)
 data_dir = "data/emulateur"     # comptes (sqlite), relatif à ce fichier
 max_players = 8
+duration = 10
 cheats = "separes"
 anticheat_ban = 30
 bots = true
@@ -52,6 +56,7 @@ bots_format = "4v4"
 bots_map = "aleatoire"
 bots_level = "difficile"
 bots_countdown = 10
+bots_duration = 5
 
 [[realm]]
 name = "pc"                     # joueurs du portage PC
@@ -59,6 +64,7 @@ auth_port = 61010
 secure_port = 61011
 data_dir = "data/pc"
 max_players = 8
+duration = 10
 cheats = "separes"
 anticheat_ban = 30
 bots = true
@@ -67,3 +73,4 @@ bots_format = "4v4"
 bots_map = "aleatoire"
 bots_level = "difficile"
 bots_countdown = 10
+bots_duration = 5

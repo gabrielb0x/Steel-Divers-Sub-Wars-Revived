@@ -9,7 +9,8 @@
 others_ok:
     .return
 
-; inputProperties: an Internet battle lasts 600 seconds (g_1072c); against bots, server.bots.duration.
+; inputProperties: an Internet battle lasts 600 seconds (g_1072c); server.duration (serveur.toml, duration)
+; when the server sets it, and against bots, server.bots.duration.
 .hook 0x1911c
     push.c 0
     call @botsTimeLimit
@@ -38,6 +39,15 @@ npc_original:
 
 botsTimeLimit:
     proc
+    load.pri g_b094                 ; an Internet battle
+    jzer @limit_bots
+    push.c "server.duration"
+    sysreq.n sysGetGlobal, 1
+    jzer @limit_bots
+    push.pri
+    sysreq.n float, 1
+    stor.pri g_1072c
+limit_bots:
     push.c "server.bots"
     sysreq.n sysGetGlobal, 1
     jzer @limit_done

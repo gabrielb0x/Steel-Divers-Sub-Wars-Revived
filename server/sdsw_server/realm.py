@@ -77,6 +77,7 @@ class RealmConfig:
     max_players: int = 8              # human players per match; the game fills each team up to 4 with AI subs
     cheats: str = "separes"           # players whose build declares the cheat mod: autorises/separes/refuses
     anticheat_ban: int = 30           # minutes a player caught cheating is kept out ("refuses") or apart ("separes")
+    duration: int = 10                # minutes of an online battle (the game: 10), set in every game (online mod)
     bots: BotSettings = field(default_factory=BotSettings)    # a player alone in a match plays bots
 
     def __post_init__(self) -> None:
@@ -86,6 +87,8 @@ class RealmConfig:
             raise ValueError(f"realm {self.name}: cheats must be one of {', '.join(CHEAT_POLICIES)}")
         if not 0 <= self.anticheat_ban <= 7 * 24 * 60:
             raise ValueError(f"realm {self.name}: anticheat_ban must be between 0 and 10080 minutes")
+        if not 1 <= self.duration <= 30:
+            raise ValueError(f"realm {self.name}: duration must be between 1 and 30 minutes")
 
 
 class Realm:
@@ -112,8 +115,9 @@ class Realm:
                                             local_addr=(self.config.listen, self.config.secure_port))
         self.log.info("realm %s: authentication UDP %d, secure UDP %d, %d account(s)", self.config.name,
                       self.config.auth_port, self.config.secure_port, self.accounts.count())
-        self.log.info("realm %s: up to %d human players per match (AI subs fill the teams), cheats %s",
-                      self.config.name, self.config.max_players, self.config.cheats)
+        self.log.info("realm %s: up to %d human players per match (AI subs fill the teams), battles of %d min, "
+                      "cheats %s", self.config.name, self.config.max_players, self.config.duration,
+                      self.config.cheats)
         bots = self.config.bots
         if bots.enabled:
             self.log.info("realm %s: a player alone for %d s plays bots (%s, map %s, level %s)", self.config.name,
@@ -142,6 +146,7 @@ class Realm:
                             else self.internet.public_name or self.internet.public_ip),
                 "cheaters_online": sum(1 for pid in online if is_cheater(self.flags.get(pid, ()))),
                 "accounts": self.accounts.count(), "max_players": self.config.max_players,
+                "duration": self.config.duration,
                 "cheats": self.config.cheats, "caught_cheating": self.kicks,
                 "bots": ({"delay": self.config.bots.delay, "format": self.config.bots.format,
                           "map": self.config.bots.map, "level": self.config.bots.level}
@@ -570,7 +575,8 @@ class SecureServer(PRUDPServer):
                 raise RMCError(rmc.RV_ACCOUNT_DISABLED, "caught cheating")
         session = self.realm.matchmaker.auto_matchmake(conn.pid, criteria, proposal, message,
                                                        self.realm.pool(conn.pid))
-        self.realm.matchmaker.set_globals(conn.pid, {"server.anticheat": int(self.realm.anticheat_on(conn.pid))})
+        self.realm.matchmaker.set_globals(conn.pid, {"server.anticheat": int(self.realm.anticheat_on(conn.pid)),
+                                                     "server.duration": self.realm.config.duration * 60})
         out = StreamOut()
         out.anydata(MatchmakeSession.CLASS_NAME, session)
         return out

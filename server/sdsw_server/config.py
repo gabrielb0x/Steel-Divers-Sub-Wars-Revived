@@ -44,6 +44,9 @@ REALM_OPTIONS = (
     Option("secure_port", "int", 61001, "Port sécurisé", "UDP", low=1, high=65535),
     Option("max_players", "int", 8, "Joueurs humains par partie", "2 à 8 ; des bots complètent les équipes",
            low=2, high=8),
+    Option("duration", "int", 10, "Durée d'une bataille",
+           "minutes, pour toutes les batailles en ligne (le jeu : 10) ; il faut le mod Jeu en ligne à jour",
+           low=1, high=30),
     Option("cheats", "choice", "separes", "Tricheurs",
            "separes : entre eux ; autorises : avec tout le monde ; refuses : connexion refusée. Sauf autorises, "
            "l'anti-triche du mod exclut de la bataille un joueur qui triche", choices=("separes", "autorises", "refuses")),
@@ -62,6 +65,8 @@ REALM_OPTIONS = (
            choices=("normal", "difficile", "expert")),
     Option("bots_countdown", "int", 10, "Compte à rebours", "secondes avant la bataille contre les bots",
            low=6, high=120),
+    Option("bots_duration", "int", 5, "Durée contre les bots", "minutes d'une bataille contre les bots",
+           low=1, high=30),
 )
 
 

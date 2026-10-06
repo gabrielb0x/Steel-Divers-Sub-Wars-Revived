@@ -48,7 +48,8 @@ class StatusServer:
                 + (f"adresse {html.escape(realm['address'])}, " if realm.get("address") else "")
                 + f"port UDP {realm['auth_port']})</small></h2>"
                 f"<p><b>{realm['players_online']}</b> joueur(s) connecté(s), {realm['accounts']} compte(s). "
-                f"Jusqu'à {realm['max_players']} joueurs humains par partie (des bots complètent les équipes) ; "
+                f"Jusqu'à {realm['max_players']} joueurs humains par partie (des bots complètent les équipes), "
+                f"batailles de {realm['duration']} minutes ; "
                 f"les tricheurs {POLICIES.get(realm['cheats'], realm['cheats'])}.</p>"
                 + (f"<table><tr><th>Joueurs</th><th>Partie</th><th></th><th>Depuis</th></tr>{rows}</table>"
                    if matches else "<p class=muted>Aucune partie en ce moment.</p>"))

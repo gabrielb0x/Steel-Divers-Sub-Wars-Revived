@@ -28,7 +28,8 @@ Il faut [Python 3.11 ou plus récent](https://www.python.org/downloads/) (rien d
    **Caractéristiques** de sous-marins ou le **Jeu en ligne**, puis *Installer dans l'émulateur* (dans chaque
    émulateur trouvé). Toujours inclus : les **Correctifs** (sans eux, Azahar plante quand une torpille touche un
    sous-marin sous l'eau) et le **Pseudo** (votre nom en ligne et en local est le pseudo réglé dans
-   l'émulateur, plus « Citra » pour tout le monde).
+   l'émulateur, plus « Citra » pour tout le monde) et la **Version** (sous le titre, « Sub Wars Open Sourced
+   v0.1 (3566be7) » : la version du projet et son commit, pour savoir quelle construction on joue).
 5. Onglets **Sauvegarde** (tout débloquer, médailles, drapeau premium), **Sous-marins** (caractéristiques) et
    **Serveur** (héberger des parties en ligne).
 
