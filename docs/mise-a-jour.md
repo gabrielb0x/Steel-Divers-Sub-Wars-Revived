@@ -1,7 +1,7 @@
 # La mise à jour v5200
 
-*Avancement estimé : 60 % — la mise à jour s'extrait, s'installe dans Azahar et les mods se construisent pour
-elle ; reste à porter les mods qui patchent le code ou les scripts (tableau plus bas).*
+*Avancement estimé : 85 % — la mise à jour s'extrait, s'installe dans Azahar et tous les mods sauf le jeu en ligne
+marchent avec elle (tableau plus bas).*
 
 Steel Diver: Sub Wars a reçu des mises à jour tant que l'eShop était ouvert. La dernière, en Europe, est le titre
 `0004000E000D7E00` en **version 5200** (5.5.0), construite à la révision 33269 du dépôt des développeurs (le jeu
@@ -75,17 +75,20 @@ et le disent.
 
 ## Les mods et la v5200
 
-*Avancement estimé : 30 % — les mods de données marchent ; ceux qui patchent le code ou les scripts restent à
-porter.*
+*Avancement estimé : 85 % — tous les mods sauf `en-ligne` marchent avec la v5200, vérifiés dans Azahar.*
+
+Les adresses viennent de la correspondance des fonctions (code ARM) et des scripts Pawn entre les deux versions :
+même code aux adresses près, ou, pour les fonctions modifiées, alignement instruction par instruction de la
+fonction la plus proche.
 
 | Mod | v0 | v5200 | |
 |---|---|---|---|
 | `correctifs` | ✓ | ✓ | le shader corrigé (`shaders/metaball.shbin`) n'a pas changé |
+| `pseudo` | ✓ | ✓ | les mêmes fonctions `FaceSystem`, à leurs adresses de la v5200 |
 | `version`, `mention-titre`, `texte-titre` | ✓ | ✓ | textes et mise en page, pris dans les fichiers de la v5200 |
+| `premium` | ✓ | ✓ | plus `sysDLCCheckOwned`, les sous-marins 27 à 36 et huit tableaux de déblocage ([premium.md](premium.md#dans-la-mise-à-jour-v5200)) ; vérifié : les 40 membres d'équipage et les sous-marins de la mise à jour débloqués |
+| `missions` | ✓ | ✓ | vérifié : toutes les missions et tous leurs niveaux ouverts, le total indique 21 |
+| `triche` | ✓ | ✓ | l'invincibilité couvre aussi la mine flottante ; vérifié : tir sans délai, torpilles infinies |
 | `vitesse` | ✓ | ✓ | les tables d'accélération n'ont pas changé |
-| `pseudo` | ✓ | à porter | patch du code : laissé de côté en v5200 pour l'instant |
-| `premium` | ✓ | à porter | patch du code et des scripts ; la boutique de la v5200 vérifie aussi `sysDLCCheckOwned` |
-| `missions` | ✓ | à porter | patch des scripts |
-| `triche` | ✓ | à porter | patch des scripts |
-| `specs` | ✓ | à porter | `tools/subs.py` ne connaît que les 23 sous-marins de la v0 |
+| `specs` | ✓ | ✓ | les 39 sous-marins, dans un fichier à part (`sous-marins-v5200.toml`) : leurs valeurs diffèrent |
 | `en-ligne` | ✓ | à porter | patch du code et des scripts (bots, anti-triche) |

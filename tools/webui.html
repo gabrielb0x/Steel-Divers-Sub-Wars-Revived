@@ -609,13 +609,14 @@ function renderSave(s) {
     el("div", {class: "card"},
       el("h2", {}, s.player || "Joueur"),
       el("p", {class: "small"}, `Sous-marin : n° ${s.typenum} ${s.sub_name} · motifs ${s.patterns}/${s.patterns_total} · `
-        + `équipage ${s.crew}/${s.crew_total} · médailles d'or ${s.gold}/21`),
+        + `équipage ${s.crew}/${s.crew_total} · médailles d'or ${s.gold}/21 · jeu en ${s.game_label}`),
       s.premium_flag ? el("p", {class: "small", style: "color:var(--warn)"},
         "Drapeau premium présent : sans la version complète (ou le mod Premium), le jeu affiche l'erreur 098-0101 au démarrage.") : "",
       el("h3", {}, "Sous-marins débloqués"),
       el("div", {class: "subs"}, ...s.subs.map(x => el("div", {class: "sub " + (x.unlocked ? "on" : "off")},
         (x.unlocked ? "✓ " : "· ") + x.n + " " + x.name))),
-      el("p", {class: "small muted"}, "Les n° 2 à 23 demandent la version complète, et les n° 19 à 23 le contenu additionnel : mod Premium."),
+      el("p", {class: "small muted"}, `Les n° 2 à ${s.subs.length} demandent la version complète, et les n° `
+        + `${s.paid.join(", ")} le contenu additionnel : mod Premium.`),
       el("h3", {}, "Missions"), missions,
       el("h3", {}, "En ligne"),
       el("p", {class: "small"}, `${o.games} parties, ${o.wins} victoires, ${o.losses} défaites, ${o.ties} nuls, `
@@ -662,7 +663,7 @@ async function loadSubs() {
 }
 function fmt(v) { return Number.isInteger(v) ? String(v) : String(Math.round(v * 1000) / 1000); }
 function renderSubs() {
-  $("#subs-file").textContent = subsData.file;
+  $("#subs-file").textContent = subsData.file + " — jeu en " + subsData.label;
   const main = subsData.fields.filter(f => !f.advanced);
   const table = $("#subs-table");
   table.replaceChildren(el("tr", {}, el("th", {}, "n°"), el("th", {}, "Sous-marin"),
@@ -705,7 +706,7 @@ function renderSubEditor() {
         subsData = await api("subs/reset", {body: {n: s.n}}); renderSubs(); })}, "Valeurs du jeu")));
 }
 $("#btn-subs-reset-all").addEventListener("click", () => guarded(async () => {
-  if (!confirm("Remettre les valeurs du jeu pour les 23 sous-marins ?")) return;
+  if (!confirm(`Remettre les valeurs du jeu pour les ${subsData.subs.length} sous-marins ?`)) return;
   subsData = await api("subs/reset", {body: {}}); renderSubs();
 }));
 

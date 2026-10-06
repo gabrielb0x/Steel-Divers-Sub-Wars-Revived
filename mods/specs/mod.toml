@@ -9,12 +9,15 @@
 # de plongée (1 à 10), torpilles, rechargement, cadence de tir, équipage, masqueur… Seules les valeurs
 # différentes de celles du jeu sont écrites. Les valeurs hors des limites que le jeu supporte sont refusées.
 #
+# Avec la mise à jour v5200 (39 sous-marins, plusieurs rééquilibrés), le fichier est sous-marins-v5200.toml :
+# chaque version garde le sien, avec ses propres valeurs de départ.
+#
 # Prévu pour jouer hors ligne. En ligne, le jeton du mod le dit au serveur (drapeau « specs ») : il est traité
 # comme le mod triche (server/serveur.toml, option cheats : séparé des autres joueurs par défaut).
 
 name = "Caractéristiques"
 description = "Vos propres caractéristiques de sous-marins (tools/subs.py) ; en ligne, comptées comme triche"
-versions = ["v0"]
+versions = ["v0", "v5200"]
 token_flags = ["specs"]
 
 [params.fichier]

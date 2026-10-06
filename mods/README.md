@@ -200,14 +200,14 @@ restent écrits à la main, dans des commentaires `/* asm … */` de la source. 
 | Mod | Versions | Effet |
 |---|---|---|
 | `correctifs` | v0, v5200 | toujours inclus : corrige le plantage d'Azahar quand une torpille touche un sous-marin sous l'eau |
-| `pseudo` | v0 | toujours inclus : en ligne et en local, votre nom est le pseudo de la console (de l'émulateur), pas « Citra » |
+| `pseudo` | v0, v5200 | toujours inclus : en ligne et en local, votre nom est le pseudo de la console (de l'émulateur), pas « Citra » |
 | `version` | toutes | toujours inclus : la version de Sub Wars Open Sourced à la fin de la ligne sous le titre (« … v0.1.34 », même police que la ligne du dessus) |
-| `premium` | v0 | version complète, les 23 sous-marins, motifs et équipage débloqués, sans l'eShop ([détails](../docs/premium.md)) |
-| `missions` | v0 | les 21 missions du mode solo jouables tout de suite, sans toucher à la sauvegarde |
+| `premium` | v0, v5200 | version complète, tous les sous-marins (23, 39 avec la mise à jour), motifs et équipage débloqués, sans l'eShop ([détails](../docs/premium.md)) |
+| `missions` | v0, v5200 | les 21 missions du mode solo jouables tout de suite, sans toucher à la sauvegarde |
 | `en-ligne` | v0 | jeu en ligne sur un serveur [Sub Wars Open Sourced](../server/README.md), avec ses bots pour un joueur seul et des bots qui jouent comme des joueurs ([bots.md](../docs/bots.md)), son anti-triche, la durée des batailles réglée par le serveur et un dialogue qui dit quel serveur est utilisé |
-| `specs` | v0 | vos propres caractéristiques de sous-marins (`tools/subs.py`) ; en ligne, comptées comme triche |
+| `specs` | v0, v5200 | vos propres caractéristiques de sous-marins (`tools/subs.py`) ; en ligne, comptées comme triche |
 | `mention-titre` | toutes | « © 2026 Nintendo Lawyers » et « Open Sourced by gabrielb0x. » sous le titre (options `ligne1`, `ligne2`) |
-| `triche` | v0 | invincible, torpilles et air infinis, tir sans délai, rechargement rapide, masqueur gratuit, moteur gonflé |
+| `triche` | v0, v5200 | invincible, torpilles et air infinis, tir sans délai, rechargement rapide, masqueur gratuit, moteur gonflé |
 | `vitesse` | toutes | votre sous-marin va 2, 3, 5, 10 ou 15 fois plus vite (option `facteur`) ; en ligne, compté comme triche |
 | `texte-titre` | toutes | exemple : « Version gratuite » devient « Version moddée » sur l'écran titre |
 

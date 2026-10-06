@@ -25,7 +25,7 @@ Il faut [Python 3.11 ou plus récent](https://www.python.org/downloads/) (rien d
    fichier) et le prépare. Avec le `.cia` déchiffré de la **mise à jour v5200** dans `cia/` (facultatif : 16
    sous-marins et 3 cartes de plus), il la prépare aussi et peut l'installer dans l'émulateur
    ([docs/mise-a-jour.md](docs/mise-a-jour.md)).
-4. Onglet **Mods** : cochez **Premium** (version complète et les 23 sous-marins), et si vous voulez **Toutes
+4. Onglet **Mods** : cochez **Premium** (version complète et tous les sous-marins), et si vous voulez **Toutes
    les missions**, la **Triche** (dont le tir sans délai), la **Vitesse du sous-marin** (×2 à ×15), vos
    **Caractéristiques** de sous-marins ou le **Jeu en ligne**, puis *Installer dans l'émulateur* (dans chaque
    émulateur trouvé). Toujours inclus : les **Correctifs** (sans eux, Azahar plante quand une torpille touche un
@@ -46,7 +46,7 @@ Les mêmes outils existent en ligne de commande : `tools/mod.py`, `tools/save.py
 
 - Extraction complète du CIA (EUR, `00040000000D7E00`, v0), déjà déchiffré : aucune clé de console n'est nécessaire.
 - **Mise à jour v5200** (`0004000E000D7E00`) : extraite dans `extracted/v5200/`, installable dans Azahar ; les
-  mods se construisent pour la version installée, et ceux qui ne touchent que des données marchent déjà avec elle
+  mods se construisent pour la version installée, et tous sauf le jeu en ligne marchent déjà avec elle
   ([docs/mise-a-jour.md](docs/mise-a-jour.md)).
 - **Table des symboles du linker trouvée dans le RomFS** (`romfs:/map`) : 9431 fonctions avec leur vrai nom, leur
   taille et leur fichier objet d'origine (84,7 % du code). Elle est appliquée automatiquement dans Ghidra.

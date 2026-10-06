@@ -29,6 +29,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import re
 import shutil
 import struct
 import sys
@@ -39,12 +40,31 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 import azahar
+import versions
 
 ROOT = Path(__file__).resolve().parent.parent
-VERSION = 27                   # sysSaveDataLoad("save", 27) in mode_title (save.inc)
+VERSION = 27                   # sysSaveDataLoad("save", 27) in mode_title (save.inc), v0 and v5200
 SUBS, PATTERNS, CREW = 23, 32, 32
 STAGES, LEVELS = 7, 3          # single player: 7 areas of 3 missions
 MEDAL_CLEARED, MEDAL_GOLD = 1, 2
+# The unlock arrays of each version of the game (tools/versions.py). The update v5200 keeps save.sub.unlock[23] and
+# holds its 39 submarines in save.sub.unlock2[36] (n° 1 to 36) and save.p3.sub.unlock[3] (37 to 39), and the crew
+# of the submarines 37 to 39 in save.p3.sub.crew.unlock[8] (mode_title updateSubUnlock, medal.inc).
+SUB_ARRAYS = {"v0": (("save.sub.unlock", 23),),
+              "v5200": (("save.sub.unlock", 23), ("save.sub.unlock2", 36), ("save.p3.sub.unlock", 3))}
+CREW_ARRAYS = {"v0": (("save.sub.crew.unlock", 32),),
+               "v5200": (("save.sub.crew.unlock", 32), ("save.p3.sub.crew.unlock", 8))}
+# Submarines sold apart (their prow in the add-on content): v0 19 to 23, v5200 also 27 to 36.
+PAID_SUBS = {"v0": list(range(19, 24)), "v5200": list(range(19, 24)) + list(range(27, 37))}
+
+
+def layout(version: str) -> str:
+    """The save layout of a version: v0's, or the update's (later versions are taken as the update)."""
+    return versions.BASE if version == versions.BASE else "v5200"
+
+
+def sub_count(version: str = versions.BASE) -> int:
+    return sum(size for name, size in SUB_ARRAYS[layout(version)] if name != "save.sub.unlock") or SUBS
 
 
 class SaveError(Exception):
@@ -122,12 +142,24 @@ class SaveData:
         bits = self.ints.get(f"save.single.stage{stage}.level{level}.time", 0)
         return struct.unpack("<f", struct.pack("<i", bits))[0] if bits else None
 
+    def unlocked_subs(self, version: str = versions.BASE) -> list[bool]:
+        """Unlocked state of each submarine (n° 1 is always available: mode_lobby, mode_customize)."""
+        if layout(version) == versions.BASE:
+            flags = self.array("save.sub.unlock", SUBS)[:SUBS]
+        else:                                       # updateSubUnlock merges save.sub.unlock into unlock2
+            old = self.array("save.sub.unlock", SUBS)
+            flags = [a or (i < SUBS and old[i]) for i, a in enumerate(self.array("save.sub.unlock2", 36)[:36])]
+            flags += self.array("save.p3.sub.unlock", 3)[:3]
+        flags[0] = 1
+        return [bool(f) for f in flags]
+
     # -- edits -----------------------------------------------------------------------------------
 
-    def unlock_subs(self) -> int:
-        old = self.array("save.sub.unlock", SUBS)
-        self.set("save.sub.unlock", [1] * SUBS)
-        return old.count(0)
+    def unlock_subs(self, version: str = versions.BASE) -> int:
+        count = self.unlocked_subs(version).count(False)
+        for name, size in SUB_ARRAYS[layout(version)]:
+            self.set(name, [1] * size)
+        return count
 
     def unlock_patterns(self, default_colours: dict[int, list[int]] | None = None) -> int:
         old = self.array("save.sub.pattern.unlock", PATTERNS)
@@ -138,10 +170,18 @@ class SaveData:
         self.set("save.sub.pattern.unlock", [1] * PATTERNS)
         return old.count(0)
 
-    def unlock_crew(self) -> int:
-        old = self.array("save.sub.crew.unlock", CREW)
-        self.set("save.sub.crew.unlock", [1] * CREW)
-        return old.count(0)
+    def unlock_crew(self, version: str = versions.BASE) -> int:
+        count = 0
+        for name, size in CREW_ARRAYS[layout(version)]:
+            count += self.array(name, size)[:size].count(0)
+            self.set(name, [1] * size)
+        return count
+
+    def crew_unlocked(self, version: str = versions.BASE) -> tuple[int, int]:
+        """(members unlocked, members) of the crew."""
+        arrays = CREW_ARRAYS[layout(version)]
+        return (sum(sum(1 for c in self.array(name, size)[:size] if c) for name, size in arrays),
+                sum(size for _, size in arrays))
 
     def award_medals(self, medal: int) -> int:
         changed = 0
@@ -189,15 +229,16 @@ def parse_value(text: str) -> int | list[int]:
 
 # ---- game texts (optional: names of the submarines and crew) --------------------------------------
 
-def game_texts(language: str = "EU_French") -> dict[str, str]:
+def game_texts(language: str = "EU_French", version: str = versions.BASE) -> dict[str, str]:
     """Texts of the player's game files (make extract), to show names; empty without them."""
     xml = ROOT / "extracted" / "xml" / "text" / f"{language}.xml"
     try:
-        if xml.exists():
+        if version == versions.BASE and xml.exists():
             root = ET.parse(xml).getroot()
         else:
             from bxml import Bxml
-            root = ET.fromstring(Bxml((ROOT / "extracted" / "romfs" / "text" / f"{language}.bxml").read_bytes()).to_xml())
+            path = versions.game_files(version).path(f"text/{language}.bxml")
+            root = ET.fromstring(Bxml(path.read_bytes()).to_xml())
     except (OSError, ET.ParseError, ValueError):
         return {}
     return {node.get("key"): node.get("text", "") for node in root.iter("string")}
@@ -218,9 +259,22 @@ def default_pattern_colours() -> dict[int, list[int]]:
     return colours
 
 
-def sub_name(texts: dict[str, str], index: int) -> str:
-    """Submarine of index 0..22 (save.sub.typenum is this index + 1)."""
-    return texts.get(f"sub_icon_name{index:02d}") or f"sous-marin {index + 1}"
+def sub_name(texts: dict[str, str], index: int, version: str = versions.BASE) -> str:
+    """Submarine of index 0..22, 0..38 in v5200 (save.sub.typenum is this index + 1). The update numbers the texts
+    from 1 and adds width codes ("\\x0e(70)Garfish\\x0e(142.85…)") around the names."""
+    key = f"sub_icon_name{index:02d}" if layout(version) == versions.BASE else f"sub_icon_name{index + 1:02d}"
+    return re.sub(r"\\x0e\([^)]*\)|\x0e\([^)]*\)", "", texts.get(key) or "").strip() or f"sous-marin {index + 1}"
+
+
+def save_version(path: Path, save: "SaveData | None" = None) -> str:
+    """The version of the game a save file is for: that of the emulator it is in, else what it holds."""
+    for base in azahar.azahar_dirs():
+        try:
+            path.resolve().relative_to(base.resolve())
+        except ValueError:
+            continue
+        return versions.emulator_version(base)
+    return "v5200" if save is not None and "save.sub.unlock2" in save.arrays else versions.BASE
 
 
 # ---- files ----------------------------------------------------------------------------------------
@@ -265,23 +319,23 @@ def write(path: Path, save: SaveData) -> None:
 
 # ---- commands ------------------------------------------------------------------------------------
 
-def show(save: SaveData) -> None:
-    texts = game_texts()
+def show(save: SaveData, version: str = versions.BASE) -> None:
+    texts = game_texts(version=version)
     typenum = save.ints.get("save.sub.typenum", 1)
     name = bytes(v & 0xFF for v in save.arrays.get("save.sub.filteredname", [])).split(b"\0")[0]
-    print(f"Joueur : {name.decode('utf-8', 'replace') or '?'}    version de la sauvegarde : {save.version}")
-    print(f"Sous-marin choisi : n° {typenum} ({sub_name(texts, typenum - 1)})")
-    unlocked = save.array("save.sub.unlock", SUBS)
-    unlocked[0] = 1                               # the first one is always available (mode_lobby, mode_customize)
-    print(f"Sous-marins débloqués : {sum(1 for u in unlocked if u)}/{SUBS} "
-          f"(les n° 19 à 23 dépendent en plus du DLC ou du mod premium)")
-    for i in range(SUBS):
-        print(f"  {'x' if unlocked[i] else ' '} {i + 1:2d} {sub_name(texts, i)}")
+    print(f"Joueur : {name.decode('utf-8', 'replace') or '?'}    version de la sauvegarde : {save.version}    "
+          f"jeu : {versions.label(version)}")
+    print(f"Sous-marin choisi : n° {typenum} ({sub_name(texts, typenum - 1, version)})")
+    unlocked = save.unlocked_subs(version)
+    paid = PAID_SUBS[layout(version)]
+    print(f"Sous-marins débloqués : {sum(unlocked)}/{len(unlocked)} "
+          f"(les n° {', '.join(map(str, paid))} dépendent en plus du DLC ou du mod premium)")
+    for i, flag in enumerate(unlocked):
+        print(f"  {'x' if flag else ' '} {i + 1:2d} {sub_name(texts, i, version)}")
     patterns = save.array("save.sub.pattern.unlock", PATTERNS)
     patterns[0] = 1
-    crew = save.array("save.sub.crew.unlock", CREW)
-    print(f"Motifs débloqués : {sum(1 for p in patterns if p)}/{PATTERNS}    "
-          f"équipage : {sum(1 for c in crew if c)}/{CREW}")
+    crew, crew_total = save.crew_unlocked(version)
+    print(f"Motifs débloqués : {sum(1 for p in patterns if p)}/{PATTERNS}    équipage : {crew}/{crew_total}")
     print("Missions (médaille : - aucune, o terminée, * or ; meilleur temps) :")
     for stage in range(1, STAGES + 1):
         cells = []
@@ -304,6 +358,8 @@ def show(save: SaveData) -> None:
 def main() -> None:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--file", type=Path, help="the save file (default: found in the emulator)")
+    ap.add_argument("--version", help="the version of the game the save is for: v0, v5200 (default: that of the "
+                                      "emulator it is in)")
     sub = ap.add_subparsers(dest="command", required=True)
     sub.add_parser("show", help="summary of the save")
     p = sub.add_parser("unlock", help="unlock: subs, patterns, crew, missions, gold, all (default: all)")
@@ -331,11 +387,12 @@ def main() -> None:
             return
         path = find_save(args.file)
         save = SaveData.parse(path.read_bytes())
+        game = args.version or save_version(path, save)
         if save.version != VERSION:
-            print(f"[!] version {save.version} : le jeu (v0) attend {VERSION} et ignorerait cette sauvegarde")
+            print(f"[!] version {save.version} : le jeu attend {VERSION} et ignorerait cette sauvegarde")
         if args.command == "show":
             print(f"{path}\n")
-            show(save)
+            show(save, game)
         elif args.command == "list":
             for key, value in sorted(save.ints.items()):
                 print(f"{key} = {value}")
@@ -369,18 +426,18 @@ def main() -> None:
                 if "all" in what:
                     what = {"subs", "patterns", "crew", "missions"}
                 if "subs" in what:
-                    print(f"[+] sous-marins : {save.unlock_subs()} débloqué(s)")
+                    print(f"[+] sous-marins : {save.unlock_subs(game)} débloqué(s)")
                 if "patterns" in what:
                     colours = default_pattern_colours()
                     print(f"[+] motifs : {save.unlock_patterns(colours)} débloqué(s)"
                           + ("" if colours else " (couleurs par défaut inconnues sans les fichiers du jeu)"))
                 if "crew" in what:
-                    print(f"[+] équipage : {save.unlock_crew()} débloqué(s)")
+                    print(f"[+] équipage : {save.unlock_crew(game)} débloqué(s)")
                 if "gold" in what:
                     print(f"[+] missions : {save.award_medals(MEDAL_GOLD)} médaille(s) d'or")
                 elif "missions" in what:
                     print(f"[+] missions : {save.award_medals(MEDAL_CLEARED)} mission(s) marquée(s) terminée(s)")
-                print("    (les sous-marins 2 à 23 demandent la version complète : mod premium)")
+                print(f"    (les sous-marins 2 à {sub_count(game)} demandent la version complète : mod premium)")
             write(path, save)
             print("    Fermez le jeu dans l'émulateur avant de le relancer : il réécrirait l'ancienne sauvegarde.")
     except SaveError as e:

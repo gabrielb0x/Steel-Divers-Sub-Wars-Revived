@@ -119,3 +119,30 @@ Les missions restent à jouer : elles se débloquent avec les médailles. Pour t
 sauvegarde ([../tools/save.py](../tools/save.py)) sait aussi donner des médailles.
 
 En ligne, ce mod ne compte pas comme de la triche : il donne ce que les joueurs premium avaient.
+
+## Dans la mise à jour v5200
+
+*Avancement estimé : 90 % — vérifié dans Azahar : équipage complet, sous-marins de la mise à jour débloqués ; reste
+le détail des « remodelages ».*
+
+La mise à jour ([mise-a-jour.md](mise-a-jour.md)) vend davantage :
+
+- **15 sous-marins** à part : les 5 historiques (n° 19 à 23, contenus 1 à 5) et 10 nouveaux (n° 27 à 36 : I-168,
+  Type XXI, Blue-Marine, Classe Z, Soryu, USS Nautilus, Classe S, Daphné, Kilo, Victor III ; contenus 6 à 15),
+  leur proue dans le contenu additionnel comme celle des historiques (`mount_dlc_arc`). La table des
+  correspondances est dans `mode_title` (sous-marins et contenus, 15 cellules chacune).
+- **Un « remodelage » de chaque sous-marin** (`save.sub.typeN.expanded`), acheté comme le contenu N + 30.
+- **De l'expérience d'équipage** et la version complète (`sysDLCSetFilterModeCrewExp`, `…Enlist`).
+
+`NsubShop::updateCondition` (`0x0013A9B0`) y remplit deux bitmaps : les contenus achetés (`+0x2DB0`, lus par
+`checkCondition` et `checkPaidForFullVer`) et les contenus possédés (`+0x2DC0`, lus par la nouvelle native
+`sysDLCCheckOwned`, `0x0030B988`). Les sous-marins se débloquent dans `save.sub.unlock[23]` (comme en v0) et dans
+`save.sub.unlock2[36]` (n° 1 à 36) et `save.p3.sub.unlock[3]` (n° 37 à 39 : Type ORDI, Fretin, Sous-boss, les
+sous-marins de l'ordinateur devenus jouables) ; `updateSubUnlock` (`mode_title`) en déduit `save.sub.owned[36]` et
+`save.p3.sub.owned[3]`. L'équipage des sous-marins 37 à 39 est dans `save.p3.sub.crew.unlock[8]`.
+
+Le mod `premium` y fait tout acheter et tout posséder (les trois fonctions de vérification rendent 1), remplit les
+huit tableaux de déblocage, donne leur coque aux sous-marins 27 à 36 sans le DLC, et mène au menu le bouton
+Boutique et l'invitation à la « boutique d'essai » de la v5200. `tools/save.py` et le lanceur connaissent les
+39 sous-marins et les tableaux de la v5200.
+

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Characteristics of the 23 submarines (bxml/pscope_plyNN_stats.bxml), to change them in a mod.
+"""Characteristics of the submarines (bxml/pscope_plyNN_stats.bxml: 23, 39 with the update), to change them in a mod.
 
   subs.py show [sub]                 the characteristics (of the game, or of your file with --file)
   subs.py export [--force]           writes your file: every submarine with its values, commented
@@ -7,8 +7,9 @@
   subs.py reset [sub]                puts the game's values back in your file
   subs.py check                      checks your file
 
-<sub> is a number (1 to 23) or a name ("Type VII"). Your file is sous-marins.toml in this project's settings
-folder (--file to use another): edit it with any text editor, then build the "specs" mod:
+<sub> is a number (1 to 23, 39 with the update) or a name ("Type VII"). Your file is sous-marins.toml in this
+project's settings folder, sous-marins-v5200.toml for the update (its values differ: --file to use another): edit
+it with any text editor, then build the "specs" mod:
   tools/mod.py build specs --install            (or with other mods: tools/mod.py build premium specs ...)
 Only the values that differ from the game's are written. Online, the server is told that the build changes
 the characteristics (flag "specs"): it treats it like the cheat mod (server/serveur.toml, cheats).
@@ -29,10 +30,10 @@ from dataclasses import dataclass
 from pathlib import Path
 
 import azahar
+import versions
 
 ROOT = Path(__file__).resolve().parent.parent
-ROMFS = ROOT / "extracted" / "romfs"
-SUBS = 23
+SUBS = 23                       # in v0; count() for a version
 
 
 @dataclass(frozen=True)
@@ -85,45 +86,51 @@ def stats_file(n: int) -> str:
     return f"bxml/pscope_ply{n:02d}_stats.bxml"
 
 
-def read_game_stats(n: int) -> dict[str, str]:
-    path = ROMFS / stats_file(n)
+def count(version: str = versions.BASE) -> int:
+    """Number of submarines of a version of the game (its stats files)."""
+    return len(versions.game_files(version).glob("bxml/pscope_ply[0-9][0-9]_stats.bxml")) or SUBS
+
+
+def read_game_stats(n: int, version: str = versions.BASE) -> dict[str, str]:
+    path = versions.game_files(version).path(stats_file(n))
     if not path.exists():
         raise SubsError(f"{stats_file(n)} introuvable : il faut d'abord extraire le jeu (make extract)")
     from bxml import Bxml
     return dict(ET.fromstring(Bxml(path.read_bytes()).to_xml()).attrib)
 
 
-def game_values() -> dict[int, dict[str, int | float]]:
+def game_values(version: str = versions.BASE) -> dict[int, dict[str, int | float]]:
     out = {}
-    for n in range(1, SUBS + 1):
-        raw = read_game_stats(n)
+    for n in range(1, count(version) + 1):
+        raw = read_game_stats(n, version)
         out[n] = {f.key: f.kind(float(raw[f.key])) if f.kind is float else int(raw[f.key])
                   for f in FIELDS if f.key in raw}
     return out
 
 
-def names() -> dict[int, str]:
-    from save import game_texts
-    texts = game_texts()
-    return {n: texts.get(f"sub_icon_name{n - 1:02d}") or f"sous-marin {n}" for n in range(1, SUBS + 1)}
+def names(version: str = versions.BASE) -> dict[int, str]:
+    from save import game_texts, sub_name
+    texts = game_texts(version=version)
+    return {n: sub_name(texts, n - 1, version) for n in range(1, count(version) + 1)}
 
 
-def default_file() -> Path:
-    return azahar.config_dir() / "sous-marins.toml"
+def default_file(version: str = versions.BASE) -> Path:
+    """The player's file: one per version of the game, whose values differ (the update rebalanced subs)."""
+    return azahar.config_dir() / ("sous-marins.toml" if version == versions.BASE else f"sous-marins-{version}.toml")
 
 
-def resolve(path: str | Path | None) -> Path:
-    return default_file() if path in (None, "", "auto") else Path(path).expanduser()
+def resolve(path: str | Path | None, version: str = versions.BASE) -> Path:
+    return default_file(version) if path in (None, "", "auto") else Path(path).expanduser()
 
 
 def which(text: str, known: dict[int, str]) -> int:
-    if text.isdigit() and 1 <= int(text) <= SUBS:
+    if text.isdigit() and 1 <= int(text) <= len(known):
         return int(text)
     wanted = text.strip().lower()
     found = [n for n, name in known.items() if name.lower() == wanted] or \
             [n for n, name in known.items() if wanted in name.lower()]
     if len(found) != 1:
-        raise SubsError(f"{text!r} : sous-marin inconnu ou ambigu (numéro de 1 à {SUBS}, ou son nom)")
+        raise SubsError(f"{text!r} : sous-marin inconnu ou ambigu (numéro de 1 à {len(known)}, ou son nom)")
     return found[0]
 
 
@@ -151,8 +158,8 @@ def write_file(path: Path, values: dict[int, dict[str, int | float]], known: dic
     for f in FIELDS:
         if f.advanced:
             lines.append(f"#   {f.key:22s} {f.help}")
-    for n in range(1, SUBS + 1):
-        lines += ["", f"[{n:02d}]  # {known[n]}"]
+    for n in sorted(values):
+        lines += ["", f"[{n:02d}]  # {known.get(n, f'sous-marin {n}')}"]
         for f in FIELDS:
             if f.key in values[n]:
                 lines.append(f"{f.key} = {format_value(values[n][f.key])}")
@@ -160,7 +167,7 @@ def write_file(path: Path, values: dict[int, dict[str, int | float]], known: dic
     path.write_text("\n".join(lines) + "\n", encoding="utf-8")
 
 
-def read_file(path: Path) -> dict[int, dict[str, int | float]]:
+def read_file(path: Path, subs: int = SUBS) -> dict[int, dict[str, int | float]]:
     if not path.exists():
         raise SubsError(f"{path} n'existe pas : créez-le avec « tools/subs.py export »")
     try:
@@ -169,8 +176,8 @@ def read_file(path: Path) -> dict[int, dict[str, int | float]]:
         raise SubsError(f"{path} : {e}") from e
     out: dict[int, dict[str, int | float]] = {}
     for section, values in data.items():
-        if not (re.fullmatch(r"\d{1,2}", section) and 1 <= int(section) <= SUBS) or not isinstance(values, dict):
-            raise SubsError(f"{path} : [{section}] n'est pas un sous-marin (de [01] à [{SUBS}])")
+        if not (re.fullmatch(r"\d{1,2}", section) and 1 <= int(section) <= subs) or not isinstance(values, dict):
+            raise SubsError(f"{path} : [{section}] n'est pas un sous-marin (de [01] à [{subs}])")
         n = int(section)
         out[n] = {}
         for key, value in values.items():
@@ -196,10 +203,10 @@ def check_value(key: str, value, where: str) -> int | float:
     return value
 
 
-def changes(path: str | Path | None) -> dict[str, dict[str, str]]:
+def changes(path: str | Path | None, version: str = versions.BASE) -> dict[str, dict[str, str]]:
     """The edits of a player's file, ready for the mod: stats file -> {attribute: text as in the XML}."""
-    user = read_file(resolve(path))
-    game = game_values()
+    game = game_values(version)
+    user = read_file(resolve(path, version), len(game))
     edits: dict[str, dict[str, str]] = {}
     for n, values in user.items():
         diff = {k: format_value(v) for k, v in values.items() if game[n].get(k) != v}
@@ -223,7 +230,7 @@ def show(values: dict[int, dict[str, int | float]], known: dict[int, str], only:
                 print(f"  {f.key:22s} {format_value(values[only][f.key]):>8s}  {f.help}{mark}")
         return
     print(f"{'n°':>3s} {'nom':14s} " + " ".join(f"{SHORT[f.key]:>8s}" for f in main))
-    for n in range(1, SUBS + 1):
+    for n in sorted(values):
         cells = []
         for f in main:
             v = values[n].get(f.key)
@@ -238,7 +245,8 @@ def show(values: dict[int, dict[str, int | float]], known: dict[int, str], only:
 
 def main() -> None:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("--file", help=f"your file (default: {default_file()})")
+    ap.add_argument("--file", help=f"your file (default: {default_file()}, sous-marins-<version>.toml for the update)")
+    ap.add_argument("--version", help="the version of the game: v0, v5200 (default: the one of the emulator)")
     sub = ap.add_subparsers(dest="command", required=True)
     p = sub.add_parser("show", help="the characteristics: of the game, or of your file with --file / --mine")
     p.add_argument("sub", nargs="?")
@@ -254,13 +262,14 @@ def main() -> None:
     args = ap.parse_args()
 
     try:
-        known = names()
-        game = game_values()
-        path = resolve(args.file)
+        version = args.version or azahar.game_version()
+        known = names(version)
+        game = game_values(version)
+        path = resolve(args.file, version)
         if args.command == "show":
             only = which(args.sub, known) if args.sub else None
             if args.mine or args.file:
-                mine = read_file(path)
+                mine = read_file(path, len(game))
                 merged = {n: {**game[n], **mine.get(n, {})} for n in game}
                 show(merged, known, only, game)
             else:
@@ -271,7 +280,7 @@ def main() -> None:
             write_file(path, game, known)
             print(f"[+] {path}\n    modifiez-le, puis : tools/mod.py build specs --install")
         elif args.command in ("set", "reset"):
-            current = {n: {**game[n], **v} for n, v in read_file(path).items()} if path.exists() else {}
+            current = {n: {**game[n], **v} for n, v in read_file(path, len(game)).items()} if path.exists() else {}
             values = {n: dict(current.get(n, game[n])) for n in game}
             if args.command == "set":
                 n = which(args.sub, known)
@@ -292,7 +301,7 @@ def main() -> None:
             write_file(path, values, known)
             print(f"    {path} ; ensuite : tools/mod.py build specs --install")
         elif args.command == "check":
-            edits = changes(path)
+            edits = changes(path, version)
             if not edits:
                 print(f"[=] {path} : aucune différence avec le jeu")
             for file, diff in edits.items():

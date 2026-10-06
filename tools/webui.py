@@ -728,12 +728,12 @@ def save_file(query: dict) -> Path:
 
 def save_summary(path: Path) -> dict:
     data = save.SaveData.parse(path.read_bytes())
-    texts = save.game_texts()
-    unlocked = data.array("save.sub.unlock", save.SUBS)
-    unlocked[0] = 1
+    version = save.save_version(path, data)
+    texts = save.game_texts(version=version)
+    unlocked = data.unlocked_subs(version)
     patterns = data.array("save.sub.pattern.unlock", save.PATTERNS)
     patterns[0] = 1
-    crew = data.array("save.sub.crew.unlock", save.CREW)
+    crew, crew_total = data.crew_unlocked(version)
     name = bytes(v & 0xFF for v in data.arrays.get("save.sub.filteredname", [])).split(b"\0")[0]
     typenum = data.ints.get("save.sub.typenum", 1)
     missions = [[{"medal": data.medal(s, l), "time": data.best_time(s, l)} for l in range(1, save.LEVELS + 1)]
@@ -741,11 +741,12 @@ def save_summary(path: Path) -> dict:
     online = {k: data.ints.get(f"save.multi.{k}", 0) for k in
               ("games", "wins", "losses", "ties", "quits", "points", "kills", "killed", "hits", "shots")}
     return {"file": str(path), "version": data.version, "player": name.decode("utf-8", "replace"),
-            "typenum": typenum, "sub_name": save.sub_name(texts, typenum - 1),
-            "subs": [{"n": i + 1, "name": save.sub_name(texts, i), "unlocked": bool(unlocked[i])}
-                     for i in range(save.SUBS)],
+            "game": version, "game_label": versions.label(version), "paid": save.PAID_SUBS[save.layout(version)],
+            "typenum": typenum, "sub_name": save.sub_name(texts, typenum - 1, version),
+            "subs": [{"n": i + 1, "name": save.sub_name(texts, i, version), "unlocked": flag}
+                     for i, flag in enumerate(unlocked)],
             "patterns": sum(1 for p in patterns if p), "patterns_total": save.PATTERNS,
-            "crew": sum(1 for c in crew if c), "crew_total": save.CREW, "missions": missions,
+            "crew": crew, "crew_total": crew_total, "missions": missions,
             "gold": sum(m["medal"] >= save.MEDAL_GOLD for row in missions for m in row),
             "online": online, "premium_flag": bool(data.ints.get("save.sub.enlist")),
             "values": len(data.ints) + len(data.arrays)}
@@ -755,33 +756,35 @@ def edit_save(path: Path, change) -> dict:
     data = save.SaveData.parse(path.read_bytes())
     out = io.StringIO()
     with captured(out):
-        message = change(data)
+        message = change(data, save.save_version(path, data))
         save.write(path, data)
     return {"message": message, "log": out.getvalue(), "summary": save_summary(path)}
 
 
 def subs_state() -> dict:
+    version = azahar.game_version()
     try:
-        game = subs.game_values()
+        game = subs.game_values(version)
     except subs.SubsError as e:
         raise UserError(str(e)) from e
-    names = subs.names()
-    path = subs.default_file()
-    mine = subs.read_file(path) if path.exists() else {}
-    return {"file": str(path), "exists": path.exists(),
+    names = subs.names(version)
+    path = subs.default_file(version)
+    mine = subs.read_file(path, len(game)) if path.exists() else {}
+    return {"file": str(path), "exists": path.exists(), "version": version, "label": versions.label(version),
             "fields": [{"key": f.key, "kind": f.kind.__name__, "low": f.low, "high": f.high, "help": f.help,
                         "advanced": f.advanced, "short": subs.SHORT.get(f.key, f.key)} for f in subs.FIELDS],
             "subs": [{"n": n, "name": names[n], "game": game[n], "mine": {**game[n], **mine.get(n, {})}}
-                     for n in range(1, subs.SUBS + 1)]}
+                     for n in sorted(game)]}
 
 
 def subs_write(update) -> dict:
-    game = subs.game_values()
-    path = subs.default_file()
-    current = subs.read_file(path) if path.exists() else {}
+    version = azahar.game_version()
+    game = subs.game_values(version)
+    path = subs.default_file(version)
+    current = subs.read_file(path, len(game)) if path.exists() else {}
     values = {n: {**game[n], **current.get(n, {})} for n in game}
     update(values, game)
-    subs.write_file(path, values, subs.names())
+    subs.write_file(path, values, subs.names(version))
     return subs_state()
 
 
@@ -906,14 +909,14 @@ class LauncherServer(ThreadingHTTPServer):
             what = set(body.get("what") or [])
             colours = save.default_pattern_colours()
 
-            def change(data: save.SaveData) -> str:
+            def change(data: save.SaveData, version: str) -> str:
                 done = []
                 if "subs" in what:
-                    done.append(f"{data.unlock_subs()} sous-marin(s)")
+                    done.append(f"{data.unlock_subs(version)} sous-marin(s)")
                 if "patterns" in what:
                     done.append(f"{data.unlock_patterns(colours)} motif(s)")
                 if "crew" in what:
-                    done.append(f"{data.unlock_crew()} membre(s) d'équipage")
+                    done.append(f"{data.unlock_crew(version)} membre(s) d'équipage")
                 if "gold" in what:
                     done.append(f"{data.award_medals(save.MEDAL_GOLD)} médaille(s) d'or")
                 elif "missions" in what:
@@ -921,18 +924,18 @@ class LauncherServer(ThreadingHTTPServer):
                 return "Débloqué : " + (", ".join(done) or "rien")
             return edit_save(save_file(body), change)
         if key == "POST save/premium-off":
-            return edit_save(save_file(body), lambda data: "Drapeau premium retiré" if data.premium_off()
+            return edit_save(save_file(body), lambda data, version: "Drapeau premium retiré" if data.premium_off()
                              else "Pas de drapeau premium : rien à changer")
         if key == "POST save/set":
             name, value = str(body.get("name", "")), save.parse_value(str(body.get("value", "")))
-            return edit_save(save_file(body), lambda data: (data.set(name, value), f"{name} modifié")[1])
+            return edit_save(save_file(body), lambda data, version: (data.set(name, value), f"{name} modifié")[1])
         if key == "GET save/export":
             data = save.SaveData.parse(save_file(query).read_bytes())
             return {"version": data.version, "ints": data.ints, "arrays": data.arrays}
         if key == "POST save/import":
             raw = body.get("data") or {}
 
-            def replace(data: save.SaveData) -> str:
+            def replace(data: save.SaveData, version: str) -> str:
                 data.ints.clear()
                 data.arrays.clear()
                 data.version = int(raw.get("version", save.VERSION))
@@ -946,7 +949,7 @@ class LauncherServer(ThreadingHTTPServer):
             return subs_state()
         if key == "POST subs/set":
             n = int(body.get("n", 0))
-            if not 1 <= n <= subs.SUBS:
+            if not 1 <= n <= subs.count(azahar.game_version()):
                 raise UserError("sous-marin inconnu")
 
             def update(values, game):

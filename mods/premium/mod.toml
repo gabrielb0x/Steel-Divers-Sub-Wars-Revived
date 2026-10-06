@@ -1,4 +1,4 @@
-# Mod « premium » : la version complète du jeu et ses 23 sous-marins, sans l'eShop.
+# Mod « premium » : la version complète du jeu et tous ses sous-marins, sans l'eShop.
 #
 #   tools/mod.py build premium --install
 #   tools/mod.py build en-ligne premium --set server=... --install     # avec le jeu en ligne
@@ -13,15 +13,22 @@
 # le contenu 91 (la version complète), checkCondition(n) le contenu n (1 à 5 : les sous-marins 19 à 23). Les
 # scripts appellent ces deux fonctions par les natives sysDLCCheckPaidForFullVer et sysDLCCheckCondition.
 #
+# La mise à jour v5200 vend davantage : 10 sous-marins de plus (27 à 36, contenus 6 à 15, leur proue aussi
+# dans le contenu additionnel) et un « remodelage » de chaque sous-marin (save.sub.typeN.expanded, contenu
+# N + 30). updateCondition y tient un second bitmap, « possédé » (lu par la nouvelle native sysDLCCheckOwned,
+# NsubShop 0x0030B988) ; les sous-marins se débloquent dans quatre tableaux de plus (save.sub.unlock2[36] et
+# save.p3.sub.unlock[3] pour les 39 sous-marins, save.sub.owned[36], save.p3.sub.owned[3]) et l'équipage des
+# sous-marins 37 à 39 dans save.p3.sub.crew.unlock[8]. Le mod y fait tout acheter et tout posséder.
+#
 # Options :
 #   debloquer  (oui) : débloque aussi tous les sous-marins, motifs et membres d'équipage dans la sauvegarde,
 #                      comme si on les avait gagnés en mission (ça reste après avoir retiré le mod)
 #   dlc        (non) : « oui » seulement si vous avez installé dans Azahar votre propre DLC (acheté avant la
-#                      fermeture de l'eShop) : les sous-marins historiques gardent alors leurs vrais modèles
+#                      fermeture de l'eShop) : les sous-marins vendus à part gardent alors leurs vrais modèles
 
 name = "Premium"
-description = "Version complète (premium) et les 23 sous-marins débloqués, sans l'eShop"
-versions = ["v0"]
+description = "Version complète (premium) et tous les sous-marins débloqués, sans l'eShop"
+versions = ["v0", "v5200"]
 token_flags = ["premium"]                 # dit au serveur en ligne ; ce n'est pas de la triche
 
 [params.debloquer]
@@ -29,14 +36,18 @@ help = "débloquer aussi tous les sous-marins, motifs et membres d'équipage (ou
 default = "oui"
 
 [params.dlc]
-help = "oui si votre propre DLC est installé dans Azahar : modèles d'origine des sous-marins 19 à 23 (oui/non)"
+help = "oui si votre propre DLC est installé dans Azahar : modèles d'origine des sous-marins vendus à part (oui/non)"
 default = "non"
 
-# -- NsubShop::checkPaidForFullVer (16 octets) : la version complète est achetée ---------------------
-# Appelée par la native sysDLCCheckPaidForFullVer, qui la précède et y tombe directement (0x002F1EE4).
+[symbols]
+SetGlobalArray = { v0 = 0x001DA344, v5200 = 0x001E9E78 }   # amxSysSetGlobalArray(name, cells, count)
+
+# -- NsubShop::checkPaidForFullVer : la version complète est achetée ----------------------------------
+# Appelée par la native sysDLCCheckPaidForFullVer, qui la précède et y tombe directement (0x002F1EE4, v5200
+# 0x0030D05C).
 [[code]]
-address = 0x002F1EF4
-expect = "a80f90e5020310e2"
+address = { v0 = 0x002F1EF4, v5200 = 0x0030D06C }
+expect = { v0 = "a80f90e5020310e2", v5200 = "0b0b80e26e0f80e2" }
 max_size = 16
 arm = """
     mov r0, #1
@@ -44,9 +55,9 @@ arm = """
 """
 
 # -- NsubShop::checkCondition(index) (44 octets) : chaque contenu additionnel est acheté ---------------
-# Précédée de la native sysDLCCheckCondition (0x0013A054), qui y tombe aussi.
+# Précédée de la native sysDLCCheckCondition (0x0013A054, v5200 0x0013A964), qui y tombe aussi.
 [[code]]
-address = 0x0013A06C
+address = { v0 = 0x0013A06C, v5200 = 0x0013A97C }
 expect = "10402de90040a0e1"
 max_size = 44
 arm = """
@@ -54,20 +65,33 @@ arm = """
     bx lr
 """
 
-# -- NsubShop::updateCondition (392 octets) -> tout débloquer ----------------------------------------
-# Le bitmap des achats qu'elle remplissait ne sert plus (les deux fonctions ci-dessus ne le lisent plus).
+# -- v5200 : la fonction de NsubShop que lit sysDLCCheckOwned (48 octets) : chaque contenu est possédé ---
+[[code]]
+versions = ["v5200"]
+address = 0x0030B988
+expect = "10402de90040a0e1"
+max_size = 48
+arm = """
+    mov r0, #1
+    bx lr
+"""
+
+# -- NsubShop::updateCondition -> tout débloquer -----------------------------------------------------
+# Le bitmap des achats qu'elle remplissait ne sert plus (les fonctions ci-dessus ne le lisent plus).
 # Les scripts l'appellent au titre, au démarrage (juste après le chargement de la sauvegarde) et avant le
 # salon et le hangar : on y met à 1 les tableaux de déblocage de la sauvegarde, qui sont des globales des
 # scripts (amxSysSetGlobalArray, comme la native sysSetGlobalArray) :
 #   save.sub.unlock[23]          sous-marins (récompenses des médailles d'or et des missions)
 #   save.sub.pattern.unlock[32]  motifs (« decal »)
 #   save.sub.crew.unlock[32]     membres d'équipage
+# et dans la v5200 aussi save.sub.unlock2[36], save.p3.sub.unlock[3], save.sub.owned[36],
+# save.p3.sub.owned[3] et save.p3.sub.crew.unlock[8] (392 octets en v0, 536 en v5200).
 [[code]]
 if = "${debloquer}"
-address = 0x0013A098
-expect = "f0472de90040a0e3"
-max_size = 392
-arm = """
+address = { v0 = 0x0013A098, v5200 = 0x0013A9B0 }
+expect = { v0 = "f0472de90040a0e3", v5200 = "f04f2de9022a80e2" }
+max_size = { v0 = 392, v5200 = 536 }
+arm.v0 = """
     push {r4, lr}
     sub sp, sp, #0x80
     mov r0, #1
@@ -80,15 +104,15 @@ fill:
     adr r0, subs
     mov r1, sp
     mov r2, #23
-    bl 0x001DA344
+    bl ${SetGlobalArray}
     adr r0, patterns
     mov r1, sp
     mov r2, #32
-    bl 0x001DA344
+    bl ${SetGlobalArray}
     adr r0, crew
     mov r1, sp
     mov r2, #32
-    bl 0x001DA344
+    bl ${SetGlobalArray}
     add sp, sp, #0x80
     mov r0, #1
     pop {r4, pc}
@@ -99,12 +123,54 @@ patterns:
 crew:
     .asciz "save.sub.crew.unlock"
 """
+arm.v5200 = """
+    push {r4, r5, r6, lr}
+    sub sp, sp, #0x90
+    mov r0, #1
+    mov r1, #0
+fill:
+    str r0, [sp, r1, lsl #2]
+    add r1, r1, #1
+    cmp r1, #36
+    blt fill
+    adr r4, arrays                      @ (name, count) pairs, then 0
+next:
+    ldr r0, [r4], #4
+    cmp r0, #0
+    beq done
+    ldr r2, [r4], #4
+    mov r1, sp
+    bl ${SetGlobalArray}
+    b next
+done:
+    add sp, sp, #0x90
+    mov r0, #1
+    pop {r4, r5, r6, pc}
+arrays:
+    .word subs, 23, subs2, 36, p3subs, 3, owned, 36, p3owned, 3, patterns, 32, crew, 32, p3crew, 8, 0
+subs:
+    .asciz "save.sub.unlock"
+subs2:
+    .asciz "save.sub.unlock2"
+p3subs:
+    .asciz "save.p3.sub.unlock"
+owned:
+    .asciz "save.sub.owned"
+p3owned:
+    .asciz "save.p3.sub.owned"
+patterns:
+    .asciz "save.sub.pattern.unlock"
+crew:
+    .asciz "save.sub.crew.unlock"
+p3crew:
+    .asciz "save.p3.sub.crew.unlock"
+"""
 
-# -- Sous-marins historiques (19 à 23) sans le DLC ---------------------------------------------------
-# Leur coque (n2ply_x00N, « modelship ») est dans le jeu de base : c'est elle que les autres joueurs voient
-# en ligne et que montre le hangar. Seule leur proue, le modèle détaillé vu par son propre pilote
-# (model_mutable_dlc = n2ply_x00N_prow), était dans le DLC, chargée depuis l'archive « content: » montée par
-# <mount_dlc_arc content_index="n"/> (Actor::readProperties). Sans le DLC, le pilote voit donc la coque.
+# -- Sous-marins vendus à part (19 à 23 ; v5200 : aussi 27 à 36) sans le DLC ---------------------------
+# Leur coque (n2ply_x00N, « modelship ») est dans le jeu de base (ou dans la mise à jour) : c'est elle que les
+# autres joueurs voient en ligne et que montre le hangar. Seule leur proue, le modèle détaillé vu par son propre
+# pilote (model_mutable_dlc = n2ply_x00N_prow), était dans le DLC, chargée depuis l'archive « content: » montée
+# par <mount_dlc_arc content_index="n"/> (Actor::readProperties). Sans le DLC, le pilote voit donc la coque.
 [[bxml]]
 unless = "${dlc}"
 file = "bxml/pscope_ply19.bxml"           # Type VII, contenu 1
@@ -147,16 +213,109 @@ file = "bxml/pscope_ply19.bxml"
 select = "mount_dlc_arc"
 remove = true
 
+[[bxml]]
+versions = ["v5200"]
+unless = "${dlc}"
+file = "bxml/pscope_ply27.bxml"           # contenu 6
+rename = { model_mutable_dlc = "model_mutable" }
+set = { model_mutable = "n2ply_x006" }
+
+[[bxml]]
+versions = ["v5200"]
+unless = "${dlc}"
+file = "bxml/pscope_ply28.bxml"           # contenu 7
+rename = { model_mutable_dlc = "model_mutable" }
+set = { model_mutable = "n2ply_x007" }
+
+[[bxml]]
+versions = ["v5200"]
+unless = "${dlc}"
+file = "bxml/pscope_ply29.bxml"           # contenu 8
+rename = { model_mutable_dlc = "model_mutable" }
+set = { model_mutable = "n2ply_x008" }
+
+[[bxml]]
+versions = ["v5200"]
+unless = "${dlc}"
+file = "bxml/pscope_ply30.bxml"           # contenu 9
+rename = { model_mutable_dlc = "model_mutable" }
+set = { model_mutable = "n2ply_x009" }
+
+[[bxml]]
+versions = ["v5200"]
+unless = "${dlc}"
+file = "bxml/pscope_ply31.bxml"           # contenu 10
+rename = { model_mutable_dlc = "model_mutable" }
+set = { model_mutable = "n2ply_x010" }
+
+[[bxml]]
+versions = ["v5200"]
+unless = "${dlc}"
+file = "bxml/pscope_ply32.bxml"           # contenu 11
+rename = { model_mutable_dlc = "model_mutable" }
+set = { model_mutable = "n2ply_x011" }
+
+[[bxml]]
+versions = ["v5200"]
+unless = "${dlc}"
+file = "bxml/pscope_ply33.bxml"           # contenu 12
+rename = { model_mutable_dlc = "model_mutable" }
+set = { model_mutable = "n2ply_x012" }
+
+[[bxml]]
+versions = ["v5200"]
+unless = "${dlc}"
+file = "bxml/pscope_ply34.bxml"           # contenu 13
+rename = { model_mutable_dlc = "model_mutable" }
+set = { model_mutable = "n2ply_x013" }
+
+[[bxml]]
+versions = ["v5200"]
+unless = "${dlc}"
+file = "bxml/pscope_ply35.bxml"           # contenu 14
+rename = { model_mutable_dlc = "model_mutable" }
+set = { model_mutable = "n2ply_x014" }
+
+[[bxml]]
+versions = ["v5200"]
+unless = "${dlc}"
+file = "bxml/pscope_ply36.bxml"           # contenu 15
+rename = { model_mutable_dlc = "model_mutable" }
+set = { model_mutable = "n2ply_x015" }
+
+[[bxml]]
+versions = ["v5200"]
+unless = "${dlc}"
+files = "bxml/pscope_ply2[7-9].bxml"
+select = "mount_dlc_arc"
+remove = true
+
+[[bxml]]
+versions = ["v5200"]
+unless = "${dlc}"
+files = "bxml/pscope_ply3[0-6].bxml"
+select = "mount_dlc_arc"
+remove = true
+
 # -- Bouton « Boutique » du menu : l'eShop est fermé -------------------------------------------------
 # En version complète, il ouvre mode_shop, qui attend l'eShop dans des boucles sans fin (connexion func_9910,
 # sysDLCWaitThread). Il ne servait qu'à acheter les sous-marins historiques : il recharge désormais le menu
-# (sysSetMode("mode_shop") devient sysSetMode("mode_select")).
+# (sysSetMode("mode_shop") devient sysSetMode("mode_select")). La v5200 propose aussi la boutique dans une
+# invitation (« boutique d'essai », gIsTrialShopPrompt de dialog.inc) : elle mène au menu de même.
 [[amx]]
 file = "amx/mode_select.amx"
-address = 0xAEBC                          # push.c 'mode_shop', argument de sysSetMode
+address = { v0 = 0xAEBC, v5200 = 0xB150 }   # push.c 'mode_shop', argument de sysSetMode
 operand = 0
-expect = 0xA578
-value = 0xA50C                            # 'mode_select'
+expect = { v0 = 0xA578, v5200 = 0xB5CC }
+value = { v0 = 0xA50C, v5200 = 0xB4D4 }     # 'mode_select'
+
+[[amx]]
+versions = ["v5200"]
+file = "amx/mode_select.amx"
+address = 0x5DA4                          # push.c 'mode_shop' de l'invitation à la boutique
+operand = 0
+expect = 0x4F24
+value = 0xB4D4                            # 'mode_select'
 
 # -- Le drapeau « premium » de la sauvegarde n'est plus écrit ----------------------------------------
 # Au titre, la première fois que la version complète est là, le jeu écrit save.sub.enlist = 1 (func_5e50).
@@ -167,6 +326,6 @@ value = 0xA50C                            # 'mode_select'
 # tools/save.py premium-off.
 [[amx]]
 file = "amx/mode_title.amx"
-at = 0x36C0                               # sysSetGlobal("save.sub.enlist", 1) de func_5e50
+at = { v0 = 0x36C0, v5200 = 0x3C74 }     # sysSetGlobal("save.sub.enlist", 1) de func_5e50 (v5200 : func_6864)
 string = "save.sub.enlist"
 replace = "mode.sub.enlist"

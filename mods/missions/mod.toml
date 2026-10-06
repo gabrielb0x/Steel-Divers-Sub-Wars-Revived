@@ -16,21 +16,24 @@
 # Les médailles affichées, elles, restent celles de la sauvegarde.
 #
 # Aucun effet en ligne : le menu des missions n'est que local.
+#
+# Mise à jour v5200 : le script est recompilé (adresses différentes), avec la même logique et les mêmes seuils
+# des 7 zones ; ces deux fonctions se retrouvent instruction pour instruction.
 
 name = "Toutes les missions"
 description = "Les 21 missions du mode solo jouables tout de suite, sans toucher à la sauvegarde"
-versions = ["v0"]
+versions = ["v0", "v5200"]
 
 [[amx]]
 file = "amx/mode_mission_select.amx"
-address = 0x6A50                          # jsgeq L_6a64 : « if (0 < médaille) terminées++ »
+address = { v0 = 0x6A50, v5200 = 0x7314 }   # jsgeq L_6a64 : « if (0 < médaille) terminées++ »
 operand = 0
 expect = 0x14                             # saut relatif vers 0x6A64 (pas de médaille : non comptée)
 value = 8                                 # vers l'instruction suivante : toujours comptée
 
 [[amx]]
 file = "amx/mode_mission_select.amx"
-address = 0x76A0                          # const.alt 1 de « g_7de8 <= 1 » (deux zones en version gratuite)
+address = { v0 = 0x76A0, v5200 = 0x7FA8 }   # const.alt 1 de « g_7de8 <= 1 » (deux zones en version gratuite)
 operand = 0
 expect = 1
 value = 6                                 # les 7 zones du menu (0 à 6)

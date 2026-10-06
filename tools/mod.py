@@ -77,7 +77,11 @@ Every recipe also gets ${sdsw_version}, the version of Sub Wars Open Sourced (VE
 git commits).
 
 Any entry may have if = "${param}": it is applied only when the parameter is yes (oui, 1, true...),
-or unless = "${param}": only when it is no.
+or unless = "${param}": only when it is no, or versions = ["v5200"]: only for these versions of the game.
+
+Versions of the game (tools/versions.py): versions = ["v0", "v5200"] at the top of a recipe that patches by
+address; any value may be a version table, { v0 = ..., v5200 = ... }; [symbols] gives addresses by name,
+${name} in the code (and address = "${name}").
 
 Usage:  tools/mod.py build <name> [<name>...] [--set key=value ...] [--install] [--cxi] [--no-fixes]
         tools/mod.py list
@@ -205,6 +209,8 @@ NO = {"0", "non", "n", "no", "false", "faux", "off"}
 
 
 def enabled(entry: dict, params: dict[str, str]) -> bool:
+    if "versions" in entry and GAME.version not in entry["versions"]:      # an entry of some versions only
+        return False
     for key, wanted in (("if", True), ("unless", False)):
         if key in entry:
             value = fill(entry[key], params).strip().lower()
@@ -538,7 +544,9 @@ def recipe_params(mods: list[dict], overrides: dict[str, str]) -> dict[str, str]
     params["sdsw_version"] = project_version()
     for mod in mods:                                   # [symbols]: addresses of the version being built
         for key, value in mod.get("symbols", {}).items():
-            text = f"{value:#010x}" if isinstance(value, int) else str(value)
+            if not isinstance(value, int) or isinstance(value, bool):
+                raise ModError(f"[symbols] {key} = {value!r}: an address is expected")
+            text = f"{value:#010x}"
             if params.get(key, text) != text:
                 raise ModError(f"symbol {key} is declared differently by two of these mods")
             params[key] = text
@@ -678,7 +686,7 @@ def build(names: list[str], out_root: Path, overrides: dict[str, str] | None = N
             if enabled(entry, params):
                 import subs
                 try:
-                    edits = subs.changes(fill(entry["file"], params))
+                    edits = subs.changes(fill(entry["file"], params), GAME.version)
                 except subs.SubsError as e:
                     raise ModError(str(e)) from e
                 for file, values in edits.items():

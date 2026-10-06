@@ -181,6 +181,8 @@ class Assembler(unittest.TestCase):
                 values.update({k: f"{v:#010x}" if isinstance(v, int) else v
                                for k, v in resolved.get("symbols", {}).items()})
                 for entry in resolved.get("code", []):
+                    if version not in entry.get("versions", [version]):
+                        continue
                     address = mod.entry_address(entry, values)
                     if "arm" in entry:
                         with self.subTest(recipe=recipe.parent.name, version=version, address=hex(address)):
@@ -225,6 +227,23 @@ class Save(unittest.TestCase):
         save.set("save.sub.enlist", 1)
         self.assertTrue(save.premium_off())
         self.assertEqual(SaveData.parse(save.to_bytes()).ints["save.sub.enlist"], 0)
+
+    def test_unlocks_of_the_update(self):
+        """v5200 keeps save.sub.unlock[23] and holds its 39 submarines in save.sub.unlock2[36] and
+        save.p3.sub.unlock[3], and more crew in save.p3.sub.crew.unlock[8]."""
+        import save
+        data = SaveData.parse(self.sample())
+        self.assertEqual(len(data.unlocked_subs("v5200")), 39)
+        self.assertEqual(data.unlock_subs("v5200"), 38)
+        self.assertEqual([len(data.arrays[n]) for n in ("save.sub.unlock", "save.sub.unlock2", "save.p3.sub.unlock")],
+                         [23, 36, 3])
+        self.assertTrue(all(data.unlocked_subs("v5200")))
+        self.assertEqual(data.unlock_crew("v5200"), 40)
+        self.assertEqual(data.crew_unlocked("v5200"), (40, 40))
+        self.assertEqual(save.sub_count("v5200"), 39)
+        texts = {"sub_icon_name00": "Garfish", "sub_icon_name01": "\\x0e(70)Garfish\\x0e(142.85714285714286)"}
+        self.assertEqual(save.sub_name(texts, 0), "Garfish")
+        self.assertEqual(save.sub_name(texts, 0, "v5200"), "Garfish")       # numbered from 1, width codes removed
 
     def test_values(self):
         self.assertEqual(parse_value("0x10"), 16)
@@ -548,8 +567,14 @@ class Recipes(unittest.TestCase):
             with self.subTest(recipe=recipe.parent.name):
                 if any(data.get(kind) for kind in ("code", "amx", "shader")):
                     self.assertTrue(mod.recipe_versions(data), "versions = [...] missing")
+                for kind in ("code", "amx", "shader", "bxml", "text", "layout", "subs"):
+                    for entry in data.get(kind, []):
+                        self.assertLessEqual(set(entry.get("versions", [])), set(mod.recipe_versions(data) or []),
+                                             f"[[{kind}]] versions not among the recipe's")
                 for version in mod.recipe_versions(data) or []:
-                    mod.for_version(data, version, recipe.parent.name)        # no value missing
+                    resolved = mod.for_version(data, version, recipe.parent.name)     # no value missing
+                    for key, value in resolved.get("symbols", {}).items():
+                        self.assertIs(type(value), int, f"[symbols] {key}")         # not a key of the recipe
 
     def test_build_for_a_version(self):
         """A mod that does not support the version is refused; a fix that does not is left aside."""
@@ -582,7 +607,7 @@ class Recipes(unittest.TestCase):
                                  ["fix", "any"])
 
     def test_fixes_always_included(self):
-        self.assertIn("correctifs", mod.fixes())
+        self.assertEqual(mod.fixes(), ["correctifs", "pseudo", "version"])
         recipe = tomllib.loads((TOOLS.parent / "mods" / "correctifs" / "mod.toml").read_text(encoding="utf-8"))
         self.assertEqual({e["instruction"] for e in recipe["shader"]}, {0x061, 0x084})
 

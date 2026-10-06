@@ -82,6 +82,12 @@ def azahar_dirs() -> list[Path]:
     return [path for _, path in emulator_dirs()]
 
 
+def game_version() -> str:
+    """The version of the game the player runs: that of the first emulator found (its update installed or not)."""
+    found = azahar_dirs()
+    return versions.emulator_version(found[0]) if found else versions.BASE
+
+
 def config_dir() -> Path:
     """Folder of this project's settings on the player's computer (identities, save backups)."""
     if os.name == "nt" and os.environ.get("APPDATA"):
