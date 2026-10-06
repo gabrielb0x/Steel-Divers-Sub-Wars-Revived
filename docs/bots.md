@@ -91,7 +91,14 @@ vitesse de pointe, axe de chaque tir.
   ne le fait pas pour un bot coulé par une explosion (`@explosionHitOnNpc`), et retrouve l'équipe du bot par son
   numéro de synchronisation. La bataille pouvait donc ne jamais finir. C'est maintenant le pilote du bot qui
   annonce sa mort, une fois, avec son équipe : toutes les consoles l'entendent (`@botDown`,
-  [`bots_partie.pasm`](../mods/en-ligne/bots_partie.pasm)) et retirent le bot du compteur de son équipe.
+  [`bots_partie.p`](../mods/en-ligne/src/bots_partie.p)) et retirent le bot du compteur de son équipe.
+- **Le replay de la victoire** : le jeu montre en fin de bataille la course de la torpille qui a coulé le
+  dernier sous-marin de l'équipe perdante. Il l'apprend de la mort d'un joueur
+  (`@scheduleCheckGameOver(nœud, heure, nœud et numéro de la torpille)`) et trouve l'équipe du mort par
+  `player.<nœud>.team`. La mort d'un bot n'avait ni torpille ni nœud : quand un bot était le dernier coulé, donc
+  quand les joueurs gagnaient, il n'y avait pas de replay. Désormais, chaque torpille qui touche un bot le dit à
+  toutes les consoles (`@botHitBy`). La mort du bot est inscrite comme celle d'un joueur, avec cette torpille et
+  un nœud de son équipe (`0x7b070000` + équipe).
 
 Le niveau du serveur (`bots_level`, `server.bots.level`) règle les réflexes et la précision, jamais ce que le
 sous-marin peut faire. Toutes les valeurs sont dans `bots_ia.p` :

@@ -659,10 +659,20 @@ bots_ia_l27:
     push.c 0x47e4
     sysreq.n sysGetGlobal, 1
     jzer @bots_ia_l28
+    push.c 0x0
+    sysreq.n actorGetSyncID, 1
+    heap 0x4
+    stor.i
+    push.alt
+    sysreq.n netGetNodeId, 0
+    heap 0x4
+    stor.i
+    push.alt
     push.c 0x4588
     push.c 0x4814
     push.c 0x2b16
-    sysreq.n netCallPublic, 3
+    sysreq.n netCallPublic, 5
+    heap -8
 bots_ia_l28:
 bots_ia_l25:
     zero.pri

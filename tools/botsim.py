@@ -270,6 +270,13 @@ class Amx:
             elif n == "CALL":
                 self.push(nxt)
                 nxt = cip + a[0]
+            elif n == "SWITCH":                           # the case table that follows (CASETBL)
+                table = insns[cip + a[0]]
+                nxt = table.cases[0][1]
+                for value, target in table.cases[1:]:
+                    if pri == value:
+                        nxt = target
+                        break
             elif i.op in BRANCHES:
                 target = cip + a[0]
                 take = {"JUMP": True, "JZER": pri == 0, "JNZ": pri != 0, "JEQ": pri == alt,

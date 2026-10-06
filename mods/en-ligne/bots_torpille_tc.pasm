@@ -12,7 +12,9 @@
 .cells $pawn_data6 0x74, 0x4f, 0x6e, 0x4e, 0x70, 0x63, 0x54, 0x6f, 0x4f, 0x77, 0x6e, 0x65, 0x72, 0x0, 0x6e, 0x6f
 .cells $pawn_data7 0x64, 0x65, 0x69, 0x64, 0x0, 0x40, 0x65, 0x76, 0x65, 0x6e, 0x74, 0x4d, 0x65, 0x73, 0x73, 0x61
 .cells $pawn_data8 0x67, 0x65, 0x57, 0x65, 0x61, 0x70, 0x6f, 0x6e, 0x48, 0x69, 0x74, 0x54, 0x6f, 0x72, 0x70, 0x0
-.cells $pawn_data9 0x62, 0x6f, 0x74, 0x73, 0x68, 0x6f, 0x74, 0x0
+.cells $pawn_data9 0x6e, 0x70, 0x63, 0x0, 0x73, 0x65, 0x72, 0x76, 0x65, 0x72, 0x2e, 0x62, 0x6f, 0x74, 0x73, 0x0
+.cells $pawn_data10 0x40, 0x62, 0x6f, 0x74, 0x48, 0x69, 0x74, 0x42, 0x79, 0x0, 0x62, 0x6f, 0x74, 0x73, 0x68, 0x6f
+.cells $pawn_data11 0x74, 0x0
 
 ; ---- hand-written: hooks into the game's code ----
 ; @eventCollide(other, point): ours first.
@@ -230,17 +232,26 @@ bots_torpille_tc_l24:
 bots_torpille_tc_l25:
     stack 0x20
     retn
-pw_botTorpedoCollide:
+pw_noteBotHit:
     proc
+    stack -4
+    push.s 0xc
+    sysreq.n actorGetCollisionType, 1
+    stor.s.pri -4
     push.c 0x0
-    push.c 0x0
-    push.adr -4
+    push.s 0xc
+    push.adr -8
     push.c 0x32dc
     sysreq.n actorGetPropInt, 3
-    load.s.pri -4
+    load.s.pri -8
     jzer @bots_torpille_tc_l27
-    load.pri 0x1418
-    jnz @bots_torpille_tc_l27
+    load.s.pri -4
+    const.alt 0x80004
+    and
+    jzer @bots_torpille_tc_l27
+    push.c 0x32ec
+    sysreq.n sysGetGlobal, 1
+    jzer @bots_torpille_tc_l27
     zero.pri
     jump @bots_torpille_tc_l28
 bots_torpille_tc_l27:
@@ -248,15 +259,66 @@ bots_torpille_tc_l27:
 bots_torpille_tc_l28:
     jzer @bots_torpille_tc_l26
     zero.pri
-    stack 0x4
+    stack 0x8
     retn
 bots_torpille_tc_l26:
-    load.pri 0x141c
+    push.c 0x0
+    sysreq.n actorGetSyncID, 1
+    heap 0x4
+    stor.i
+    push.alt
+    sysreq.n netGetNodeId, 0
+    heap 0x4
+    stor.i
+    push.alt
+    push.s 0xc
+    sysreq.n actorGetSyncID, 1
+    heap 0x4
+    stor.i
+    push.alt
+    push.s 0xc
+    sysreq.n actorGetSyncController, 1
+    heap 0x4
+    stor.i
+    push.alt
+    push.c 0x331c
+    push.c 0x2b16
+    sysreq.n netCallPublic, 6
+    heap -16
+    stack 0x8
+    zero.pri
+    retn
+pw_botTorpedoCollide:
+    proc
+    push.c 0x0
+    push.c 0x0
+    push.adr -4
+    push.c 0x3344
+    sysreq.n actorGetPropInt, 3
+    load.pri 0x1418
     jzer @bots_torpille_tc_l29
-    const.pri 0x1
+    zero.pri
     stack 0x4
     retn
 bots_torpille_tc_l29:
+    load.s.pri -4
+    jnz @bots_torpille_tc_l30
+    load.pri 0x141c
+    jnz @bots_torpille_tc_l31
+    push.s 0xc
+    push.c 0x4
+    call @pw_noteBotHit
+bots_torpille_tc_l31:
+    zero.pri
+    stack 0x4
+    retn
+bots_torpille_tc_l30:
+    load.pri 0x141c
+    jzer @bots_torpille_tc_l32
+    const.pri 0x1
+    stack 0x4
+    retn
+bots_torpille_tc_l32:
     stack -4
     push.c 0x1
     push 0x1458
@@ -268,16 +330,23 @@ bots_torpille_tc_l29:
     stor.s.pri -8
     load.s.pri -8
     eq.c.pri 0x3
-    jzer @bots_torpille_tc_l30
+    jzer @bots_torpille_tc_l33
     const.pri 0x1
     stor.pri 0x148c
-bots_torpille_tc_l30:
+bots_torpille_tc_l33:
+    load.s.pri -8
+    eq.c.pri 0x2
+    jzer @bots_torpille_tc_l34
+    push.s 0xc
+    push.c 0x4
+    call @pw_noteBotHit
+bots_torpille_tc_l34:
     load.s.pri -8
     const.alt 0x2
-    jsless @bots_torpille_tc_l31
+    jsless @bots_torpille_tc_l35
     push.c 0x0
     call 0x7f4c
-bots_torpille_tc_l31:
+bots_torpille_tc_l35:
     const.pri 0x1
     stack 0x8
     retn

@@ -16,13 +16,20 @@ public botTorpedoCollide(other, Float:point[3])
 {
     new shot = 0;
     actorGetPropInt("botshot", shot, 0);
-    if (!shot || g_13f4)
+    if (g_13f4)
         return 0;
+    if (!shot) {
+        if (!g_13f0)
+            noteBotHit(other);                          // a player's torpedo: the game's code hits
+        return 0;
+    }
     if (g_13f0)
         return 1;
     new r = botHit(other, point, g_0dc0, g_0dc0, 0);
     if (r == 3)
         g_1420 = 1;
+    if (r == 2)
+        noteBotHit(other);
     if (r >= 2)
         torpedoExplode(0);
     return 1;

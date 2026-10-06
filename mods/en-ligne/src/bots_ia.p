@@ -181,7 +181,7 @@ public botPilot()
             sunk = 1;
             actorSetPropReal("life", 0.0, 0);
             if (sysGetGlobal("server.bots"))
-                netCallPublic(UID_GAME_STATE, "@botDown", myTeam);
+                netCallPublic(UID_GAME_STATE, "@botDown", myTeam, netGetNodeId(), actorGetSyncID(0));
         }
         return 0;
     }

@@ -53,3 +53,16 @@ botHit(other, const Float:point[3], Float:toPlayer, Float:toBot, homing)
                   _:point[0], _:point[1], _:point[2], 0, 0, 1);
     return (type & COLL_PLAYER) ? 3 : 2;
 }
+
+/* A torpedo of this console (a player's or a bot's) hits a computer sub: every console notes it, for the
+ * replay of the end of the battle if that sub sinks (bots_partie.p @botHitBy). */
+noteBotHit(other)
+{
+    new type = actorGetCollisionType(other);
+    new npc = 0;
+    actorGetPropInt("npc", npc, other);
+    if (!npc || !(type & (COLL_NPC | COLL_REMOTE)) || !sysGetGlobal("server.bots"))
+        return;
+    netCallPublic(UID_GAME_STATE, "@botHitBy", actorGetSyncController(other), actorGetSyncID(other),
+                  netGetNodeId(), actorGetSyncID(0));
+}
