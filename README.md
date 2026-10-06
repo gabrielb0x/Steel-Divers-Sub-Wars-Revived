@@ -29,7 +29,7 @@ Il faut [Python 3.11 ou plus récent](https://www.python.org/downloads/) (rien d
    émulateur trouvé). Toujours inclus : les **Correctifs** (sans eux, Azahar plante quand une torpille touche un
    sous-marin sous l'eau) et le **Pseudo** (votre nom en ligne et en local est le pseudo réglé dans
    l'émulateur, plus « Citra » pour tout le monde) et la **Version** (à la fin de la ligne sous le titre,
-   « v0.1 (3566be7) » : la version du projet et son commit, pour savoir quelle construction on joue).
+   « v0.1.34 » : la version du projet et son nombre de commits, pour savoir quelle construction on joue).
 5. Onglets **Sauvegarde** (tout débloquer, médailles, drapeau premium), **Sous-marins** (caractéristiques) et
    **Serveur** (héberger des parties en ligne).
 

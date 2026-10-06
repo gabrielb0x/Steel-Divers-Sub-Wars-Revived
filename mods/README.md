@@ -114,7 +114,9 @@ Autres possibilités : `from = "bxml/x.bxml"` dans `[[bxml]]` crée un nouveau f
 `unless = "${option}"` (seulement si elle vaut `non`) ;
 `token_flags = ["triche"]` en tête de recette (annoncé au serveur en ligne dans le jeton) ; `always = true` en tête
 de recette : le mod fait partie de toutes les constructions (correctifs du jeu). Toute recette reçoit aussi
-`${sdsw_version}`, la version de Sub Wars Open Sourced (fichier `VERSION`, et le commit dans un dépôt git).
+`${sdsw_version}`, la version de Sub Wars Open Sourced (fichier `VERSION`, et le nombre de commits dans un dépôt
+git : « v0.1.34 »). `[[layout]]` (`file`, `pane`, `width`, `height`) change la taille d'un cadre d'une mise en
+page (`layouts/*.arc`) : le jeu comprime en largeur un texte plus large que son cadre.
 
 **Plusieurs mods ensemble** : `tools/mod.py build en-ligne triche …` les construit dans un seul dossier
 (`build/mods/en-ligne+triche/`), puisqu'Azahar n'en charge qu'un.
@@ -155,7 +157,7 @@ entre guillemets (gardées dans les données du script), les globales du script 
 |---|---|
 | `correctifs` | toujours inclus : corrige le plantage d'Azahar quand une torpille touche un sous-marin sous l'eau |
 | `pseudo` | toujours inclus : en ligne et en local, votre nom est le pseudo de la console (de l'émulateur), pas « Citra » |
-| `version` | toujours inclus : la version de Sub Wars Open Sourced à la fin de la ligne sous le titre (« … v0.1 (3566be7) ») |
+| `version` | toujours inclus : la version de Sub Wars Open Sourced à la fin de la ligne sous le titre (« … v0.1.34 », même police que la ligne du dessus) |
 | `premium` | version complète, les 23 sous-marins, motifs et équipage débloqués, sans l'eShop ([détails](../docs/premium.md)) |
 | `missions` | les 21 missions du mode solo jouables tout de suite, sans toucher à la sauvegarde |
 | `en-ligne` | jeu en ligne sur un serveur [Sub Wars Open Sourced](../server/README.md), avec ses bots pour un joueur seul, son anti-triche, la durée des batailles réglée par le serveur et un dialogue qui dit quel serveur est utilisé |

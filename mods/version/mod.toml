@@ -1,11 +1,18 @@
 # Mod « version » : la version de Sub Wars Open Sourced sous le titre, pour savoir quelle construction on
 # joue. Inclus dans toutes les constructions (comme les correctifs).
 #
-# La version vient du fichier VERSION à la racine du projet, suivie du commit quand le projet est un
-# dépôt git (« + » : avec des changements pas encore enregistrés) : « v0.1 (3566be7) ». Elle s'ajoute à la
+# La version vient du fichier VERSION à la racine du projet, suivie du nombre de commits quand le projet
+# est un dépôt git (« + » : avec des changements pas encore enregistrés) : « v0.1.34 ». Elle s'ajoute à la
 # fin de la seconde ligne sous le titre, sur la même ligne (texte [title_codeveloped], toujours affiché,
 # version gratuite ou premium), après ce qu'y met un autre mod (mention-titre) :
-# « Open Sourced by gabrielb0x. v0.1 (3566be7) ».
+# « Codéveloppé par VITEI INC. v0.1.34 », « Open Sourced by gabrielb0x. v0.1.34 ».
+#
+# Les deux lignes sont dans des cadres de 240 pixels (text_00 et text_01 de layouts/mode_title_u.arc). Un
+# texte plus large que le cadre moins 10 pixels n'est pas coupé : le jeu réduit la largeur de ses
+# caractères (Layout::substituteKeystrings), et la ligne n'a plus l'air écrite dans la même police que
+# l'autre. « Codéveloppé par VITEI INC. v0.1.34 » fait 320 pixels (heisei_w5_16a) : les deux cadres
+# prennent la largeur de l'écran du haut, 400 pixels (ils sont centrés, le texte aussi). Le texte
+# d'origine (256 pixels, déjà un peu comprimé) et celui de mention-titre y tiennent aussi sans être réduits.
 
 name = "Version"
 description = "La version de Sub Wars Open Sourced sur l'écran titre"
@@ -14,3 +21,13 @@ always = true
 [[text]]
 key = "title_codeveloped"
 append = " ${sdsw_version}"
+
+[[layout]]
+file = "layouts/mode_title_u.arc"
+pane = "text_00"
+width = 400.0
+
+[[layout]]
+file = "layouts/mode_title_u.arc"
+pane = "text_01"
+width = 400.0

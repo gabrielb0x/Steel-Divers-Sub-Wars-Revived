@@ -48,6 +48,12 @@ mod.toml:
   expect = 0xA441BC00               # optional: the original instruction
   value = 0x84000000                # nop
 
+  [[layout]]                        # the size of a pane of a layout (layouts/*.arc: darc of CLYT)
+  file = "layouts/mode_title_u.arc"
+  pane = "text_01"                  # its name in the layout
+  width = 400.0                     # optional: width, height (the text of a pane wider than its width
+                                    # minus 10 is squeezed by the game, Layout::substituteKeystrings)
+
   [[code]]                          # code patch, at a virtual address of code.bin
   address = 0x0010C7FC
   arm = "bx lr"                     # ARM assembly (tools/armasm.py), or: bytes = "1eff2fe1",
@@ -67,7 +73,8 @@ mod.toml:
   token_flags = ["triche"]          # optional, top level: told to the online server in the token
   always = true                     # optional, top level: part of every build (fixes of the game)
 
-Every recipe also gets ${sdsw_version}, the version of Sub Wars Open Sourced (VERSION, and the git commit).
+Every recipe also gets ${sdsw_version}, the version of Sub Wars Open Sourced (VERSION, and the number of
+git commits).
 
 Any entry may have if = "${param}": it is applied only when the parameter is yes (oui, 1, true...),
 or unless = "${param}": only when it is no.
@@ -263,6 +270,58 @@ def edit_shader(shaders: dict[str, bytearray], entry: dict) -> None:
     struct.pack_into("<I", data, offset, entry["value"])
 
 
+LAYOUT_PANES = (b"pan1", b"pic1", b"txt1", b"wnd1", b"bnd1")
+
+
+def darc_files(data: bytes) -> dict[str, tuple[int, int]]:
+    """The files of a darc archive (layouts/*.arc): name -> (offset, size)."""
+    if data[:4] != b"darc":
+        raise ValueError("not a darc archive")
+    table = struct.unpack_from("<I", data, 0x10)[0]
+    count = struct.unpack_from("<I", data, table + 8)[0]      # the root entry: number of entries
+    names = table + 12 * count
+    found = {}
+    for i in range(count):
+        name, offset, size = struct.unpack_from("<III", data, table + 12 * i)
+        if name >> 24:                                       # a folder
+            continue
+        start = names + (name & 0xFFFFFF)
+        end = start
+        while data[end:end + 2] != b"\0\0":
+            end += 2
+        found[data[start:end].decode("utf-16-le")] = (offset, size)
+    return found
+
+
+def edit_layout(binaries: dict[str, bytearray], entry: dict) -> None:
+    """[[layout]]: the size of a pane of a layout (CLYT in a darc archive), by its name."""
+    file = entry["file"]
+    if file not in binaries:
+        path = ROMFS / file
+        if not path.exists():
+            raise ModError(f"{file}: not in extracted/romfs (run make extract)")
+        binaries[file] = bytearray(path.read_bytes())
+    data = binaries[file]
+    pane = entry["pane"].encode("ascii")
+    try:
+        layouts = [(o, n) for name, (o, n) in darc_files(data).items() if name.endswith(".bclyt")]
+    except (ValueError, struct.error) as e:
+        raise ModError(f"{file}: {e}") from e
+    for start, size in layouts:
+        at = start + struct.unpack_from("<H", data, start + 6)[0]          # after the CLYT header
+        while at < start + size:
+            magic, length = data[at:at + 4], struct.unpack_from("<I", data, at + 4)[0]
+            if magic in LAYOUT_PANES and data[at + 12:at + 28].split(b"\0")[0] == pane:
+                width, height = struct.unpack_from("<2f", data, at + 0x44)
+                struct.pack_into("<2f", data, at + 0x44, float(entry.get("width", width)),
+                                 float(entry.get("height", height)))
+                return
+            if length <= 0:
+                break
+            at += length
+    raise ModError(f"{file}: no pane {entry['pane']!r}")
+
+
 def font_characters(typeface: str, cache: dict[str, set[int] | None] = {}) -> set[int] | None:
     """Characters of fonts/<typeface>.bcfnt (its CMAP sections), or None if it cannot be read."""
     if typeface not in cache:
@@ -431,17 +490,17 @@ def identity(scope: str, flags: list[str] | None = None) -> dict[str, str]:
 
 
 def project_version() -> str:
-    """The version of Sub Wars Open Sourced: VERSION, and the commit when this is a git checkout
-    ("+": with changes not committed), e.g. "v0.1 (3566be7+)"."""
+    """The version of Sub Wars Open Sourced: VERSION, then the number of commits when this is a git checkout
+    ("+": with changes not committed), e.g. "v0.1.34+": short enough for the line under the title."""
     version = "v" + (ROOT / "VERSION").read_text(encoding="utf-8").strip()
     if (ROOT / ".git").exists():
         with contextlib.suppress(OSError, subprocess.SubprocessError):
             git = ["git", "-C", str(ROOT)]
-            commit = subprocess.run(git + ["rev-parse", "--short", "HEAD"], capture_output=True, text=True,
-                                    timeout=10, check=True).stdout.strip()
+            count = subprocess.run(git + ["rev-list", "--count", "HEAD"], capture_output=True, text=True,
+                                   timeout=10, check=True).stdout.strip()
             changed = subprocess.run(git + ["status", "--porcelain", "--untracked-files=no"], capture_output=True,
                                      text=True, timeout=10, check=True).stdout.strip()
-            version += f" ({commit}{'+' if changed else ''})"
+            version += f".{count}{'+' if changed else ''}"
     return version
 
 
@@ -507,7 +566,7 @@ def build(names: list[str], out_root: Path, overrides: dict[str, str] | None = N
     files: dict[str, ET.Element] = {}
     edited: set[str] = set()                           # files of the mod (others are only read)
     scripts: dict[str, AmxImage] = {}
-    shaders: dict[str, bytearray] = {}
+    binaries: dict[str, bytearray] = {}                # shaders and layouts, edited in place
     code: list[dict] = []
     for mod, name in zip(mods, names):
         for entry in mod.get("text", []):
@@ -546,7 +605,10 @@ def build(names: list[str], out_root: Path, overrides: dict[str, str] | None = N
                 edit_amx(scripts, entry, params, MODS / name)
         for entry in mod.get("shader", []):
             if enabled(entry, params):
-                edit_shader(shaders, entry)
+                edit_shader(binaries, entry)
+        for entry in mod.get("layout", []):
+            if enabled(entry, params):
+                edit_layout(binaries, entry)
         code += [entry for entry in mod.get("code", []) if enabled(entry, params)]
     for mod in mods:                                   # after every replacement: mods add to the same line
         for entry in mod.get("text", []):
@@ -563,10 +625,10 @@ def build(names: list[str], out_root: Path, overrides: dict[str, str] | None = N
         dest = out / "romfs" / file
         dest.parent.mkdir(parents=True, exist_ok=True)
         dest.write_bytes(script.write())
-    for file, shader in shaders.items():
+    for file, data in binaries.items():
         dest = out / "romfs" / file
         dest.parent.mkdir(parents=True, exist_ok=True)
-        dest.write_bytes(bytes(shader))
+        dest.write_bytes(bytes(data))
 
     if code:
         patches = code_patches(code, params)
@@ -578,7 +640,7 @@ def build(names: list[str], out_root: Path, overrides: dict[str, str] | None = N
         dest.parent.mkdir(parents=True, exist_ok=True)
         dest.write_bytes(ips(patches))
     title = " + ".join(mod.get("name", name) for mod, name in zip(mods, names))
-    print(f"[+] {title}: {len(edited) + len(scripts) + len(shaders)} file(s), {len(code)} code patch(es) -> {out}")
+    print(f"[+] {title}: {len(edited) + len(scripts) + len(binaries)} file(s), {len(code)} code patch(es) -> {out}")
     build.params = params
     return out_root / label
 
