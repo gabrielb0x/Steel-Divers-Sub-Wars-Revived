@@ -118,6 +118,15 @@ bots_partie_l17:
     load.s.pri -580
     stack 0x244
     retn
+.public @botJoin
+pw_at_botJoin:
+    proc
+    push.s 0x10
+    push.s 0xc
+    push.c 0x8
+    call @pw_botAsPlayer
+    zero.pri
+    retn
 pw_isPlayerNode:
     proc
     load.s.pri 0xc

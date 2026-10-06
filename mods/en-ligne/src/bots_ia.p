@@ -33,6 +33,7 @@
 // @game Float:g_1e7c          roll
 // @game g_1eac                frames before the sinking sub explodes (func_ba34)
 // @game g_1f28                online battle
+// @call 0x8668 torpedoHit(Float:x, Float:y, Float:z, Float:damage, exp, isOpponentNpc, critical, sameTeam, shooter, isHoming, fromNpc)    public @torpedoHit
 // @game Float:g_3064[3]       velocity of the last frame (network sync)
 // @game Float:g_3070[3]       rotation of the last frame (network sync: torque)
 
@@ -52,7 +53,8 @@ const Float:LIN_DRAG = 0.038;        // linDrag of every pscope_plyNN_stats
 const Float:DIVE_DRAG = 0.16;        // diveDrag
 const Float:SURFACE = -70.0;         // highest point: under the waterline
 const Float:HULL = 70.0;
-const Float:NO_CLIMB = 1000.0;             // half the height of a sub, what a torpedo can miss by vertically
+const Float:NO_CLIMB = 1000.0;
+const BOT_NODE = 0x7b070000;         // the bot k is node BOT_NODE + k for the game (bots_partie.p)             // half the height of a sub, what a torpedo can miss by vertically
 
 new lvl;                             // 0: the game's own bot (offline, or not a computer sub)
 new started;
@@ -60,6 +62,10 @@ new sunk;
 new botIndex;                        // k of server.bots.*<k>, 0 for a bot of the game
 new Float:damageRate = 1.0;          // damage taken is multiplied by it, as a player's (table_damage_rate)
 new maskerUses;
+new hitWindow = 60;                  // frames without damage after a hit (and at the start), as a player
+new collisionHit;
+new bumpDamage;
+new collideTime;
 new frame;
 new me;                              // actor id
 new myTeam;
@@ -134,6 +140,8 @@ new goalValid;
 new mates[8];
 new mateCount;
 new hurtTime;
+new revealed = -1;                   // a masked enemy seen when it was hit
+new revealedAt = -1000;
 new lostAt = -10000;                 // when its target vanished under its masker
 new Float:lostPos[3];
 new Float:lostVel[3];
@@ -193,6 +201,9 @@ public botPilot()
     if (!started)
         start();
     frame++;
+    collisionDamage();
+    if (!g_1c90 || g_1c68 <= 0.01)
+        return 0;
     actorSetPropReal("life", g_1c68, 0);               // seen by the others (synced), and by bots_partie
     timers();
     if (frame % SEE_EVERY[lvl] == me % SEE_EVERY[lvl])
@@ -246,6 +257,7 @@ public @eventCollide(other, Float:point[3], Float:normal[3])
     if (!(type & (COLL_MAP | COLL_SUB | COLL_REMOTE)))
         return 0;
     floatvecaddscale(push, normal, 5.0);
+    bumpDamage = 1;
     bump = normal;
     bumpTime = 12;
     if (type & COLL_MAP)
@@ -276,6 +288,12 @@ start()
     lifeBefore = g_1c68;
     actorSetPropReal("life", g_1c68, 0);
     actorSetPropReal("lifecapacity", lifeMax, 0);      // the spectators' life meter (hud.p @setTelecastPlayer)
+    if (sysGetGlobal("server.bots") && botIndex) {
+        // a node of its own, as a player (world_map.p names the sub a spectator follows by it): every console
+        // learns its name and team (bots_partie.p @botJoin)
+        actorSetPropInt("nodeid", BOT_NODE + botIndex, 0);
+        netCallPublic(UID_GAME_STATE, "@botJoin", botIndex, myTeam);
+    }
     torpedoes = torpedoMax;
     homing = HOMING[lvl];
     yawWant = g_1cc8;
@@ -297,20 +315,70 @@ teamSize(team)
     return max(players, sysGetGlobal(team == playersTeam ? "server.bots.mine" : "server.bots.other"));
 }
 
-/* @torpedoHit (and @explosionHitOnNpc) of a bot of the server: as a player is hit (pscope_player.p
- * @eventDamageTorp): the damage times its damageRate, rounded up; no message of the game's computer subs
- * ("L'ennemi a été coulé !", bots_partie.p says what players are told); and a bot's shot shows no hit on
- * this console's HUD (func_7b8c shows it when the shooter's node is this console's). */
-forward botHitArgs(&Float:damage, &shooter, &fromNpc);
-public botHitArgs(&Float:damage, &shooter, &fromNpc)
+/* A bot of the server is hit as a player is (pscope_player.p @eventDamageTorp, @eventMessageExplosionHit):
+ *  - a torpedo does a player's damage: the same as a player's torpedo to a player, 30 for a homing one
+ *    (damageToPlayer of bxml/surface_torpedo_p_homing; the game gives a computer sub damageToNpc, 70);
+ *  - an explosion does a player's 5 (damageToPlayer of bxml/explosion_damage; a computer sub took 30) within 750
+ *    (a computer sub: within 300);
+ *  - 60 frames after a hit (and after the start), torpedoes and explosions do nothing (g_c8c0);
+ *  - the damage is times the damageRate of its submarine, rounded up;
+ *  - no message of the game's computer subs ("L'ennemi a été coulé !": bots_partie.p says what players are
+ *    told), and a bot's shot shows no hit on this console's HUD (func_7b8c shows it when the shooter's node is
+ *    this console's). */
+const Float:HOMING_TO_PLAYER = 30.0;
+const Float:EXPLOSION_TO_PLAYER = 5.0;
+const Float:EXPLOSION_RANGE = 750.0;
+
+botHit(&Float:damage, &shooter, &fromNpc)
 {
-    if (!lvl || !sysGetGlobal("server.bots"))
-        return 0;
+    if (collisionHit) {
+        collisionHit = 0;                               // a collision: no window (@eventDamage, arg6 = 1)
+    } else if (hitWindow || damage <= 0.0) {
+        damage = 0.0;
+    } else {
+        hitWindow = 60;
+    }
     damage = float(floatround(damage * damageRate, 2));
     if (fromNpc)
         shooter = -1;
     fromNpc = 1;
+}
+
+forward botTorpedoArgs(&Float:damage, &shooter, &sameTeam, &isHoming, &fromNpc);
+public botTorpedoArgs(&Float:damage, &shooter, &sameTeam, &isHoming, &fromNpc)
+{
+    if (!lvl || !sysGetGlobal("server.bots"))
+        return 0;
+    if (sameTeam && !collisionHit)
+        damage = 0.0;                                   // a teammate's torpedo: "Vous avez touché un allié !", no damage
+    if (isHoming && !collisionHit)
+        damage = HOMING_TO_PLAYER;
+    botHit(damage, shooter, fromNpc);
     return 1;
+}
+
+forward botExplosionArgs(&Float:damage, &shooter, &sameTeam, &Float:range, &fromNpc);
+public botExplosionArgs(&Float:damage, &shooter, &sameTeam, &Float:range, &fromNpc)
+{
+    if (!lvl || !sysGetGlobal("server.bots"))
+        return 0;
+    damage = sameTeam ? 0.0 : EXPLOSION_TO_PLAYER;
+    range = EXPLOSION_RANGE;
+    botHit(damage, shooter, fromNpc);
+    return 1;
+}
+
+/* A player's sub takes 2.5 when it touches the map or another sub, once a second (pscope_player.p
+ * @eventCollide, g_c8c4), whatever its window: as a hit with no shooter. */
+collisionDamage()
+{
+    if (!bumpDamage || collideTime || !sysGetGlobal("server.bots"))
+        return;
+    bumpDamage = 0;
+    collideTime = 60;
+    collisionHit = 1;
+    torpedoHit(g_1ca0[0], g_1ca0[1], g_1ca0[2], 2.5, 1, 0, 0, 0, -1, 0, 1);
+    collisionHit = 0;
 }
 
 /* The characteristics of its submarine: server.bots.sub<k> for the server's bots, else the first one. */
@@ -389,6 +457,10 @@ timers()
     }
     if (bumpTime)
         bumpTime--;
+    if (hitWindow)
+        hitWindow--;
+    if (collideTime)
+        collideTime--;
     if (hurtTime)
         hurtTime--;
     if (evadeTime)
@@ -401,6 +473,9 @@ timers()
         air = air + 0.2;                                // as a player: air comes back at the surface only
     if (g_1c68 < lifeBefore - 0.5)
         hurtTime = 120;
+    // hit: seen a moment through its masker, as a player (pscope_player.p func_a758: custom flag 6, which
+    // func_60b4 flashes; the other consoles' copies do it from the life they are sent)
+    actorSetCustomFlag(6, g_1c68 < lifeBefore, 0);
     lifeBefore = g_1c68;
 }
 
@@ -420,6 +495,12 @@ bool:clearLine(const Float:from[3], const Float:to[3], Float:margin)
 
 isMasked(actor)
 {
+    if (actorGetCustomFlag(6, actor)) {
+        revealed = actor;                               // hit under its masker: it shows for a moment
+        revealedAt = frame;
+    }
+    if (actor == revealed && frame - revealedAt < 20)
+        return 0;
     new on = 0;
     new masker = 0;
     actorGetPropInt("masker_on", on, actor);
@@ -1246,20 +1327,24 @@ a848_game:
 ; hit as a player is (botHitArgs).
 .hook 0x866c
     push.adr 0x34                   ; fromNpc
+    push.adr 0x30                   ; homing
+    push.adr 0x28                   ; same team
     push.adr 0x2c                   ; shooter's node
     push.adr 0x18                   ; damage
-    push.c 12
-    call @pw_botHitArgs
+    push.c 20
+    call @pw_botTorpedoArgs
     .original
     .return
 
-; @explosionHitOnNpc(damage, shooter's node, x, y, z, ..., fromNpc): the same.
+; @explosionHitOnNpc(damage, shooter's node, x, y, z, sameTeam, range, large, fromNpc): the same.
 .hook 0x97e4
     push.adr 0x2c                   ; fromNpc
+    push.adr 0x24                   ; range
+    push.adr 0x20                   ; same team
     push.adr 0x10                   ; shooter's node
     push.adr 0xc                    ; damage
-    push.c 12
-    call @pw_botHitArgs
+    push.c 20
+    call @pw_botExplosionArgs
     .original
     .return
 

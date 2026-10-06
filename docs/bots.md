@@ -116,9 +116,26 @@ vitesse de pointe, axe de chaque tir.
   - le jeu ne comptait que les joueurs humains ; maintenant les bots sont comptés, pour les joueurs aussi
     ([`bots_joueur.pasm`](../mods/en-ligne/bots_joueur.pasm)) : seul contre 4 bots, un joueur a 400 points de vie,
     comme seul contre 4 joueurs ;
-  - chaque coup reçu est multiplié par le `damageRate` de son sous-marin, arrondi au-dessus
-    (`@eventDamageTorp`) ;
+  - les dégâts d'un joueur (`@eventDamageTorp`, `@eventMessageExplosionHit`), où le jeu en donnait d'autres à ses
+    sous-marins de l'ordinateur :
+
+    | Coup | Joueur (et bot) | Sous-marin de l'ordinateur |
+    |---|---|---|
+    | torpille | ses dégâts | les mêmes |
+    | torpille à tête chercheuse | 30 | 70 |
+    | explosion | 5, jusqu'à 750 unités | 30, jusqu'à 300 |
+    | après un coup (et au départ) | rien pendant 60 images | tout |
+    | contact avec la carte ou un sous-marin | 2,5, une fois par seconde | rien |
+    | torpille ou explosion d'un allié | rien (« Vous avez touché un allié ! ») | tout |
+
+  - chaque coup est multiplié par le `damageRate` de son sous-marin, arrondi au-dessus ;
   - le spectateur voit sa jauge baisser (`lifecapacity`, lue par `hud.p @setTelecastPlayer`).
+- **Vu un instant sous son masqueur quand on le touche**, comme un joueur : `pscope_player.p func_a758` met le
+  drapeau d'affichage 6 quand la vie baisse et `func_60b4` fait clignoter le sous-marin masqué. Personne ne le
+  mettait pour `surface_sub`. Les bots voient aussi un instant un ennemi masqué qu'on vient de toucher.
+- **Son nom en spectateur** : `world_map.p` nomme le sous-marin suivi par son `nodeid`. Celui d'un bot était le
+  nœud de la console qui le pilote (« Position du bâtiment <votre pseudo> »). Maintenant, c'est son propre nœud,
+  et chaque console connaît son nom dès son arrivée (`@botJoin`).
 
 Le niveau du serveur (`bots_level`, `server.bots.level`) règle les réflexes et la précision, jamais ce que le
 sous-marin peut faire. Toutes les valeurs sont dans `bots_ia.p` :

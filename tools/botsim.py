@@ -73,6 +73,7 @@ class Amx:
         self.natives = natives
         self.insns = {i.addr: i for i in decode(self.code)}
         self.steps = 0
+        self.unknown: set[str] = set()                    # natives of the game's code, answered 0
 
     # memory, by byte address (cells only)
     def rd(self, addr: int) -> int:
@@ -398,8 +399,9 @@ class Amx:
                     self.push(a[1])
                 name = self.native_names[a[0]]
                 fn = self.natives.get(name)
-                if fn is None:
-                    raise AmxFault(f"native {name} not simulated")
+                if fn is None:                            # the game's own code: interface, sound, effects
+                    self.unknown.add(name)
+                    fn = lambda amx, p: 0
                 params = self.stk
                 nargs = self.rd(params) // 4
                 pri = s32(fn(self, [self.rd(params + 4 * (k + 1)) for k in range(nargs)]) or 0)
@@ -737,6 +739,7 @@ class Sim:
             "floatcos": lambda amx, p: f2c(math.cos(f(p[0]))),
             "floatatan2": lambda amx, p: f2c(math.atan2(f(p[0]), f(p[1]))),
             "floatpower": lambda amx, p: f2c(math.pow(f(p[0]), f(p[1]))),
+            "floatclamp": lambda amx, p: f2c(min(max(f(p[0]), f(p[1])), f(p[2]))),
             "floatround": lambda amx, p: {0: round, 1: math.floor, 2: math.ceil, 3: int}[p[1]](f(p[0])),
             "floatrnd": lambda amx, p: f2c(w.rng.randrange(10000) / 10000.0),
             "random": lambda amx, p: w.rng.randrange(max(p[0], 1)),

@@ -4,69 +4,72 @@
 
 .data_at 0x4524
 .cells $pawn_data 0x0, 0xa, 0x6, 0x3, 0x0, 0x28, 0xc, 0x0, 0x0, 0x42b40000, 0x42700000, 0x42340000, 0x0, 0x3eb33333, 0x3f4ccccd, 0x3f800000
-.cells $pawn_data1 0x0, 0x1, 0x1, 0x2, 0x0, 0x0, 0x0, 0x0, 0x3f800000, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x3d0f5c29
-.cells $pawn_data2 0x3eb851ec, 0x3ecccccd, 0x1, 0x6, 0x0, 0xb4, 0x0, 0x55, 0x0, 0x0, 0x42053333, 0x42c80000, 0x0, 0x1, 0x0, 0x0
-.cells $pawn_data3 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, -1013579776, 0x0, 0x0, 0x0, 0x0, 0x0, 0x3f800000, 0x3f7851ec
-.cells $pawn_data4 0x1e, 0x3e23d70a, 0x421c0000, -1050673152, 0x42de0000, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, -10000, -943501312, 0x0, 0x0
-.cells $pawn_data5 0x0, 0x0, 0x0, 0x0, 0x0, -1, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0
+.cells $pawn_data1 0x0, 0x1, 0x1, 0x2, 0x0, 0x0, 0x0, 0x0, 0x3f800000, 0x0, 0x3c, 0x0, 0x0, 0x0, 0x0, 0x0
+.cells $pawn_data2 0x0, 0x0, 0x0, 0x3d0f5c29, 0x3eb851ec, 0x3ecccccd, 0x1, 0x6, 0x0, 0xb4, 0x0, 0x55, 0x0, 0x0, 0x42053333, 0x42c80000
+.cells $pawn_data3 0x0, 0x1, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, -1013579776, 0x0, 0x0, 0x0
+.cells $pawn_data4 0x0, 0x0, 0x3f800000, 0x3f7851ec, 0x1e, 0x3e23d70a, 0x421c0000, -1050673152, 0x42de0000, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0
+.cells $pawn_data5 -10000, -943501312, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, -1, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0
 .cells $pawn_data6 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0
-.cells $pawn_data7 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, -1000, 0x0, 0x0, 0x0, 0x0, 0x0
-.cells $pawn_data8 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, -10000, 0x0
-.cells $pawn_data9 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x6e, 0x70, 0x63, 0x0, 0x73, 0x65, 0x72, 0x76
-.cells $pawn_data10 0x65, 0x72, 0x2e, 0x62, 0x6f, 0x74, 0x73, 0x2e, 0x6c, 0x65, 0x76, 0x65, 0x6c, 0x0, 0x6c, 0x69
-.cells $pawn_data11 0x66, 0x65, 0x0, 0x73, 0x65, 0x72, 0x76, 0x65, 0x72, 0x2e, 0x62, 0x6f, 0x74, 0x73, 0x0, 0x40
-.cells $pawn_data12 0x62, 0x6f, 0x74, 0x44, 0x6f, 0x77, 0x6e, 0x0, 0x6c, 0x69, 0x66, 0x65, 0x0, 0x0, 0x0, 0x0
-.cells $pawn_data13 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x74, 0x65, 0x61, 0x6d, 0x43, 0x6f, 0x6c, 0x6f, 0x72
-.cells $pawn_data14 0x0, 0x73, 0x65, 0x72, 0x76, 0x65, 0x72, 0x2e, 0x62, 0x6f, 0x74, 0x73, 0x0, 0x6c, 0x69, 0x66
-.cells $pawn_data15 0x65, 0x0, 0x6c, 0x69, 0x66, 0x65, 0x63, 0x61, 0x70, 0x61, 0x63, 0x69, 0x74, 0x79, 0x0, 0x74
-.cells $pawn_data16 0x65, 0x61, 0x6d, 0x2e, 0x30, 0x31, 0x2e, 0x70, 0x6c, 0x61, 0x79, 0x65, 0x72, 0x73, 0x0, 0x74
-.cells $pawn_data17 0x65, 0x61, 0x6d, 0x2e, 0x30, 0x32, 0x2e, 0x70, 0x6c, 0x61, 0x79, 0x65, 0x72, 0x73, 0x0, 0x74
-.cells $pawn_data18 0x65, 0x61, 0x6d, 0x2e, 0x30, 0x32, 0x2e, 0x70, 0x6c, 0x61, 0x79, 0x65, 0x72, 0x73, 0x0, 0x74
-.cells $pawn_data19 0x65, 0x61, 0x6d, 0x2e, 0x30, 0x31, 0x2e, 0x70, 0x6c, 0x61, 0x79, 0x65, 0x72, 0x73, 0x0, 0x73
-.cells $pawn_data20 0x65, 0x72, 0x76, 0x65, 0x72, 0x2e, 0x62, 0x6f, 0x74, 0x73, 0x2e, 0x6d, 0x69, 0x6e, 0x65, 0x0
-.cells $pawn_data21 0x73, 0x65, 0x72, 0x76, 0x65, 0x72, 0x2e, 0x62, 0x6f, 0x74, 0x73, 0x2e, 0x6f, 0x74, 0x68, 0x65
-.cells $pawn_data22 0x72, 0x0, 0x73, 0x65, 0x72, 0x76, 0x65, 0x72, 0x2e, 0x62, 0x6f, 0x74, 0x73, 0x0, 0x62, 0x6f
-.cells $pawn_data23 0x74, 0x49, 0x6e, 0x64, 0x65, 0x78, 0x0, 0x73, 0x65, 0x72, 0x76, 0x65, 0x72, 0x2e, 0x62, 0x6f
-.cells $pawn_data24 0x74, 0x73, 0x2e, 0x73, 0x75, 0x62, 0x25, 0x64, 0x0, 0x70, 0x73, 0x63, 0x6f, 0x70, 0x65, 0x5f
-.cells $pawn_data25 0x70, 0x6c, 0x79, 0x25, 0x30, 0x32, 0x64, 0x5f, 0x73, 0x74, 0x61, 0x74, 0x73, 0x0, 0x64, 0x61
-.cells $pawn_data26 0x6d, 0x61, 0x67, 0x65, 0x52, 0x61, 0x74, 0x65, 0x0, 0x6d, 0x61, 0x78, 0x54, 0x75, 0x72, 0x6e
-.cells $pawn_data27 0x0, 0x62, 0x65, 0x6c, 0x6f, 0x77, 0x41, 0x63, 0x63, 0x65, 0x6c, 0x0, 0x64, 0x69, 0x76, 0x65
-.cells $pawn_data28 0x52, 0x61, 0x74, 0x65, 0x0, 0x74, 0x6f, 0x72, 0x70, 0x65, 0x64, 0x6f, 0x4c, 0x65, 0x76, 0x65
-.cells $pawn_data29 0x6c, 0x0, 0x74, 0x6f, 0x72, 0x70, 0x65, 0x64, 0x6f, 0x4d, 0x61, 0x78, 0x0, 0x74, 0x6f, 0x72
-.cells $pawn_data30 0x70, 0x65, 0x64, 0x6f, 0x52, 0x65, 0x70, 0x6c, 0x65, 0x6e, 0x69, 0x73, 0x68, 0x54, 0x69, 0x6d
-.cells $pawn_data31 0x65, 0x0, 0x74, 0x6f, 0x72, 0x70, 0x65, 0x64, 0x6f, 0x46, 0x69, 0x72, 0x65, 0x49, 0x6e, 0x74
-.cells $pawn_data32 0x65, 0x72, 0x76, 0x61, 0x6c, 0x0, 0x6d, 0x61, 0x73, 0x6b, 0x65, 0x72, 0x55, 0x73, 0x65, 0x41
-.cells $pawn_data33 0x69, 0x72, 0x0, 0x74, 0x6f, 0x72, 0x70, 0x65, 0x64, 0x6f, 0x46, 0x69, 0x72, 0x65, 0x42, 0x72
-.cells $pawn_data34 0x61, 0x6b, 0x65, 0x54, 0x69, 0x6d, 0x65, 0x0, 0x74, 0x6f, 0x72, 0x70, 0x65, 0x64, 0x6f, 0x46
-.cells $pawn_data35 0x69, 0x72, 0x65, 0x42, 0x72, 0x61, 0x6b, 0x65, 0x52, 0x61, 0x74, 0x65, 0x0, 0x64, 0x69, 0x76
-.cells $pawn_data36 0x65, 0x44, 0x72, 0x61, 0x67, 0x0, 0x74, 0x6f, 0x72, 0x70, 0x65, 0x64, 0x6f, 0x53, 0x70, 0x61
-.cells $pawn_data37 0x77, 0x6e, 0x50, 0x6f, 0x69, 0x6e, 0x74, 0x0, 0x74, 0x61, 0x62, 0x6c, 0x65, 0x5f, 0x6d, 0x61
-.cells $pawn_data38 0x78, 0x74, 0x75, 0x72, 0x6e, 0x0, 0x6d, 0x61, 0x78, 0x54, 0x75, 0x72, 0x6e, 0x5f, 0x25, 0x64
-.cells $pawn_data39 0x0, 0x74, 0x61, 0x62, 0x6c, 0x65, 0x5f, 0x62, 0x65, 0x6c, 0x6f, 0x77, 0x5f, 0x61, 0x63, 0x63
-.cells $pawn_data40 0x65, 0x6c, 0x0, 0x62, 0x65, 0x6c, 0x6f, 0x77, 0x41, 0x63, 0x63, 0x65, 0x6c, 0x5f, 0x25, 0x64
-.cells $pawn_data41 0x0, 0x74, 0x61, 0x62, 0x6c, 0x65, 0x5f, 0x64, 0x69, 0x76, 0x65, 0x5f, 0x72, 0x61, 0x74, 0x65
-.cells $pawn_data42 0x0, 0x64, 0x69, 0x76, 0x65, 0x52, 0x61, 0x74, 0x65, 0x5f, 0x25, 0x64, 0x0, 0x74, 0x61, 0x62
-.cells $pawn_data43 0x6c, 0x65, 0x5f, 0x64, 0x61, 0x6d, 0x61, 0x67, 0x65, 0x5f, 0x72, 0x61, 0x74, 0x65, 0x0, 0x64
-.cells $pawn_data44 0x61, 0x6d, 0x61, 0x67, 0x65, 0x52, 0x61, 0x74, 0x65, 0x5f, 0x25, 0x64, 0x0, 0x6d, 0x61, 0x73
-.cells $pawn_data45 0x6b, 0x65, 0x72, 0x5f, 0x6f, 0x6e, 0x0, 0x6d, 0x61, 0x73, 0x6b, 0x65, 0x72, 0x0, 0x74, 0x65
-.cells $pawn_data46 0x61, 0x6d, 0x43, 0x6f, 0x6c, 0x6f, 0x72, 0x0, 0x6c, 0x69, 0x66, 0x65, 0x0, 0x61, 0x63, 0x74
-.cells $pawn_data47 0x6f, 0x72, 0x5f, 0x69, 0x64, 0x0, 0x74, 0x65, 0x61, 0x6d, 0x43, 0x6f, 0x6c, 0x6f, 0x72, 0x0
-.cells $pawn_data48 0x6c, 0x69, 0x66, 0x65, 0x0, 0x73, 0x75, 0x72, 0x66, 0x61, 0x63, 0x65, 0x5f, 0x74, 0x6f, 0x72
-.cells $pawn_data49 0x70, 0x65, 0x64, 0x6f, 0x5f, 0x6c, 0x76, 0x25, 0x30, 0x32, 0x64, 0x0, 0x62, 0x65, 0x61, 0x72
-.cells $pawn_data50 0x69, 0x6e, 0x67, 0x0, 0x0, 0x0, 0x0, 0x6d, 0x6f, 0x64, 0x65, 0x2e, 0x67, 0x61, 0x6d, 0x65
-.cells $pawn_data51 0x6f, 0x76, 0x65, 0x72, 0x0, 0x70, 0x6c, 0x61, 0x79, 0x65, 0x72, 0x2e, 0x74, 0x69, 0x6d, 0x65
-.cells $pawn_data52 0x4f, 0x76, 0x65, 0x72, 0x0, 0x73, 0x75, 0x72, 0x66, 0x61, 0x63, 0x65, 0x5f, 0x74, 0x6f, 0x72
-.cells $pawn_data53 0x70, 0x65, 0x64, 0x6f, 0x5f, 0x70, 0x5f, 0x68, 0x6f, 0x6d, 0x69, 0x6e, 0x67, 0x0, 0x40, 0x6c
-.cells $pawn_data54 0x6f, 0x63, 0x6b, 0x4f, 0x6e, 0x54, 0x61, 0x72, 0x67, 0x65, 0x74, 0x0, 0x70, 0x5f, 0x68, 0x6f
-.cells $pawn_data55 0x6d, 0x69, 0x6e, 0x67, 0x0, 0x73, 0x75, 0x72, 0x66, 0x61, 0x63, 0x65, 0x5f, 0x74, 0x6f, 0x72
-.cells $pawn_data56 0x70, 0x65, 0x64, 0x6f, 0x5f, 0x6c, 0x76, 0x25, 0x30, 0x32, 0x64, 0x0, 0x62, 0x65, 0x61, 0x72
-.cells $pawn_data57 0x69, 0x6e, 0x67, 0x0, 0x75, 0x6e, 0x64, 0x65, 0x72, 0x5f, 0x77, 0x61, 0x74, 0x65, 0x72, 0x0
-.cells $pawn_data58 0x65, 0x6e, 0x65, 0x6d, 0x79, 0x0, 0x6e, 0x70, 0x63, 0x0, 0x61, 0x63, 0x74, 0x6f, 0x72, 0x5f
-.cells $pawn_data59 0x69, 0x64, 0x0, 0x74, 0x65, 0x61, 0x6d, 0x43, 0x6f, 0x6c, 0x6f, 0x72, 0x0, 0x62, 0x6f, 0x74
-.cells $pawn_data60 0x73, 0x68, 0x6f, 0x74, 0x0, 0x6d, 0x61, 0x73, 0x6b, 0x65, 0x72, 0x0, 0x6d, 0x61, 0x73, 0x6b
-.cells $pawn_data61 0x65, 0x72, 0x5f, 0x6f, 0x6e, 0x0, 0x6d, 0x61, 0x73, 0x6b, 0x65, 0x72, 0x0, 0x6d, 0x61, 0x73
-.cells $pawn_data62 0x6b, 0x65, 0x72, 0x5f, 0x6f, 0x6e, 0x0, 0x0, 0x3ecccccd, 0x3f4ccccd, 0x3fa66666, 0x3ff33333, 0x40200000, 0x74, 0x68, 0x72
-.cells $pawn_data63 0x6f, 0x74, 0x74, 0x6c, 0x65, 0x0
+.cells $pawn_data7 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, -1000, 0x0
+.cells $pawn_data8 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0
+.cells $pawn_data9 0x0, 0x0, -1, -1000, -10000, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x6e, 0x70
+.cells $pawn_data10 0x63, 0x0, 0x73, 0x65, 0x72, 0x76, 0x65, 0x72, 0x2e, 0x62, 0x6f, 0x74, 0x73, 0x2e, 0x6c, 0x65
+.cells $pawn_data11 0x76, 0x65, 0x6c, 0x0, 0x6c, 0x69, 0x66, 0x65, 0x0, 0x73, 0x65, 0x72, 0x76, 0x65, 0x72, 0x2e
+.cells $pawn_data12 0x62, 0x6f, 0x74, 0x73, 0x0, 0x40, 0x62, 0x6f, 0x74, 0x44, 0x6f, 0x77, 0x6e, 0x0, 0x6c, 0x69
+.cells $pawn_data13 0x66, 0x65, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x74, 0x65, 0x61
+.cells $pawn_data14 0x6d, 0x43, 0x6f, 0x6c, 0x6f, 0x72, 0x0, 0x73, 0x65, 0x72, 0x76, 0x65, 0x72, 0x2e, 0x62, 0x6f
+.cells $pawn_data15 0x74, 0x73, 0x0, 0x6c, 0x69, 0x66, 0x65, 0x0, 0x6c, 0x69, 0x66, 0x65, 0x63, 0x61, 0x70, 0x61
+.cells $pawn_data16 0x63, 0x69, 0x74, 0x79, 0x0, 0x73, 0x65, 0x72, 0x76, 0x65, 0x72, 0x2e, 0x62, 0x6f, 0x74, 0x73
+.cells $pawn_data17 0x0, 0x6e, 0x6f, 0x64, 0x65, 0x69, 0x64, 0x0, 0x40, 0x62, 0x6f, 0x74, 0x4a, 0x6f, 0x69, 0x6e
+.cells $pawn_data18 0x0, 0x74, 0x65, 0x61, 0x6d, 0x2e, 0x30, 0x31, 0x2e, 0x70, 0x6c, 0x61, 0x79, 0x65, 0x72, 0x73
+.cells $pawn_data19 0x0, 0x74, 0x65, 0x61, 0x6d, 0x2e, 0x30, 0x32, 0x2e, 0x70, 0x6c, 0x61, 0x79, 0x65, 0x72, 0x73
+.cells $pawn_data20 0x0, 0x74, 0x65, 0x61, 0x6d, 0x2e, 0x30, 0x32, 0x2e, 0x70, 0x6c, 0x61, 0x79, 0x65, 0x72, 0x73
+.cells $pawn_data21 0x0, 0x74, 0x65, 0x61, 0x6d, 0x2e, 0x30, 0x31, 0x2e, 0x70, 0x6c, 0x61, 0x79, 0x65, 0x72, 0x73
+.cells $pawn_data22 0x0, 0x73, 0x65, 0x72, 0x76, 0x65, 0x72, 0x2e, 0x62, 0x6f, 0x74, 0x73, 0x2e, 0x6d, 0x69, 0x6e
+.cells $pawn_data23 0x65, 0x0, 0x73, 0x65, 0x72, 0x76, 0x65, 0x72, 0x2e, 0x62, 0x6f, 0x74, 0x73, 0x2e, 0x6f, 0x74
+.cells $pawn_data24 0x68, 0x65, 0x72, 0x0, 0x73, 0x65, 0x72, 0x76, 0x65, 0x72, 0x2e, 0x62, 0x6f, 0x74, 0x73, 0x0
+.cells $pawn_data25 0x73, 0x65, 0x72, 0x76, 0x65, 0x72, 0x2e, 0x62, 0x6f, 0x74, 0x73, 0x0, 0x73, 0x65, 0x72, 0x76
+.cells $pawn_data26 0x65, 0x72, 0x2e, 0x62, 0x6f, 0x74, 0x73, 0x0, 0x62, 0x6f, 0x74, 0x49, 0x6e, 0x64, 0x65, 0x78
+.cells $pawn_data27 0x0, 0x73, 0x65, 0x72, 0x76, 0x65, 0x72, 0x2e, 0x62, 0x6f, 0x74, 0x73, 0x2e, 0x73, 0x75, 0x62
+.cells $pawn_data28 0x25, 0x64, 0x0, 0x70, 0x73, 0x63, 0x6f, 0x70, 0x65, 0x5f, 0x70, 0x6c, 0x79, 0x25, 0x30, 0x32
+.cells $pawn_data29 0x64, 0x5f, 0x73, 0x74, 0x61, 0x74, 0x73, 0x0, 0x64, 0x61, 0x6d, 0x61, 0x67, 0x65, 0x52, 0x61
+.cells $pawn_data30 0x74, 0x65, 0x0, 0x6d, 0x61, 0x78, 0x54, 0x75, 0x72, 0x6e, 0x0, 0x62, 0x65, 0x6c, 0x6f, 0x77
+.cells $pawn_data31 0x41, 0x63, 0x63, 0x65, 0x6c, 0x0, 0x64, 0x69, 0x76, 0x65, 0x52, 0x61, 0x74, 0x65, 0x0, 0x74
+.cells $pawn_data32 0x6f, 0x72, 0x70, 0x65, 0x64, 0x6f, 0x4c, 0x65, 0x76, 0x65, 0x6c, 0x0, 0x74, 0x6f, 0x72, 0x70
+.cells $pawn_data33 0x65, 0x64, 0x6f, 0x4d, 0x61, 0x78, 0x0, 0x74, 0x6f, 0x72, 0x70, 0x65, 0x64, 0x6f, 0x52, 0x65
+.cells $pawn_data34 0x70, 0x6c, 0x65, 0x6e, 0x69, 0x73, 0x68, 0x54, 0x69, 0x6d, 0x65, 0x0, 0x74, 0x6f, 0x72, 0x70
+.cells $pawn_data35 0x65, 0x64, 0x6f, 0x46, 0x69, 0x72, 0x65, 0x49, 0x6e, 0x74, 0x65, 0x72, 0x76, 0x61, 0x6c, 0x0
+.cells $pawn_data36 0x6d, 0x61, 0x73, 0x6b, 0x65, 0x72, 0x55, 0x73, 0x65, 0x41, 0x69, 0x72, 0x0, 0x74, 0x6f, 0x72
+.cells $pawn_data37 0x70, 0x65, 0x64, 0x6f, 0x46, 0x69, 0x72, 0x65, 0x42, 0x72, 0x61, 0x6b, 0x65, 0x54, 0x69, 0x6d
+.cells $pawn_data38 0x65, 0x0, 0x74, 0x6f, 0x72, 0x70, 0x65, 0x64, 0x6f, 0x46, 0x69, 0x72, 0x65, 0x42, 0x72, 0x61
+.cells $pawn_data39 0x6b, 0x65, 0x52, 0x61, 0x74, 0x65, 0x0, 0x64, 0x69, 0x76, 0x65, 0x44, 0x72, 0x61, 0x67, 0x0
+.cells $pawn_data40 0x74, 0x6f, 0x72, 0x70, 0x65, 0x64, 0x6f, 0x53, 0x70, 0x61, 0x77, 0x6e, 0x50, 0x6f, 0x69, 0x6e
+.cells $pawn_data41 0x74, 0x0, 0x74, 0x61, 0x62, 0x6c, 0x65, 0x5f, 0x6d, 0x61, 0x78, 0x74, 0x75, 0x72, 0x6e, 0x0
+.cells $pawn_data42 0x6d, 0x61, 0x78, 0x54, 0x75, 0x72, 0x6e, 0x5f, 0x25, 0x64, 0x0, 0x74, 0x61, 0x62, 0x6c, 0x65
+.cells $pawn_data43 0x5f, 0x62, 0x65, 0x6c, 0x6f, 0x77, 0x5f, 0x61, 0x63, 0x63, 0x65, 0x6c, 0x0, 0x62, 0x65, 0x6c
+.cells $pawn_data44 0x6f, 0x77, 0x41, 0x63, 0x63, 0x65, 0x6c, 0x5f, 0x25, 0x64, 0x0, 0x74, 0x61, 0x62, 0x6c, 0x65
+.cells $pawn_data45 0x5f, 0x64, 0x69, 0x76, 0x65, 0x5f, 0x72, 0x61, 0x74, 0x65, 0x0, 0x64, 0x69, 0x76, 0x65, 0x52
+.cells $pawn_data46 0x61, 0x74, 0x65, 0x5f, 0x25, 0x64, 0x0, 0x74, 0x61, 0x62, 0x6c, 0x65, 0x5f, 0x64, 0x61, 0x6d
+.cells $pawn_data47 0x61, 0x67, 0x65, 0x5f, 0x72, 0x61, 0x74, 0x65, 0x0, 0x64, 0x61, 0x6d, 0x61, 0x67, 0x65, 0x52
+.cells $pawn_data48 0x61, 0x74, 0x65, 0x5f, 0x25, 0x64, 0x0, 0x6d, 0x61, 0x73, 0x6b, 0x65, 0x72, 0x5f, 0x6f, 0x6e
+.cells $pawn_data49 0x0, 0x6d, 0x61, 0x73, 0x6b, 0x65, 0x72, 0x0, 0x74, 0x65, 0x61, 0x6d, 0x43, 0x6f, 0x6c, 0x6f
+.cells $pawn_data50 0x72, 0x0, 0x6c, 0x69, 0x66, 0x65, 0x0, 0x61, 0x63, 0x74, 0x6f, 0x72, 0x5f, 0x69, 0x64, 0x0
+.cells $pawn_data51 0x74, 0x65, 0x61, 0x6d, 0x43, 0x6f, 0x6c, 0x6f, 0x72, 0x0, 0x6c, 0x69, 0x66, 0x65, 0x0, 0x73
+.cells $pawn_data52 0x75, 0x72, 0x66, 0x61, 0x63, 0x65, 0x5f, 0x74, 0x6f, 0x72, 0x70, 0x65, 0x64, 0x6f, 0x5f, 0x6c
+.cells $pawn_data53 0x76, 0x25, 0x30, 0x32, 0x64, 0x0, 0x62, 0x65, 0x61, 0x72, 0x69, 0x6e, 0x67, 0x0, 0x0, 0x0
+.cells $pawn_data54 0x0, 0x6d, 0x6f, 0x64, 0x65, 0x2e, 0x67, 0x61, 0x6d, 0x65, 0x6f, 0x76, 0x65, 0x72, 0x0, 0x70
+.cells $pawn_data55 0x6c, 0x61, 0x79, 0x65, 0x72, 0x2e, 0x74, 0x69, 0x6d, 0x65, 0x4f, 0x76, 0x65, 0x72, 0x0, 0x73
+.cells $pawn_data56 0x75, 0x72, 0x66, 0x61, 0x63, 0x65, 0x5f, 0x74, 0x6f, 0x72, 0x70, 0x65, 0x64, 0x6f, 0x5f, 0x70
+.cells $pawn_data57 0x5f, 0x68, 0x6f, 0x6d, 0x69, 0x6e, 0x67, 0x0, 0x40, 0x6c, 0x6f, 0x63, 0x6b, 0x4f, 0x6e, 0x54
+.cells $pawn_data58 0x61, 0x72, 0x67, 0x65, 0x74, 0x0, 0x70, 0x5f, 0x68, 0x6f, 0x6d, 0x69, 0x6e, 0x67, 0x0, 0x73
+.cells $pawn_data59 0x75, 0x72, 0x66, 0x61, 0x63, 0x65, 0x5f, 0x74, 0x6f, 0x72, 0x70, 0x65, 0x64, 0x6f, 0x5f, 0x6c
+.cells $pawn_data60 0x76, 0x25, 0x30, 0x32, 0x64, 0x0, 0x62, 0x65, 0x61, 0x72, 0x69, 0x6e, 0x67, 0x0, 0x75, 0x6e
+.cells $pawn_data61 0x64, 0x65, 0x72, 0x5f, 0x77, 0x61, 0x74, 0x65, 0x72, 0x0, 0x65, 0x6e, 0x65, 0x6d, 0x79, 0x0
+.cells $pawn_data62 0x6e, 0x70, 0x63, 0x0, 0x61, 0x63, 0x74, 0x6f, 0x72, 0x5f, 0x69, 0x64, 0x0, 0x74, 0x65, 0x61
+.cells $pawn_data63 0x6d, 0x43, 0x6f, 0x6c, 0x6f, 0x72, 0x0, 0x62, 0x6f, 0x74, 0x73, 0x68, 0x6f, 0x74, 0x0, 0x6d
+.cells $pawn_data64 0x61, 0x73, 0x6b, 0x65, 0x72, 0x0, 0x6d, 0x61, 0x73, 0x6b, 0x65, 0x72, 0x5f, 0x6f, 0x6e, 0x0
+.cells $pawn_data65 0x6d, 0x61, 0x73, 0x6b, 0x65, 0x72, 0x0, 0x6d, 0x61, 0x73, 0x6b, 0x65, 0x72, 0x5f, 0x6f, 0x6e
+.cells $pawn_data66 0x0, 0x0, 0x3ecccccd, 0x3f4ccccd, 0x3fa66666, 0x3ff33333, 0x40200000, 0x74, 0x68, 0x72, 0x6f, 0x74, 0x74, 0x6c, 0x65, 0x0
 
 ; ---- hand-written: hooks into the game's code ----
 ; main: after func_e098 (the sub's properties), is it one of ours, and its look (botLook).
@@ -93,20 +96,24 @@ a848_game:
 ; hit as a player is (botHitArgs).
 .hook 0x866c
     push.adr 0x34                   ; fromNpc
+    push.adr 0x30                   ; homing
+    push.adr 0x28                   ; same team
     push.adr 0x2c                   ; shooter's node
     push.adr 0x18                   ; damage
-    push.c 12
-    call @pw_botHitArgs
+    push.c 20
+    call @pw_botTorpedoArgs
     .original
     .return
 
-; @explosionHitOnNpc(damage, shooter's node, x, y, z, ..., fromNpc): the same.
+; @explosionHitOnNpc(damage, shooter's node, x, y, z, sameTeam, range, large, fromNpc): the same.
 .hook 0x97e4
     push.adr 0x2c                   ; fromNpc
+    push.adr 0x24                   ; range
+    push.adr 0x20                   ; same team
     push.adr 0x10                   ; shooter's node
     push.adr 0xc                    ; damage
-    push.c 12
-    call @pw_botHitArgs
+    push.c 20
+    call @pw_botExplosionArgs
     .original
     .return
 
@@ -606,7 +613,7 @@ pw_botInit:
 bots_ia_l14:
     push.c 0x0
     push.adr -4
-    push.c 0x4784
+    push.c 0x479c
     sysreq.n actorGetPropInt, 3
     load.s.pri -4
     jnz @bots_ia_l15
@@ -614,7 +621,7 @@ bots_ia_l14:
     stack 0x4
     retn
 bots_ia_l15:
-    push.c 0x4794
+    push.c 0x47ac
     sysreq.n sysGetGlobal, 1
     stor.pri 0x4574
     load.pri 0x4574
@@ -662,7 +669,7 @@ bots_ia_l21:
     jzer @bots_ia_l19
     load.pri 0x4578
     jzer @bots_ia_l23
-    load.pri 0x45d4
+    load.pri 0x45e4
     jzer @bots_ia_l23
     const.pri 0x1
     jump @bots_ia_l24
@@ -688,9 +695,9 @@ bots_ia_l27:
     zero 0x1eac
     push.c 0x0
     push.c 0x0
-    push.c 0x47dc
+    push.c 0x47f4
     sysreq.n actorSetPropReal, 3
-    push.c 0x47f0
+    push.c 0x4808
     sysreq.n sysGetGlobal, 1
     jzer @bots_ia_l28
     push.c 0x4580
@@ -703,8 +710,8 @@ bots_ia_l27:
     heap 0x4
     stor.i
     push.alt
-    push.c 0x4594
-    push.c 0x4820
+    push.c 0x45a4
+    push.c 0x4838
     push.c 0x2b16
     sysreq.n netCallPublic, 6
     heap -8
@@ -718,14 +725,36 @@ bots_ia_l19:
     push.c 0x0
     call @pw_start
 bots_ia_l29:
-    inc 0x458c
+    inc 0x459c
+    push.c 0x0
+    call @pw_collisionDamage
+    load.pri 0x1c90
+    jzer @bots_ia_l31
+    const.pri 0x3c23d70a
+    load.alt 0x1c68
+    push.pri
+    push.pri
+    push.alt
+    push.c 0x8
+    call @pw_operatorlteq_Float_Float
+    pop.alt
+    jnz @bots_ia_l31
+    zero.pri
+    jump @bots_ia_l32
+bots_ia_l31:
+    const.pri 0x1
+bots_ia_l32:
+    jzer @bots_ia_l30
+    zero.pri
+    retn
+bots_ia_l30:
     push.c 0x0
     push 0x1c68
-    push.c 0x4844
+    push.c 0x485c
     sysreq.n actorSetPropReal, 3
     push.c 0x0
     call @pw_timers
-    load.pri 0x458c
+    load.pri 0x459c
     push.pri
     load.pri 0x4574
     const.alt 0x4524
@@ -734,7 +763,7 @@ bots_ia_l29:
     pop.alt
     sdiv.alt
     push.alt
-    load.pri 0x4590
+    load.pri 0x45a0
     push.pri
     load.pri 0x4574
     const.alt 0x4524
@@ -744,22 +773,22 @@ bots_ia_l29:
     sdiv.alt
     move.pri
     pop.alt
-    jneq @bots_ia_l30
+    jneq @bots_ia_l33
     push.c 0x0
     call @pw_lookAround
-bots_ia_l30:
+bots_ia_l33:
     push.c 0x0
     call @pw_follow
     push.c 0x0
     call @pw_decide
     const.pri 0x3
-    load.alt 0x458c
+    load.alt 0x459c
     sdiv.alt
     move.pri
-    jnz @bots_ia_l31
+    jnz @bots_ia_l34
     push.c 0x0
     call @pw_steerClear
-bots_ia_l31:
+bots_ia_l34:
     push.c 0x0
     call @pw_move
     const.pri 0x1
@@ -768,21 +797,21 @@ pw_botDebug:
     proc
     load.s.pri 0xc
     push.pri
-    push 0x4678
+    push 0x4688
     sysreq.n float, 1
     pop.alt
     stor.i
     load.s.pri 0xc
     add.c 0x4
     push.pri
-    const.pri 0x4680
+    const.pri 0x4690
     load.i
     pop.alt
     stor.i
     load.s.pri 0xc
     add.c 0x8
     push.pri
-    const.pri 0x4680
+    const.pri 0x4690
     add.c 0x4
     load.i
     pop.alt
@@ -790,7 +819,7 @@ pw_botDebug:
     load.s.pri 0xc
     add.c 0xc
     push.pri
-    const.pri 0x4680
+    const.pri 0x4690
     add.c 0x8
     load.i
     pop.alt
@@ -798,14 +827,14 @@ pw_botDebug:
     load.s.pri 0xc
     add.c 0x10
     push.pri
-    const.pri 0x468c
+    const.pri 0x469c
     load.i
     pop.alt
     stor.i
     load.s.pri 0xc
     add.c 0x14
     push.pri
-    const.pri 0x468c
+    const.pri 0x469c
     add.c 0x4
     load.i
     pop.alt
@@ -813,7 +842,7 @@ pw_botDebug:
     load.s.pri 0xc
     add.c 0x18
     push.pri
-    const.pri 0x468c
+    const.pri 0x469c
     add.c 0x8
     load.i
     pop.alt
@@ -821,36 +850,36 @@ pw_botDebug:
     load.s.pri 0xc
     add.c 0x1c
     move.alt
-    load.pri 0x4698
+    load.pri 0x46a8
     stor.i
     load.s.pri 0xc
     add.c 0x20
     move.alt
-    load.pri 0x45f4
+    load.pri 0x4604
     stor.i
     load.s.pri 0xc
     add.c 0x24
     move.alt
-    load.pri 0x45f0
+    load.pri 0x4600
     stor.i
     load.s.pri 0xc
     add.c 0x28
     move.alt
-    load.pri 0x4604
+    load.pri 0x4614
     stor.i
     load.s.pri 0xc
     add.c 0x2c
     push.pri
-    push 0x45b4
+    push 0x45c4
     sysreq.n float, 1
     pop.alt
     stor.i
     load.s.pri 0xc
     add.c 0x30
     push.pri
-    load.pri 0x4858
+    load.pri 0x4870
     push.pri
-    push 0x485c
+    push 0x4874
     sysreq.n float, 1
     const.alt 0x47c35000
     push.pri
@@ -865,19 +894,19 @@ pw_botDebug:
     load.s.pri 0xc
     add.c 0x34
     move.alt
-    load.pri 0x45f8
+    load.pri 0x4608
     stor.i
     load.s.pri 0xc
     add.c 0x38
     push.pri
-    push 0x4710
+    push 0x4720
     sysreq.n float, 1
     pop.alt
     stor.i
     load.s.pri 0xc
     add.c 0x3c
     move.alt
-    load.pri 0x4658
+    load.pri 0x4668
     stor.i
     const.pri 0x1
     retn
@@ -885,18 +914,18 @@ pw_botDebug:
 pw_at_eventCollide:
     proc
     load.pri 0x4574
-    jzer @bots_ia_l33
+    jzer @bots_ia_l36
     load.pri 0x4578
-    jzer @bots_ia_l33
+    jzer @bots_ia_l36
     zero.pri
-    jump @bots_ia_l34
-bots_ia_l33:
+    jump @bots_ia_l37
+bots_ia_l36:
     const.pri 0x1
-bots_ia_l34:
-    jzer @bots_ia_l32
+bots_ia_l37:
+    jzer @bots_ia_l35
     zero.pri
     retn
-bots_ia_l32:
+bots_ia_l35:
     stack -4
     push.s 0xc
     sysreq.n actorGetCollisionType, 1
@@ -904,27 +933,29 @@ bots_ia_l32:
     load.s.pri -4
     const.alt 0xc0001
     and
-    jnz @bots_ia_l35
+    jnz @bots_ia_l38
     zero.pri
     stack 0x4
     retn
-bots_ia_l35:
+bots_ia_l38:
     push.c 0x40a00000
     push.s 0x14
-    push.c 0x4638
+    push.c 0x4648
     sysreq.n floatvecaddscale, 3
+    const.pri 0x1
+    stor.pri 0x4594
     load.s.pri 0x14
-    const.alt 0x4644
+    const.alt 0x4654
     movs 0xc
     const.pri 0xc
-    stor.pri 0x4650
+    stor.pri 0x4660
     load.s.pri -4
     const.alt 0x1
     and
-    jzer @bots_ia_l36
-    load.pri 0x458c
-    stor.pri 0x4654
-bots_ia_l36:
+    jzer @bots_ia_l39
+    load.pri 0x459c
+    stor.pri 0x4664
+bots_ia_l39:
     zero.pri
     stack 0x4
     retn
@@ -933,25 +964,25 @@ pw_start:
     const.pri 0x1
     stor.pri 0x4578
     sysreq.n actorGetID, 0
-    stor.pri 0x4590
+    stor.pri 0x45a0
     push.c 0x0
-    push.c 0x4594
-    push.c 0x4880
+    push.c 0x45a4
+    push.c 0x4898
     sysreq.n actorGetPropInt, 3
     push.c 0x0
     call @pw_readSubmarine
     const.pri 0x42c80000
-    stor.pri 0x4598
-    push.c 0x48a8
+    stor.pri 0x45a8
+    push.c 0x48c0
     sysreq.n sysGetGlobal, 1
-    jzer @bots_ia_l37
+    jzer @bots_ia_l40
     stack -4
-    push 0x4594
+    push 0x45a4
     push.c 0x4
     call @pw_teamSize
     stor.s.pri -4
     stack -4
-    load.pri 0x4594
+    load.pri 0x45a4
     const.alt 0x3
     sub.alt
     push.pri
@@ -962,16 +993,16 @@ pw_start:
     move.alt
     zero.pri
     xchg
-    jsleq @bots_ia_l39
+    jsleq @bots_ia_l42
     load.s.pri -8
     load.s.alt -4
-    jsleq @bots_ia_l39
+    jsleq @bots_ia_l42
     const.pri 0x1
-    jump @bots_ia_l40
-bots_ia_l39:
+    jump @bots_ia_l43
+bots_ia_l42:
     zero.pri
-bots_ia_l40:
-    jzer @bots_ia_l38
+bots_ia_l43:
+    jzer @bots_ia_l41
     push.s -8
     sysreq.n float, 1
     const.alt 0x42c80000
@@ -985,13 +1016,13 @@ bots_ia_l40:
     push.pri
     push.alt
     sysreq.n floatdiv, 2
-    stor.pri 0x4598
-bots_ia_l38:
-    load.pri 0x4598
+    stor.pri 0x45a8
+bots_ia_l41:
+    load.pri 0x45a8
     stor.pri 0x1c68
     stack 0x8
-    jump @bots_ia_l41
-bots_ia_l37:
+    jump @bots_ia_l44
+bots_ia_l40:
     const.pri 0x3f800000
     load.alt 0x1c68
     push.pri
@@ -1000,35 +1031,58 @@ bots_ia_l37:
     push.c 0x8
     call @pw_operatorgt_Float_Float
     pop.alt
-    jzer @bots_ia_l42
+    jzer @bots_ia_l45
     load.pri 0x1c68
-    jump @bots_ia_l43
-bots_ia_l42:
+    jump @bots_ia_l46
+bots_ia_l45:
     const.pri 0x43160000
-bots_ia_l43:
-    stor.pri 0x4598
-bots_ia_l41:
+bots_ia_l46:
+    stor.pri 0x45a8
+bots_ia_l44:
     load.pri 0x1c68
-    stor.pri 0x459c
+    stor.pri 0x45ac
     push.c 0x0
     push 0x1c68
-    push.c 0x48d8
+    push.c 0x48f0
     sysreq.n actorSetPropReal, 3
     push.c 0x0
-    push 0x4598
-    push.c 0x48ec
+    push 0x45a8
+    push.c 0x4904
     sysreq.n actorSetPropReal, 3
-    load.pri 0x45b0
-    stor.pri 0x45b4
+    push.c 0x4938
+    sysreq.n sysGetGlobal, 1
+    jzer @bots_ia_l48
+    load.pri 0x4580
+    jzer @bots_ia_l48
+    const.pri 0x1
+    jump @bots_ia_l49
+bots_ia_l48:
+    zero.pri
+bots_ia_l49:
+    jzer @bots_ia_l47
+    push.c 0x0
+    load.pri 0x4580
+    add.c 0x7b070000
+    push.pri
+    push.c 0x4968
+    sysreq.n actorSetPropInt, 3
+    push.c 0x45a4
+    push.c 0x4580
+    push.c 0x4984
+    push.c 0x2b16
+    sysreq.n netCallPublic, 4
+bots_ia_l47:
+    load.pri 0x45c0
+    stor.pri 0x45c4
     load.pri 0x4574
     const.alt 0x4564
     idxaddr.b 0x2
     load.i
-    stor.pri 0x45c8
+    stor.pri 0x45d8
     load.pri 0x1cc8
-    stor.pri 0x45f4
+    stor.pri 0x4604
     load.pri 0x1cc8
-    stor.pri 0x45f8
+    stor.pri 0x4608
     push.c -1013579776
     const.pri 0x1ca0
     add.c 0x4
@@ -1036,17 +1090,17 @@ bots_ia_l41:
     push.pri
     push.c 0x8
     call @pw_fmin
-    stor.pri 0x4604
-    const.pri 0x465c
+    stor.pri 0x4614
+    const.pri 0x466c
     move.alt
     const.pri 0x1ca0
     movs 0xc
     push.c 0x0
     push.c 0xc0011
     sysreq.n actorSetCollisionCheck, 2
-    push.c 0x45dc
+    push.c 0x45ec
     sysreq.n floatveczero, 1
-    push.c 0x4638
+    push.c 0x4648
     sysreq.n floatveczero, 1
     zero.pri
     retn
@@ -1055,38 +1109,38 @@ pw_teamSize:
     stack -4
     load.s.pri 0xc
     eq.c.pri 0x1
-    jzer @bots_ia_l44
-    const.pri 0x4920
-    jump @bots_ia_l45
-bots_ia_l44:
-    const.pri 0x4960
-bots_ia_l45:
+    jzer @bots_ia_l50
+    const.pri 0x49a8
+    jump @bots_ia_l51
+bots_ia_l50:
+    const.pri 0x49e8
+bots_ia_l51:
     push.pri
     sysreq.n sysGetGlobal, 1
     stor.s.pri -4
     stack -4
-    push.c 0x49a0
+    push.c 0x4a28
     sysreq.n sysGetGlobal, 1
     push.pri
-    push.c 0x49e0
+    push.c 0x4a68
     sysreq.n sysGetGlobal, 1
     pop.alt
     xchg
-    jsleq @bots_ia_l46
+    jsleq @bots_ia_l52
     const.pri 0x2
-    jump @bots_ia_l47
-bots_ia_l46:
+    jump @bots_ia_l53
+bots_ia_l52:
     const.pri 0x1
-bots_ia_l47:
+bots_ia_l53:
     stor.s.pri -8
     load.s.pri -8
     load.s.alt 0xc
-    jneq @bots_ia_l48
-    const.pri 0x4a20
-    jump @bots_ia_l49
-bots_ia_l48:
-    const.pri 0x4a64
-bots_ia_l49:
+    jneq @bots_ia_l54
+    const.pri 0x4aa8
+    jump @bots_ia_l55
+bots_ia_l54:
+    const.pri 0x4aec
+bots_ia_l55:
     push.pri
     sysreq.n sysGetGlobal, 1
     push.pri
@@ -1094,22 +1148,39 @@ bots_ia_l49:
     sysreq.n max, 2
     stack 0x8
     retn
-pw_botHitArgs:
+pw_botHit:
     proc
-    load.pri 0x4574
-    jzer @bots_ia_l51
-    push.c 0x4aac
-    sysreq.n sysGetGlobal, 1
-    jzer @bots_ia_l51
+    load.pri 0x4590
+    jzer @bots_ia_l56
+    zero 0x4590
+    jump @bots_ia_l57
+bots_ia_l56:
+    load.pri 0x458c
+    jnz @bots_ia_l59
+    lref.s.pri 0xc
+    move.alt
     zero.pri
-    jump @bots_ia_l52
-bots_ia_l51:
+    push.pri
+    push.pri
+    push.alt
+    push.c 0x8
+    call @pw_operatorlteq_Float_Float
+    pop.alt
+    jnz @bots_ia_l59
+    zero.pri
+    jump @bots_ia_l60
+bots_ia_l59:
     const.pri 0x1
-bots_ia_l52:
-    jzer @bots_ia_l50
+bots_ia_l60:
+    jzer @bots_ia_l58
     zero.pri
-    retn
-bots_ia_l50:
+    sref.s.pri 0xc
+    jump @bots_ia_l61
+bots_ia_l58:
+    const.pri 0x3c
+    stor.pri 0x458c
+bots_ia_l61:
+bots_ia_l57:
     push.c 0x2
     lref.s.alt 0xc
     load.pri 0x4584
@@ -1122,13 +1193,142 @@ bots_ia_l50:
     sysreq.n float, 1
     sref.s.pri 0xc
     lref.s.pri 0x14
-    jzer @bots_ia_l53
+    jzer @bots_ia_l62
     const.pri -1
     sref.s.pri 0x10
-bots_ia_l53:
+bots_ia_l62:
     const.pri 0x1
     sref.s.pri 0x14
+    zero.pri
+    retn
+pw_botTorpedoArgs:
+    proc
+    load.pri 0x4574
+    jzer @bots_ia_l64
+    push.c 0x4b34
+    sysreq.n sysGetGlobal, 1
+    jzer @bots_ia_l64
+    zero.pri
+    jump @bots_ia_l65
+bots_ia_l64:
     const.pri 0x1
+bots_ia_l65:
+    jzer @bots_ia_l63
+    zero.pri
+    retn
+bots_ia_l63:
+    lref.s.pri 0x14
+    jzer @bots_ia_l67
+    load.pri 0x4590
+    jnz @bots_ia_l67
+    const.pri 0x1
+    jump @bots_ia_l68
+bots_ia_l67:
+    zero.pri
+bots_ia_l68:
+    jzer @bots_ia_l66
+    zero.pri
+    sref.s.pri 0xc
+bots_ia_l66:
+    lref.s.pri 0x18
+    jzer @bots_ia_l70
+    load.pri 0x4590
+    jnz @bots_ia_l70
+    const.pri 0x1
+    jump @bots_ia_l71
+bots_ia_l70:
+    zero.pri
+bots_ia_l71:
+    jzer @bots_ia_l69
+    const.pri 0x41f00000
+    sref.s.pri 0xc
+bots_ia_l69:
+    push.s 0x1c
+    push.s 0x10
+    push.s 0xc
+    push.c 0xc
+    call @pw_botHit
+    const.pri 0x1
+    retn
+pw_botExplosionArgs:
+    proc
+    load.pri 0x4574
+    jzer @bots_ia_l73
+    push.c 0x4b64
+    sysreq.n sysGetGlobal, 1
+    jzer @bots_ia_l73
+    zero.pri
+    jump @bots_ia_l74
+bots_ia_l73:
+    const.pri 0x1
+bots_ia_l74:
+    jzer @bots_ia_l72
+    zero.pri
+    retn
+bots_ia_l72:
+    lref.s.pri 0x14
+    jzer @bots_ia_l75
+    zero.pri
+    jump @bots_ia_l76
+bots_ia_l75:
+    const.pri 0x40a00000
+bots_ia_l76:
+    sref.s.pri 0xc
+    const.pri 0x443b8000
+    sref.s.pri 0x18
+    push.s 0x1c
+    push.s 0x10
+    push.s 0xc
+    push.c 0xc
+    call @pw_botHit
+    const.pri 0x1
+    retn
+pw_collisionDamage:
+    proc
+    load.pri 0x4594
+    jzer @bots_ia_l78
+    load.pri 0x4598
+    jnz @bots_ia_l78
+    push.c 0x4b94
+    sysreq.n sysGetGlobal, 1
+    jzer @bots_ia_l78
+    zero.pri
+    jump @bots_ia_l79
+bots_ia_l78:
+    const.pri 0x1
+bots_ia_l79:
+    jzer @bots_ia_l77
+    zero.pri
+    retn
+bots_ia_l77:
+    zero 0x4594
+    const.pri 0x3c
+    stor.pri 0x4598
+    const.pri 0x1
+    stor.pri 0x4590
+    push.c 0x1
+    push.c 0x0
+    push.c -1
+    push.c 0x0
+    push.c 0x0
+    push.c 0x0
+    push.c 0x1
+    push.c 0x40200000
+    const.pri 0x1ca0
+    add.c 0x8
+    load.i
+    push.pri
+    const.pri 0x1ca0
+    add.c 0x4
+    load.i
+    push.pri
+    const.pri 0x1ca0
+    load.i
+    push.pri
+    push.c 0x2c
+    call 0x8668
+    zero 0x4590
+    zero.pri
     retn
 pw_readSubmarine:
     proc
@@ -1140,14 +1340,14 @@ pw_readSubmarine:
     fill 0xc0
     push.c 0x0
     push.adr -4
-    push.c 0x4adc
+    push.c 0x4bc4
     sysreq.n actorGetPropInt, 3
     load.s.pri -4
     stor.pri 0x4580
     load.s.pri -4
-    jzer @bots_ia_l54
+    jzer @bots_ia_l80
     push.adr -4
-    push.c 0x4b00
+    push.c 0x4be8
     push.c 0x0
     push.c 0x30
     push.adr -200
@@ -1157,25 +1357,25 @@ pw_readSubmarine:
     stor.s.pri -8
     load.s.pri -8
     const.alt 0x1
-    jsless @bots_ia_l56
+    jsless @bots_ia_l82
     load.s.pri -8
     const.alt 0x17
-    jsgrtr @bots_ia_l56
+    jsgrtr @bots_ia_l82
     zero.pri
-    jump @bots_ia_l57
-bots_ia_l56:
+    jump @bots_ia_l83
+bots_ia_l82:
     const.pri 0x1
-bots_ia_l57:
-    jzer @bots_ia_l55
+bots_ia_l83:
+    jzer @bots_ia_l81
     const.pri 0x1
     stor.s.pri -8
-bots_ia_l55:
-bots_ia_l54:
+bots_ia_l81:
+bots_ia_l80:
     stack -4
     sysreq.n worldNewActor, 0
     stor.s.pri -204
     push.adr -8
-    push.c 0x4b48
+    push.c 0x4c30
     push.c 0x0
     push.c 0x30
     push.adr -200
@@ -1189,101 +1389,101 @@ bots_ia_l54:
     push.c 0x5
     push.s -204
     push.adr -220
-    push.c 0x4b9c
+    push.c 0x4c84
     sysreq.n actorGetPropInt, 3
     push.c 0x6
     push.s -204
     push.adr -208
-    push.c 0x4bc8
+    push.c 0x4cb0
     sysreq.n actorGetPropInt, 3
     push.s -204
     push.adr -212
-    push.c 0x4be8
+    push.c 0x4cd0
     sysreq.n actorGetPropInt, 3
     push.s -204
     push.adr -216
-    push.c 0x4c14
+    push.c 0x4cfc
     sysreq.n actorGetPropInt, 3
     push.s -204
-    push.c 0x45ac
-    push.c 0x4c38
-    sysreq.n actorGetPropInt, 3
-    push.s -204
-    push.c 0x45b0
-    push.c 0x4c6c
-    sysreq.n actorGetPropInt, 3
-    push.s -204
-    push.adr -224
-    push.c 0x4c98
+    push.c 0x45bc
+    push.c 0x4d20
     sysreq.n actorGetPropInt, 3
     push.s -204
     push.c 0x45c0
-    push.c 0x4cec
+    push.c 0x4d54
     sysreq.n actorGetPropInt, 3
     push.s -204
-    push.c 0x45cc
-    push.c 0x4d3c
-    sysreq.n actorGetPropReal, 3
-    push.s -204
-    push.c 0x4624
-    push.c 0x4d70
+    push.adr -224
+    push.c 0x4d80
     sysreq.n actorGetPropInt, 3
     push.s -204
-    push.c 0x4620
-    push.c 0x4dc4
+    push.c 0x45d0
+    push.c 0x4dd4
+    sysreq.n actorGetPropInt, 3
+    push.s -204
+    push.c 0x45dc
+    push.c 0x4e24
     sysreq.n actorGetPropReal, 3
     push.s -204
-    push.c 0x4628
-    push.c 0x4e18
+    push.c 0x4634
+    push.c 0x4e58
+    sysreq.n actorGetPropInt, 3
+    push.s -204
+    push.c 0x4630
+    push.c 0x4eac
     sysreq.n actorGetPropReal, 3
     push.s -204
-    push.c 0x462c
-    push.c 0x4e3c
+    push.c 0x4638
+    push.c 0x4f00
+    sysreq.n actorGetPropReal, 3
+    push.s -204
+    push.c 0x463c
+    push.c 0x4f24
     sysreq.n actorGetPropVector, 3
     push.s -204
-    push.c 0x4e84
+    push.c 0x4f6c
     sysreq.n actorReadProperties, 2
     push.adr -208
-    push.c 0x4ebc
+    push.c 0x4fa4
     push.c 0x0
     push.c 0x30
     push.adr -200
     sysreq.n strformat, 5
     push.s -204
-    push.c 0x45a0
+    push.c 0x45b0
     push.adr -200
     sysreq.n actorGetPropReal, 3
     push.s -204
-    push.c 0x4ee8
+    push.c 0x4fd0
     sysreq.n actorReadProperties, 2
     push.adr -212
-    push.c 0x4f30
+    push.c 0x5018
     push.c 0x0
     push.c 0x30
     push.adr -200
     sysreq.n strformat, 5
     push.s -204
-    push.c 0x45a4
+    push.c 0x45b4
     push.adr -200
     sysreq.n actorGetPropReal, 3
     push.s -204
-    push.c 0x4f68
+    push.c 0x5050
     sysreq.n actorReadProperties, 2
     push.adr -216
-    push.c 0x4fa8
+    push.c 0x5090
     push.c 0x0
     push.c 0x30
     push.adr -200
     sysreq.n strformat, 5
     push.s -204
-    push.c 0x45a8
+    push.c 0x45b8
     push.adr -200
     sysreq.n actorGetPropReal, 3
     push.s -204
-    push.c 0x4fd8
+    push.c 0x50c0
     sysreq.n actorReadProperties, 2
     push.adr -220
-    push.c 0x5020
+    push.c 0x5108
     push.c 0x0
     push.c 0x30
     push.adr -200
@@ -1300,46 +1500,46 @@ bots_ia_l54:
     push.c 0xc
     call @pw_fclamp
     stor.pri 0x4584
-    load.pri 0x45ac
+    load.pri 0x45bc
     const.alt 0x1
-    jsless @bots_ia_l59
-    load.pri 0x45ac
+    jsless @bots_ia_l85
+    load.pri 0x45bc
     const.alt 0x3
-    jsgrtr @bots_ia_l59
+    jsgrtr @bots_ia_l85
     zero.pri
-    jump @bots_ia_l60
-bots_ia_l59:
+    jump @bots_ia_l86
+bots_ia_l85:
     const.pri 0x1
-bots_ia_l60:
-    jzer @bots_ia_l58
+bots_ia_l86:
+    jzer @bots_ia_l84
     const.pri 0x1
-    stor.pri 0x45ac
-bots_ia_l58:
-    load.pri 0x45b0
+    stor.pri 0x45bc
+bots_ia_l84:
+    load.pri 0x45c0
     const.alt 0x1
-    jsgeq @bots_ia_l61
+    jsgeq @bots_ia_l87
     const.pri 0x6
-    stor.pri 0x45b0
-bots_ia_l61:
+    stor.pri 0x45c0
+bots_ia_l87:
     load.s.pri -224
     move.alt
     zero.pri
     xchg
-    jsleq @bots_ia_l62
+    jsleq @bots_ia_l88
     load.s.pri -224
-    jump @bots_ia_l63
-bots_ia_l62:
+    jump @bots_ia_l89
+bots_ia_l88:
     const.pri 0x6
-bots_ia_l63:
+bots_ia_l89:
     smul.c 0x1e
-    stor.pri 0x45b8
-    load.pri 0x45c0
+    stor.pri 0x45c8
+    load.pri 0x45d0
     const.alt 0x1e
-    jsgeq @bots_ia_l64
+    jsgeq @bots_ia_l90
     const.pri 0x55
-    stor.pri 0x45c0
-bots_ia_l64:
-    load.pri 0x45cc
+    stor.pri 0x45d0
+bots_ia_l90:
+    load.pri 0x45dc
     move.alt
     zero.pri
     push.pri
@@ -1348,42 +1548,42 @@ bots_ia_l64:
     push.c 0x8
     call @pw_operatorlteq_Float_Float
     pop.alt
-    jzer @bots_ia_l65
+    jzer @bots_ia_l91
     const.pri 0x42053333
-    stor.pri 0x45cc
-bots_ia_l65:
+    stor.pri 0x45dc
+bots_ia_l91:
     push.c 0x3db851ec
     push.c 0x3c23d70a
-    push 0x45a0
+    push 0x45b0
     push.c 0xc
     call @pw_fclamp
-    stor.pri 0x45a0
+    stor.pri 0x45b0
     push.c 0x3f0a3d71
     push.c 0x3e99999a
-    push 0x45a4
+    push 0x45b4
     push.c 0xc
     call @pw_fclamp
-    stor.pri 0x45a4
+    stor.pri 0x45b4
     push.c 0x3f333333
     push.c 0x3e800000
-    push 0x45a8
+    push 0x45b8
     push.c 0xc
     call @pw_fclamp
-    stor.pri 0x45a8
+    stor.pri 0x45b8
     push.c 0x3e99999a
     push.c 0x3dcccccd
-    push 0x4628
+    push 0x4638
     push.c 0xc
     call @pw_fclamp
-    stor.pri 0x4628
+    stor.pri 0x4638
     push.c 0x3f800000
     push.c 0x3f666666
-    push 0x4620
+    push 0x4630
     push.c 0xc
     call @pw_fclamp
-    stor.pri 0x4620
+    stor.pri 0x4630
     push.c 0x3d1ba5e3
-    push 0x45a4
+    push 0x45b4
     sysreq.n floatdiv, 2
     stor.pri 0x1c78
     stack 0xe0
@@ -1391,59 +1591,67 @@ bots_ia_l65:
     retn
 pw_timers:
     proc
+    load.pri 0x45d4
+    jzer @bots_ia_l92
+    dec 0x45d4
+bots_ia_l92:
     load.pri 0x45c4
-    jzer @bots_ia_l66
-    dec 0x45c4
-bots_ia_l66:
-    load.pri 0x45b4
-    load.alt 0x45b0
-    jsgeq @bots_ia_l68
-    dec 0x45bc
-    load.pri 0x45bc
+    load.alt 0x45c0
+    jsgeq @bots_ia_l94
+    dec 0x45cc
+    load.pri 0x45cc
     move.alt
     zero.pri
     xchg
-    jsgrtr @bots_ia_l68
+    jsgrtr @bots_ia_l94
     const.pri 0x1
-    jump @bots_ia_l69
-bots_ia_l68:
+    jump @bots_ia_l95
+bots_ia_l94:
     zero.pri
-bots_ia_l69:
-    jzer @bots_ia_l67
-    inc 0x45b4
-    load.pri 0x45b8
-    stor.pri 0x45bc
-bots_ia_l67:
-    load.pri 0x4650
-    jzer @bots_ia_l70
-    dec 0x4650
-bots_ia_l70:
-    load.pri 0x4758
-    jzer @bots_ia_l71
-    dec 0x4758
-bots_ia_l71:
-    load.pri 0x477c
-    jzer @bots_ia_l72
-    dec 0x477c
-bots_ia_l72:
-    load.pri 0x466c
-    jzer @bots_ia_l73
-    dec 0x466c
-bots_ia_l73:
-    load.pri 0x45d4
-    jzer @bots_ia_l75
-    dec 0x45d4
-    load.pri 0x45d4
-    jnz @bots_ia_l75
+bots_ia_l95:
+    jzer @bots_ia_l93
+    inc 0x45c4
+    load.pri 0x45c8
+    stor.pri 0x45cc
+bots_ia_l93:
+    load.pri 0x4660
+    jzer @bots_ia_l96
+    dec 0x4660
+bots_ia_l96:
+    load.pri 0x458c
+    jzer @bots_ia_l97
+    dec 0x458c
+bots_ia_l97:
+    load.pri 0x4598
+    jzer @bots_ia_l98
+    dec 0x4598
+bots_ia_l98:
+    load.pri 0x4768
+    jzer @bots_ia_l99
+    dec 0x4768
+bots_ia_l99:
+    load.pri 0x4794
+    jzer @bots_ia_l100
+    dec 0x4794
+bots_ia_l100:
+    load.pri 0x467c
+    jzer @bots_ia_l101
+    dec 0x467c
+bots_ia_l101:
+    load.pri 0x45e4
+    jzer @bots_ia_l103
+    dec 0x45e4
+    load.pri 0x45e4
+    jnz @bots_ia_l103
     const.pri 0x1
-    jump @bots_ia_l76
-bots_ia_l75:
+    jump @bots_ia_l104
+bots_ia_l103:
     zero.pri
-bots_ia_l76:
-    jzer @bots_ia_l74
+bots_ia_l104:
+    jzer @bots_ia_l102
     push.c 0x0
     call @pw_maskerOff
-bots_ia_l74:
+bots_ia_l102:
     const.pri 0x1ca0
     add.c 0x4
     load.i
@@ -1455,31 +1663,31 @@ bots_ia_l74:
     push.c 0x8
     call @pw_operatorgt_Float_Float
     pop.alt
-    jzer @bots_ia_l78
+    jzer @bots_ia_l106
     const.pri 0x42c80000
-    load.alt 0x45d0
+    load.alt 0x45e0
     push.pri
     push.pri
     push.alt
     push.c 0x8
     call @pw_operatorlt_Float_Float
     pop.alt
-    jzer @bots_ia_l78
+    jzer @bots_ia_l106
     const.pri 0x1
-    jump @bots_ia_l79
-bots_ia_l78:
+    jump @bots_ia_l107
+bots_ia_l106:
     zero.pri
-bots_ia_l79:
-    jzer @bots_ia_l77
-    push 0x45d0
+bots_ia_l107:
+    jzer @bots_ia_l105
+    push 0x45e0
     push.c 0x3e4ccccd
     sysreq.n floatadd, 2
-    stor.pri 0x45d0
-bots_ia_l77:
+    stor.pri 0x45e0
+bots_ia_l105:
     load.pri 0x1c68
     push.pri
     push.c 0x3f000000
-    push 0x459c
+    push 0x45ac
     sysreq.n floatsub, 2
     pop.alt
     push.pri
@@ -1488,12 +1696,24 @@ bots_ia_l77:
     push.c 0x8
     call @pw_operatorlt_Float_Float
     pop.alt
-    jzer @bots_ia_l80
+    jzer @bots_ia_l108
     const.pri 0x78
-    stor.pri 0x4758
-bots_ia_l80:
+    stor.pri 0x4768
+bots_ia_l108:
+    push.c 0x0
+    load.pri 0x45ac
+    load.alt 0x1c68
+    push.pri
+    push.pri
+    push.alt
+    push.c 0x8
+    call @pw_operatorlt_Float_Float
+    pop.alt
+    push.pri
+    push.c 0x6
+    sysreq.n actorSetCustomFlag, 3
     load.pri 0x1c68
-    stor.pri 0x459c
+    stor.pri 0x45ac
     zero.pri
     retn
 pw_clearLine:
@@ -1518,11 +1738,11 @@ pw_clearLine:
     push.c 0x8
     call @pw_operatorlt_Float_Float
     pop.alt
-    jzer @bots_ia_l81
+    jzer @bots_ia_l109
     const.pri 0x1
     stack 0x10
     retn
-bots_ia_l81:
+bots_ia_l109:
     load.s.pri -16
     const.alt 0x3f800000
     push.pri
@@ -1553,25 +1773,51 @@ bots_ia_l81:
     retn
 pw_isMasked:
     proc
+    push.s 0xc
+    push.c 0x6
+    sysreq.n actorGetCustomFlag, 2
+    jzer @bots_ia_l110
+    load.s.pri 0xc
+    stor.pri 0x476c
+    load.pri 0x459c
+    stor.pri 0x4770
+bots_ia_l110:
+    load.pri 0x476c
+    load.s.alt 0xc
+    jneq @bots_ia_l112
+    load.pri 0x4770
+    load.alt 0x459c
+    sub.alt
+    const.alt 0x14
+    jsgeq @bots_ia_l112
+    const.pri 0x1
+    jump @bots_ia_l113
+bots_ia_l112:
+    zero.pri
+bots_ia_l113:
+    jzer @bots_ia_l111
+    zero.pri
+    retn
+bots_ia_l111:
     push.c 0x0
     push.c 0x0
     push.s 0xc
     push.adr -4
-    push.c 0x5058
+    push.c 0x5140
     sysreq.n actorGetPropInt, 3
     push.s 0xc
     push.adr -8
-    push.c 0x5080
+    push.c 0x5168
     sysreq.n actorGetPropInt, 3
     load.s.pri -4
-    jnz @bots_ia_l82
+    jnz @bots_ia_l114
     load.s.pri -8
-    jnz @bots_ia_l82
+    jnz @bots_ia_l114
     zero.pri
-    jump @bots_ia_l83
-bots_ia_l82:
+    jump @bots_ia_l115
+bots_ia_l114:
     const.pri 0x1
-bots_ia_l83:
+bots_ia_l115:
     stack 0x8
     retn
 pw_lookAround:
@@ -1592,40 +1838,40 @@ pw_lookAround:
     push.c 0x49742400
     push.c -1
     push.c 0x49742400
-    zero 0x4754
+    zero 0x4764
     push.c 0x0
-    jump @bots_ia_l86
-bots_ia_l84:
+    jump @bots_ia_l118
+bots_ia_l116:
     inc.s -88
-bots_ia_l86:
+bots_ia_l118:
     load.s.pri -88
     load.s.alt -68
-    jsgeq @bots_ia_l85
+    jsgeq @bots_ia_l117
     stack -4
     addr.alt -64
     load.s.pri -88
     lidx.b 0x2
     stor.s.pri -92
-    load.pri 0x4590
+    load.pri 0x45a0
     load.s.alt -92
-    jneq @bots_ia_l87
+    jneq @bots_ia_l119
     stack 0x4
-    jump @bots_ia_l84
-bots_ia_l87:
+    jump @bots_ia_l116
+bots_ia_l119:
     push.c 0x0
     push.s -92
     push.adr -96
-    push.c 0x509c
+    push.c 0x5184
     sysreq.n actorGetPropInt, 3
     load.s.pri -96
-    jnz @bots_ia_l88
+    jnz @bots_ia_l120
     stack 0x8
-    jump @bots_ia_l84
-bots_ia_l88:
+    jump @bots_ia_l116
+bots_ia_l120:
     push.c 0x3f800000
     push.s -92
     push.adr -100
-    push.c 0x50c4
+    push.c 0x51ac
     sysreq.n actorGetPropReal, 3
     const.pri 0x3c23d70a
     load.s.alt -100
@@ -1635,29 +1881,29 @@ bots_ia_l88:
     push.c 0x8
     call @pw_operatorlteq_Float_Float
     pop.alt
-    jzer @bots_ia_l89
+    jzer @bots_ia_l121
     stack 0xc
-    jump @bots_ia_l84
-bots_ia_l89:
-    load.pri 0x4594
+    jump @bots_ia_l116
+bots_ia_l121:
+    load.pri 0x45a4
     load.s.alt -96
-    jneq @bots_ia_l90
-    load.pri 0x4754
+    jneq @bots_ia_l122
+    load.pri 0x4764
     const.alt 0x8
-    jsgeq @bots_ia_l91
-    const.pri 0x4734
+    jsgeq @bots_ia_l123
+    const.pri 0x4744
     push.pri
-    load.pri 0x4754
-    inc 0x4754
+    load.pri 0x4764
+    inc 0x4764
     pop.alt
     idxaddr.b 0x2
     move.alt
     load.s.pri -92
     stor.i
-bots_ia_l91:
+bots_ia_l123:
     stack 0xc
-    jump @bots_ia_l84
-bots_ia_l90:
+    jump @bots_ia_l116
+bots_ia_l122:
     stack -12
     zero.pri
     addr.alt -112
@@ -1677,7 +1923,7 @@ bots_ia_l90:
     call @pw_isMasked
     stor.s.pri -120
     load.s.pri -120
-    jnz @bots_ia_l93
+    jnz @bots_ia_l125
     load.s.pri -84
     load.s.alt -116
     push.pri
@@ -1686,18 +1932,18 @@ bots_ia_l90:
     push.c 0x8
     call @pw_operatorlt_Float_Float
     pop.alt
-    jzer @bots_ia_l93
+    jzer @bots_ia_l125
     const.pri 0x1
-    jump @bots_ia_l94
-bots_ia_l93:
+    jump @bots_ia_l126
+bots_ia_l125:
     zero.pri
-bots_ia_l94:
-    jzer @bots_ia_l92
+bots_ia_l126:
+    jzer @bots_ia_l124
     load.s.pri -92
     stor.s.pri -80
     load.s.pri -116
     stor.s.pri -84
-bots_ia_l92:
+bots_ia_l124:
     const.pri 0x460ca000
     load.s.alt -116
     push.pri
@@ -1706,18 +1952,18 @@ bots_ia_l92:
     push.c 0x8
     call @pw_operatorgt_Float_Float
     pop.alt
-    jnz @bots_ia_l96
+    jnz @bots_ia_l128
     load.s.pri -120
-    jnz @bots_ia_l96
+    jnz @bots_ia_l128
     zero.pri
-    jump @bots_ia_l97
-bots_ia_l96:
+    jump @bots_ia_l129
+bots_ia_l128:
     const.pri 0x1
-bots_ia_l97:
-    jzer @bots_ia_l95
+bots_ia_l129:
+    jzer @bots_ia_l127
     stack 0x20
-    jump @bots_ia_l84
-bots_ia_l95:
+    jump @bots_ia_l116
+bots_ia_l127:
     stack -4
     push.c 0x43480000
     push.adr -112
@@ -1726,7 +1972,7 @@ bots_ia_l95:
     call @pw_clearLine
     stor.s.pri -124
     load.s.pri -124
-    jnz @bots_ia_l99
+    jnz @bots_ia_l131
     const.pri 0x453b8000
     load.s.alt -116
     push.pri
@@ -1735,16 +1981,16 @@ bots_ia_l95:
     push.c 0x8
     call @pw_operatorgt_Float_Float
     pop.alt
-    jzer @bots_ia_l99
+    jzer @bots_ia_l131
     const.pri 0x1
-    jump @bots_ia_l100
-bots_ia_l99:
+    jump @bots_ia_l132
+bots_ia_l131:
     zero.pri
-bots_ia_l100:
-    jzer @bots_ia_l98
+bots_ia_l132:
+    jzer @bots_ia_l130
     stack 0x24
-    jump @bots_ia_l84
-bots_ia_l98:
+    jump @bots_ia_l116
+bots_ia_l130:
     stack -4
     load.s.pri -116
     push.pri
@@ -1759,20 +2005,20 @@ bots_ia_l98:
     sysreq.n floatadd, 2
     push.pri
     load.s.pri -124
-    jzer @bots_ia_l101
+    jzer @bots_ia_l133
     zero.pri
-    jump @bots_ia_l102
-bots_ia_l101:
+    jump @bots_ia_l134
+bots_ia_l133:
     const.pri 0x451c4000
-bots_ia_l102:
+bots_ia_l134:
     pop.alt
     push.pri
     push.alt
     sysreq.n floatadd, 2
     stor.s.pri -128
-    load.pri 0x4678
+    load.pri 0x4688
     load.s.alt -92
-    jneq @bots_ia_l103
+    jneq @bots_ia_l135
     load.s.pri -128
     const.alt 0x3f333333
     push.pri
@@ -1784,7 +2030,7 @@ bots_ia_l102:
     push.alt
     sysreq.n floatsub, 2
     stor.s.pri -128
-bots_ia_l103:
+bots_ia_l135:
     load.s.pri -76
     load.s.alt -128
     push.pri
@@ -1793,41 +2039,41 @@ bots_ia_l103:
     push.c 0x8
     call @pw_operatorlt_Float_Float
     pop.alt
-    jzer @bots_ia_l104
+    jzer @bots_ia_l136
     load.s.pri -128
     stor.s.pri -76
     load.s.pri -92
     stor.s.pri -72
-bots_ia_l104:
+bots_ia_l136:
     stack 0x28
-    jump @bots_ia_l84
-bots_ia_l85:
+    jump @bots_ia_l116
+bots_ia_l117:
     stack 0x4
-    load.pri 0x4678
+    load.pri 0x4688
     load.s.alt -72
-    jeq @bots_ia_l105
+    jeq @bots_ia_l137
     load.s.pri -72
-    stor.pri 0x4678
-    load.pri 0x458c
-    stor.pri 0x467c
-    zero 0x46fc
-    push.c 0x468c
+    stor.pri 0x4688
+    load.pri 0x459c
+    stor.pri 0x468c
+    zero 0x470c
+    push.c 0x469c
     sysreq.n floatveczero, 1
-    zero 0x4698
-    zero 0x4708
+    zero 0x46a8
+    zero 0x4718
     const.pri -1000
-    stor.pri 0x470c
-bots_ia_l105:
-    load.pri 0x4678
+    stor.pri 0x471c
+bots_ia_l137:
+    load.pri 0x4688
     eq.c.pri -1
-    jzer @bots_ia_l107
+    jzer @bots_ia_l139
     load.s.pri -80
     const.alt -1
-    jeq @bots_ia_l107
-    load.pri 0x4730
-    jzer @bots_ia_l108
+    jeq @bots_ia_l139
+    load.pri 0x4740
+    jzer @bots_ia_l140
     const.pri 0x5a
-    load.alt 0x458c
+    load.alt 0x459c
     sdiv.alt
     push.alt
     load.pri 0x4574
@@ -1836,25 +2082,25 @@ bots_ia_l105:
     load.i
     pop.alt
     xchg
-    jsless @bots_ia_l108
+    jsless @bots_ia_l140
     zero.pri
-    jump @bots_ia_l109
-bots_ia_l108:
+    jump @bots_ia_l141
+bots_ia_l140:
     const.pri 0x1
-bots_ia_l109:
-    jzer @bots_ia_l107
+bots_ia_l141:
+    jzer @bots_ia_l139
     const.pri 0x1
-    jump @bots_ia_l110
-bots_ia_l107:
+    jump @bots_ia_l142
+bots_ia_l139:
     zero.pri
-bots_ia_l110:
-    jzer @bots_ia_l106
+bots_ia_l142:
+    jzer @bots_ia_l138
     push.s -80
-    push.c 0x4724
+    push.c 0x4734
     sysreq.n actorGetPosition, 2
     const.pri 0x1
-    stor.pri 0x4730
-bots_ia_l106:
+    stor.pri 0x4740
+bots_ia_l138:
     push.c 0x0
     call @pw_watchTorpedoes
     stack 0x54
@@ -1862,11 +2108,11 @@ bots_ia_l106:
     retn
 pw_watchTorpedoes:
     proc
-    load.pri 0x477c
-    jzer @bots_ia_l111
+    load.pri 0x4794
+    jzer @bots_ia_l143
     zero.pri
     retn
-bots_ia_l111:
+bots_ia_l143:
     stack -32
     zero.pri
     addr.alt -32
@@ -1880,13 +2126,13 @@ bots_ia_l111:
     sysreq.n worldFindActors, 5
     stor.s.pri -36
     push.c 0x0
-    jump @bots_ia_l114
-bots_ia_l112:
+    jump @bots_ia_l146
+bots_ia_l144:
     inc.s -40
-bots_ia_l114:
+bots_ia_l146:
     load.s.pri -40
     load.s.alt -36
-    jsgeq @bots_ia_l113
+    jsgeq @bots_ia_l145
     stack -4
     addr.alt -32
     load.s.pri -40
@@ -1895,33 +2141,33 @@ bots_ia_l114:
     push.c 0x0
     push.s -44
     push.adr -48
-    push.c 0x50d8
+    push.c 0x51c0
     sysreq.n actorGetPropInt, 3
-    load.pri 0x4590
+    load.pri 0x45a0
     load.s.alt -48
-    jneq @bots_ia_l115
+    jneq @bots_ia_l147
     stack 0x8
-    jump @bots_ia_l112
-bots_ia_l115:
+    jump @bots_ia_l144
+bots_ia_l147:
     push.c 0x0
     push.s -44
     push.adr -52
-    push.c 0x50fc
+    push.c 0x51e4
     sysreq.n actorGetPropInt, 3
     load.s.pri -52
-    jzer @bots_ia_l117
-    load.pri 0x4594
+    jzer @bots_ia_l149
+    load.pri 0x45a4
     load.s.alt -52
-    jneq @bots_ia_l117
+    jneq @bots_ia_l149
     const.pri 0x1
-    jump @bots_ia_l118
-bots_ia_l117:
+    jump @bots_ia_l150
+bots_ia_l149:
     zero.pri
-bots_ia_l118:
-    jzer @bots_ia_l116
+bots_ia_l150:
+    jzer @bots_ia_l148
     stack 0xc
-    jump @bots_ia_l112
-bots_ia_l116:
+    jump @bots_ia_l144
+bots_ia_l148:
     stack -12
     zero.pri
     addr.alt -64
@@ -1949,10 +2195,10 @@ bots_ia_l116:
     push.c 0x8
     call @pw_operatorlt_Float_Float
     pop.alt
-    jzer @bots_ia_l119
+    jzer @bots_ia_l151
     stack 0x28
-    jump @bots_ia_l112
-bots_ia_l119:
+    jump @bots_ia_l144
+bots_ia_l151:
     stack -12
     zero.pri
     addr.alt -92
@@ -1980,7 +2226,7 @@ bots_ia_l119:
     push.c 0x8
     call @pw_operatorlteq_Float_Float
     pop.alt
-    jnz @bots_ia_l121
+    jnz @bots_ia_l153
     const.pri 0x42960000
     load.s.alt -96
     push.pri
@@ -1989,16 +2235,16 @@ bots_ia_l119:
     push.c 0x8
     call @pw_operatorgt_Float_Float
     pop.alt
-    jnz @bots_ia_l121
+    jnz @bots_ia_l153
     zero.pri
-    jump @bots_ia_l122
-bots_ia_l121:
+    jump @bots_ia_l154
+bots_ia_l153:
     const.pri 0x1
-bots_ia_l122:
-    jzer @bots_ia_l120
+bots_ia_l154:
+    jzer @bots_ia_l152
     stack 0x38
-    jump @bots_ia_l112
-bots_ia_l120:
+    jump @bots_ia_l144
+bots_ia_l152:
     push.s -96
     push.c 0x4
     call @pw_operatorsub_Float
@@ -2016,10 +2262,10 @@ bots_ia_l120:
     push.c 0x8
     call @pw_operatorgt_Float_Float
     pop.alt
-    jzer @bots_ia_l123
+    jzer @bots_ia_l155
     stack 0x38
-    jump @bots_ia_l112
-bots_ia_l123:
+    jump @bots_ia_l144
+bots_ia_l155:
     push.c 0x0
     call @pw_frandom
     push.pri
@@ -2034,12 +2280,12 @@ bots_ia_l123:
     push.c 0x8
     call @pw_operatorgt_Float_Float
     pop.alt
-    jzer @bots_ia_l124
+    jzer @bots_ia_l156
     stack 0x38
-    jump @bots_ia_l112
-bots_ia_l124:
+    jump @bots_ia_l144
+bots_ia_l156:
     const.pri 0x2d
-    stor.pri 0x477c
+    stor.pri 0x4794
     push.adr -92
     sysreq.n floatveclength, 1
     move.alt
@@ -2050,13 +2296,13 @@ bots_ia_l124:
     push.c 0x8
     call @pw_operatorgt_Float_Float
     pop.alt
-    jzer @bots_ia_l125
+    jzer @bots_ia_l157
     push.adr -92
     push.c 0x4
     call @pw_yawOf
-    stor.pri 0x4780
-    jump @bots_ia_l126
-bots_ia_l125:
+    stor.pri 0x4798
+    jump @bots_ia_l158
+bots_ia_l157:
     push.adr -76
     push.c 0x4
     call @pw_yawOf
@@ -2071,12 +2317,12 @@ bots_ia_l125:
     push.c 0x8
     call @pw_operatorgt_Float_Float
     pop.alt
-    jzer @bots_ia_l127
+    jzer @bots_ia_l159
     const.pri 0x3fc90ff9
-    jump @bots_ia_l128
-bots_ia_l127:
+    jump @bots_ia_l160
+bots_ia_l159:
     const.pri -1077342215
-bots_ia_l128:
+bots_ia_l160:
     pop.alt
     push.pri
     push.alt
@@ -2084,8 +2330,8 @@ bots_ia_l128:
     push.pri
     push.c 0x4
     call @pw_wrapAngle
-    stor.pri 0x4780
-bots_ia_l126:
+    stor.pri 0x4798
+bots_ia_l158:
     const.pri 0x1ca0
     add.c 0x4
     load.i
@@ -2104,53 +2350,53 @@ bots_ia_l126:
     push.c 0x8
     call @pw_operatorgt_Float_Float
     pop.alt
-    jzer @bots_ia_l129
+    jzer @bots_ia_l161
     const.pri 0x437a0000
-    jump @bots_ia_l130
-bots_ia_l129:
+    jump @bots_ia_l162
+bots_ia_l161:
     const.pri -1015414784
-bots_ia_l130:
+bots_ia_l162:
     pop.alt
     push.pri
     push.alt
     sysreq.n floatadd, 2
-    stor.pri 0x4604
+    stor.pri 0x4614
     zero.pri
     stack 0x60
     retn
-    jump @bots_ia_l112
-bots_ia_l113:
+    jump @bots_ia_l144
+bots_ia_l145:
     stack 0x4
     stack 0x24
     zero.pri
     retn
 pw_follow:
     proc
-    load.pri 0x4678
+    load.pri 0x4688
     eq.c.pri -1
-    jzer @bots_ia_l131
+    jzer @bots_ia_l163
     zero.pri
     retn
-bots_ia_l131:
+bots_ia_l163:
     stack -12
     zero.pri
     addr.alt -12
     fill 0xc
     push.c 0x3f800000
-    push 0x4678
+    push 0x4688
     sysreq.n actorGetCollisionType, 1
     const.alt 0xc0000
     and
-    jzer @bots_ia_l133
-    push 0x4678
+    jzer @bots_ia_l165
+    push 0x4688
     push.adr -12
     sysreq.n actorGetPosition, 2
-    jzer @bots_ia_l133
-    push 0x4678
+    jzer @bots_ia_l165
+    push 0x4688
     push.adr -16
-    push.c 0x5124
+    push.c 0x520c
     sysreq.n actorGetPropReal, 3
-    jzer @bots_ia_l134
+    jzer @bots_ia_l166
     const.pri 0x3c23d70a
     load.s.alt -16
     push.pri
@@ -2159,61 +2405,61 @@ bots_ia_l131:
     push.c 0x8
     call @pw_operatorlteq_Float_Float
     pop.alt
-    jzer @bots_ia_l134
+    jzer @bots_ia_l166
     const.pri 0x1
-    jump @bots_ia_l135
-bots_ia_l134:
+    jump @bots_ia_l167
+bots_ia_l166:
     zero.pri
-bots_ia_l135:
-    jnz @bots_ia_l133
+bots_ia_l167:
+    jnz @bots_ia_l165
     zero.pri
-    jump @bots_ia_l136
-bots_ia_l133:
+    jump @bots_ia_l168
+bots_ia_l165:
     const.pri 0x1
-bots_ia_l136:
-    jzer @bots_ia_l132
+bots_ia_l168:
+    jzer @bots_ia_l164
     const.pri -1
-    stor.pri 0x4678
+    stor.pri 0x4688
     zero.pri
     stack 0x10
     retn
-bots_ia_l132:
-    push 0x4678
+bots_ia_l164:
+    push 0x4688
     push.c 0x4
     call @pw_isMasked
-    jzer @bots_ia_l137
+    jzer @bots_ia_l169
     const.pri -1
-    stor.pri 0x4678
-    load.pri 0x458c
-    stor.pri 0x475c
-    const.pri 0x4760
+    stor.pri 0x4688
+    load.pri 0x459c
+    stor.pri 0x4774
+    const.pri 0x4778
     move.alt
-    const.pri 0x4680
+    const.pri 0x4690
     movs 0xc
-    const.pri 0x476c
+    const.pri 0x4784
     move.alt
-    const.pri 0x468c
+    const.pri 0x469c
     movs 0xc
-    zero 0x4778
+    zero 0x4790
     zero.pri
     stack 0x10
     retn
-bots_ia_l137:
-    const.pri 0x4680
+bots_ia_l169:
+    const.pri 0x4690
     push.pri
     addr.pri -12
     pop.alt
     movs 0xc
-    load.pri 0x4700
+    load.pri 0x4710
     add.c 0x1
     move.alt
     const.pri 0x8
     sdiv.alt
     move.pri
-    stor.pri 0x4700
-    const.pri 0x469c
+    stor.pri 0x4710
+    const.pri 0x46ac
     push.pri
-    load.pri 0x4700
+    load.pri 0x4710
     smul.c 0x3
     pop.alt
     idxaddr.b 0x2
@@ -2222,9 +2468,9 @@ bots_ia_l137:
     load.i
     pop.alt
     stor.i
-    const.pri 0x469c
+    const.pri 0x46ac
     push.pri
-    load.pri 0x4700
+    load.pri 0x4710
     smul.c 0x3
     add.c 0x1
     pop.alt
@@ -2235,9 +2481,9 @@ bots_ia_l137:
     load.i
     pop.alt
     stor.i
-    const.pri 0x469c
+    const.pri 0x46ac
     push.pri
-    load.pri 0x4700
+    load.pri 0x4710
     smul.c 0x3
     add.c 0x2
     pop.alt
@@ -2248,18 +2494,18 @@ bots_ia_l137:
     load.i
     pop.alt
     stor.i
-    load.pri 0x46fc
+    load.pri 0x470c
     const.alt 0x8
-    jsgeq @bots_ia_l138
-    inc 0x46fc
-bots_ia_l138:
-    load.pri 0x46fc
+    jsgeq @bots_ia_l170
+    inc 0x470c
+bots_ia_l170:
+    load.pri 0x470c
     const.alt 0x2
-    jsless @bots_ia_l139
+    jsless @bots_ia_l171
     stack -4
-    load.pri 0x4700
+    load.pri 0x4710
     add.c 0x9
-    load.alt 0x46fc
+    load.alt 0x470c
     sub
     move.alt
     const.pri 0x8
@@ -2267,7 +2513,7 @@ bots_ia_l138:
     move.pri
     stor.s.pri -20
     stack -4
-    load.pri 0x46fc
+    load.pri 0x470c
     add.c -1
     push.pri
     sysreq.n float, 1
@@ -2281,7 +2527,7 @@ bots_ia_l138:
     addr.pri -12
     load.i
     push.pri
-    const.pri 0x469c
+    const.pri 0x46ac
     push.pri
     load.s.pri -20
     smul.c 0x3
@@ -2306,7 +2552,7 @@ bots_ia_l138:
     add.c 0x4
     load.i
     push.pri
-    const.pri 0x469c
+    const.pri 0x46ac
     push.pri
     load.s.pri -20
     smul.c 0x3
@@ -2332,7 +2578,7 @@ bots_ia_l138:
     add.c 0x8
     load.i
     push.pri
-    const.pri 0x469c
+    const.pri 0x46ac
     push.pri
     load.s.pri -20
     smul.c 0x3
@@ -2393,23 +2639,23 @@ bots_ia_l138:
     push.c 0x8
     call @pw_operatorgt_Float_Float
     pop.alt
-    jzer @bots_ia_l141
-    load.pri 0x46fc
+    jzer @bots_ia_l173
+    load.pri 0x470c
     const.alt 0x8
-    jsless @bots_ia_l141
+    jsless @bots_ia_l173
     const.pri 0x1
-    jump @bots_ia_l142
-bots_ia_l141:
+    jump @bots_ia_l174
+bots_ia_l173:
     zero.pri
-bots_ia_l142:
-    jzer @bots_ia_l140
-    push 0x4698
+bots_ia_l174:
+    jzer @bots_ia_l172
+    push 0x46a8
     push.c 0x3f4ccccd
     sysreq.n floatmul, 2
     push.pri
     push.c 0x3da3d70a
     push.c -1113336054
-    load.pri 0x4704
+    load.pri 0x4714
     load.s.alt -40
     push.pri
     push.alt
@@ -2428,158 +2674,158 @@ bots_ia_l142:
     push.pri
     push.alt
     sysreq.n floatadd, 2
-    stor.pri 0x4698
+    stor.pri 0x46a8
     stack -4
     const.pri 0x3ba3d70a
-    load.alt 0x4698
+    load.alt 0x46a8
     push.pri
     push.pri
     push.alt
     push.c 0x8
     call @pw_operatorgt_Float_Float
     pop.alt
-    jzer @bots_ia_l143
+    jzer @bots_ia_l175
     const.pri 0x1
-    jump @bots_ia_l144
-bots_ia_l143:
+    jump @bots_ia_l176
+bots_ia_l175:
     const.pri -1146890486
-    load.alt 0x4698
+    load.alt 0x46a8
     push.pri
     push.pri
     push.alt
     push.c 0x8
     call @pw_operatorlt_Float_Float
     pop.alt
-    jzer @bots_ia_l145
+    jzer @bots_ia_l177
     const.pri -1
-    jump @bots_ia_l146
-bots_ia_l145:
+    jump @bots_ia_l178
+bots_ia_l177:
     zero.pri
-bots_ia_l146:
-bots_ia_l144:
+bots_ia_l178:
+bots_ia_l176:
     stor.s.pri -48
     load.s.pri -48
-    jzer @bots_ia_l148
-    load.pri 0x4708
+    jzer @bots_ia_l180
+    load.pri 0x4718
     load.s.alt -48
-    jeq @bots_ia_l148
+    jeq @bots_ia_l180
     const.pri 0x1
-    jump @bots_ia_l149
-bots_ia_l148:
+    jump @bots_ia_l181
+bots_ia_l180:
     zero.pri
-bots_ia_l149:
-    jzer @bots_ia_l147
-    load.pri 0x4708
-    jzer @bots_ia_l150
-    load.pri 0x458c
-    stor.pri 0x470c
-bots_ia_l150:
+bots_ia_l181:
+    jzer @bots_ia_l179
+    load.pri 0x4718
+    jzer @bots_ia_l182
+    load.pri 0x459c
+    stor.pri 0x471c
+bots_ia_l182:
     load.s.pri -48
-    stor.pri 0x4708
-bots_ia_l147:
+    stor.pri 0x4718
+bots_ia_l179:
     stack 0x4
-    jump @bots_ia_l151
-bots_ia_l140:
-    push 0x4698
+    jump @bots_ia_l183
+bots_ia_l172:
+    push 0x46a8
     push.c 0x3f666666
     sysreq.n floatmul, 2
-    stor.pri 0x4698
-bots_ia_l151:
+    stor.pri 0x46a8
+bots_ia_l183:
     load.s.pri -40
-    stor.pri 0x4704
-    const.pri 0x468c
+    stor.pri 0x4714
+    const.pri 0x469c
     push.pri
     addr.pri -36
     pop.alt
     movs 0xc
     stack 0x1c
-bots_ia_l139:
+bots_ia_l171:
     const.pri 0xf
-    load.alt 0x458c
+    load.alt 0x459c
     sdiv.alt
     move.pri
-    jzer @bots_ia_l153
-    load.pri 0x467c
-    load.alt 0x458c
+    jzer @bots_ia_l185
+    load.pri 0x468c
+    load.alt 0x459c
     sub.alt
     const.alt 0x2
-    jsless @bots_ia_l153
+    jsless @bots_ia_l185
     zero.pri
-    jump @bots_ia_l154
-bots_ia_l153:
+    jump @bots_ia_l186
+bots_ia_l185:
     const.pri 0x1
-bots_ia_l154:
-    jzer @bots_ia_l152
+bots_ia_l186:
+    jzer @bots_ia_l184
     push.c 0x43480000
     push.adr -12
     push.c 0x1ca0
     push.c 0xc
     call @pw_clearLine
-    stor.pri 0x4710
-bots_ia_l152:
-    const.pri 0x4714
+    stor.pri 0x4720
+bots_ia_l184:
+    const.pri 0x4724
     push.pri
     addr.pri -12
     pop.alt
     movs 0xc
-    load.pri 0x458c
-    stor.pri 0x4720
+    load.pri 0x459c
+    stor.pri 0x4730
     stack 0x10
     zero.pri
     retn
 pw_decide:
     proc
     stack -4
-    push 0x4598
+    push 0x45a8
     push 0x1c68
     sysreq.n floatdiv, 2
     stor.s.pri -4
     const.pri 0x3f4ccccd
-    stor.pri 0x45f0
+    stor.pri 0x4600
     const.pri 0x447a0000
-    stor.pri 0x4608
-    load.pri 0x4678
+    stor.pri 0x4618
+    load.pri 0x4688
     eq.c.pri -1
-    jzer @bots_ia_l156
-    load.pri 0x475c
-    load.alt 0x458c
+    jzer @bots_ia_l188
+    load.pri 0x4774
+    load.alt 0x459c
     sub.alt
     const.alt 0xf0
-    jsgeq @bots_ia_l156
+    jsgeq @bots_ia_l188
     const.pri 0x1
-    jump @bots_ia_l157
-bots_ia_l156:
+    jump @bots_ia_l189
+bots_ia_l188:
     zero.pri
-bots_ia_l157:
-    jzer @bots_ia_l155
+bots_ia_l189:
+    jzer @bots_ia_l187
     push.c 0x0
     call @pw_guess
     zero.pri
     stack 0x4
     retn
-bots_ia_l155:
-    load.pri 0x4678
+bots_ia_l187:
+    load.pri 0x4688
     eq.c.pri -1
-    jzer @bots_ia_l158
+    jzer @bots_ia_l190
     push.c 0x0
     call @pw_wander
-    load.pri 0x477c
-    jzer @bots_ia_l159
-    load.pri 0x4780
-    stor.pri 0x45f4
+    load.pri 0x4794
+    jzer @bots_ia_l191
+    load.pri 0x4798
+    stor.pri 0x4604
     const.pri 0x3f800000
-    stor.pri 0x45f0
-bots_ia_l159:
+    stor.pri 0x4600
+bots_ia_l191:
     zero.pri
     stack 0x4
     retn
-bots_ia_l158:
+bots_ia_l190:
     stack -12
     zero.pri
     addr.alt -16
     fill 0xc
     push.c 0x1ca0
-    push.c 0x4680
+    push.c 0x4690
     push.adr -16
     sysreq.n floatvecsubto, 3
     stack -4
@@ -2600,43 +2846,43 @@ bots_ia_l158:
     call @pw_yawOf
     stor.s.pri -48
     const.pri 0x3
-    load.alt 0x458c
+    load.alt 0x459c
     sdiv.alt
     move.pri
-    jzer @bots_ia_l161
-    load.pri 0x467c
-    load.alt 0x458c
+    jzer @bots_ia_l193
+    load.pri 0x468c
+    load.alt 0x459c
     sub.alt
     const.alt 0x3
-    jsless @bots_ia_l161
+    jsless @bots_ia_l193
     zero.pri
-    jump @bots_ia_l162
-bots_ia_l161:
+    jump @bots_ia_l194
+bots_ia_l193:
     const.pri 0x1
-bots_ia_l162:
-    jzer @bots_ia_l160
-    push.c 0x4870
-    push.c 0x4864
+bots_ia_l194:
+    jzer @bots_ia_l192
+    push.c 0x4888
+    push.c 0x487c
     push.c 0x8
     call @pw_intercept
-    stor.pri 0x487c
-bots_ia_l160:
+    stor.pri 0x4894
+bots_ia_l192:
     stack -4
-    load.pri 0x487c
+    load.pri 0x4894
     stor.s.pri -52
     addr.alt -32
-    const.pri 0x4864
+    const.pri 0x487c
     movs 0xc
     addr.alt -44
-    const.pri 0x4870
+    const.pri 0x4888
     movs 0xc
     load.s.pri -52
-    jzer @bots_ia_l163
+    jzer @bots_ia_l195
     push.adr -32
     push.c 0x4
     call @pw_yawOf
     stor.s.pri -48
-bots_ia_l163:
+bots_ia_l195:
     stack -4
     push.c 0x0
     call @pw_torpedoRange
@@ -2644,10 +2890,10 @@ bots_ia_l163:
     stack -4
     push.c 0x0
     call @pw_agile
-    jzer @bots_ia_l164
+    jzer @bots_ia_l196
     const.pri 0x44d48000
-    jump @bots_ia_l165
-bots_ia_l164:
+    jump @bots_ia_l197
+bots_ia_l196:
     push.c 0x453b8000
     push.c 0x45098000
     load.s.pri -56
@@ -2658,7 +2904,7 @@ bots_ia_l164:
     push.pri
     push.c 0xc
     call @pw_fclamp
-bots_ia_l165:
+bots_ia_l197:
     stor.s.pri -60
     const.pri 0x3ecccccd
     load.s.alt -4
@@ -2668,18 +2914,18 @@ bots_ia_l165:
     push.c 0x8
     call @pw_operatorlt_Float_Float
     pop.alt
-    jzer @bots_ia_l166
-    load.pri 0x45d4
-    jnz @bots_ia_l168
-    load.pri 0x45cc
-    load.alt 0x45d0
+    jzer @bots_ia_l198
+    load.pri 0x45e4
+    jnz @bots_ia_l200
+    load.pri 0x45dc
+    load.alt 0x45e0
     push.pri
     push.pri
     push.alt
     push.c 0x8
     call @pw_operatorgteq_Float_Float
     pop.alt
-    jzer @bots_ia_l168
+    jzer @bots_ia_l200
     const.pri 0x44e10000
     load.s.alt -20
     push.pri
@@ -2688,9 +2934,9 @@ bots_ia_l165:
     push.c 0x8
     call @pw_operatorlt_Float_Float
     pop.alt
-    jnz @bots_ia_l169
-    load.pri 0x4758
-    jzer @bots_ia_l170
+    jnz @bots_ia_l201
+    load.pri 0x4768
+    jzer @bots_ia_l202
     const.pri 0x455ac000
     load.s.alt -20
     push.pri
@@ -2699,30 +2945,30 @@ bots_ia_l165:
     push.c 0x8
     call @pw_operatorlt_Float_Float
     pop.alt
-    jzer @bots_ia_l170
+    jzer @bots_ia_l202
     const.pri 0x1
-    jump @bots_ia_l171
-bots_ia_l170:
+    jump @bots_ia_l203
+bots_ia_l202:
     zero.pri
-bots_ia_l171:
-    jnz @bots_ia_l169
+bots_ia_l203:
+    jnz @bots_ia_l201
     zero.pri
-    jump @bots_ia_l172
-bots_ia_l169:
+    jump @bots_ia_l204
+bots_ia_l201:
     const.pri 0x1
-bots_ia_l172:
-    jzer @bots_ia_l168
+bots_ia_l204:
+    jzer @bots_ia_l200
     const.pri 0x1
-    jump @bots_ia_l173
-bots_ia_l168:
+    jump @bots_ia_l205
+bots_ia_l200:
     zero.pri
-bots_ia_l173:
-    jzer @bots_ia_l167
+bots_ia_l205:
+    jzer @bots_ia_l199
     push.c 0x0
     call @pw_maskerOn
-bots_ia_l167:
-    load.pri 0x45d4
-    jzer @bots_ia_l174
+bots_ia_l199:
+    load.pri 0x45e4
+    jzer @bots_ia_l206
     push.adr -16
     push.c 0x4
     call @pw_yawOf
@@ -2733,10 +2979,10 @@ bots_ia_l167:
     push.pri
     push.c 0x4
     call @pw_wrapAngle
-    stor.pri 0x45f4
+    stor.pri 0x4604
     const.pri 0x3f800000
-    stor.pri 0x45f0
-    push 0x4658
+    stor.pri 0x4600
+    push 0x4668
     push.c 0x437a0000
     sysreq.n floatadd, 2
     push.pri
@@ -2746,13 +2992,13 @@ bots_ia_l167:
     push.pri
     push.c 0x8
     call @pw_fmin
-    stor.pri 0x4604
+    stor.pri 0x4614
     zero.pri
     stack 0x3c
     retn
-bots_ia_l174:
+bots_ia_l206:
     load.s.pri -48
-    stor.pri 0x45f4
+    stor.pri 0x4604
     load.s.pri -20
     push.pri
     load.s.pri -56
@@ -2767,25 +3013,25 @@ bots_ia_l174:
     push.c 0x8
     call @pw_operatorlt_Float_Float
     pop.alt
-    jzer @bots_ia_l175
+    jzer @bots_ia_l207
     const.pri -1082130432
-    jump @bots_ia_l176
-bots_ia_l175:
+    jump @bots_ia_l208
+bots_ia_l207:
     const.pri 0x3e4ccccd
-bots_ia_l176:
-    stor.pri 0x45f0
-    jump @bots_ia_l177
-bots_ia_l166:
-    load.pri 0x4710
-    jnz @bots_ia_l178
+bots_ia_l208:
+    stor.pri 0x4600
+    jump @bots_ia_l209
+bots_ia_l198:
+    load.pri 0x4720
+    jnz @bots_ia_l210
     push.adr -16
     push.c 0x4
     call @pw_yawOf
-    stor.pri 0x45f4
+    stor.pri 0x4604
     const.pri 0x3f800000
-    stor.pri 0x45f0
-    jump @bots_ia_l179
-bots_ia_l178:
+    stor.pri 0x4600
+    jump @bots_ia_l211
+bots_ia_l210:
     load.s.pri -20
     push.pri
     load.s.pri -60
@@ -2800,13 +3046,13 @@ bots_ia_l178:
     push.c 0x8
     call @pw_operatorgt_Float_Float
     pop.alt
-    jzer @bots_ia_l180
+    jzer @bots_ia_l212
     load.s.pri -48
-    stor.pri 0x45f4
+    stor.pri 0x4604
     const.pri 0x3f800000
-    stor.pri 0x45f0
-    jump @bots_ia_l181
-bots_ia_l180:
+    stor.pri 0x4600
+    jump @bots_ia_l213
+bots_ia_l212:
     load.s.pri -20
     push.pri
     const.pri 0x447a0000
@@ -2821,34 +3067,34 @@ bots_ia_l180:
     push.c 0x8
     call @pw_operatorlt_Float_Float
     pop.alt
-    jzer @bots_ia_l182
+    jzer @bots_ia_l214
     load.s.pri -48
-    stor.pri 0x45f4
+    stor.pri 0x4604
     const.pri -1082130432
-    stor.pri 0x45f0
-    jump @bots_ia_l183
-bots_ia_l182:
+    stor.pri 0x4600
+    jump @bots_ia_l215
+bots_ia_l214:
     load.s.pri -48
-    stor.pri 0x45f4
+    stor.pri 0x4604
     const.pri 0x3eb33333
-    stor.pri 0x45f0
-bots_ia_l183:
-bots_ia_l181:
-bots_ia_l179:
-bots_ia_l177:
-    load.pri 0x477c
-    jzer @bots_ia_l184
-    load.pri 0x4780
-    stor.pri 0x45f4
+    stor.pri 0x4600
+bots_ia_l215:
+bots_ia_l213:
+bots_ia_l211:
+bots_ia_l209:
+    load.pri 0x4794
+    jzer @bots_ia_l216
+    load.pri 0x4798
+    stor.pri 0x4604
     const.pri 0x3f800000
-    stor.pri 0x45f0
-    jump @bots_ia_l185
-bots_ia_l184:
-    const.pri 0x4680
+    stor.pri 0x4600
+    jump @bots_ia_l217
+bots_ia_l216:
+    const.pri 0x4690
     add.c 0x4
     load.i
     push.pri
-    const.pri 0x468c
+    const.pri 0x469c
     add.c 0x4
     load.i
     const.alt 0x41f00000
@@ -2859,9 +3105,9 @@ bots_ia_l184:
     push.pri
     push.alt
     sysreq.n floatadd, 2
-    stor.pri 0x4604
+    stor.pri 0x4614
     load.s.pri -52
-    jzer @bots_ia_l187
+    jzer @bots_ia_l219
     addr.pri -32
     add.c 0x4
     load.i
@@ -2876,22 +3122,22 @@ bots_ia_l184:
     push.c 0x8
     call @pw_operatorlt_Float_Float
     pop.alt
-    jzer @bots_ia_l187
+    jzer @bots_ia_l219
     const.pri 0x1
-    jump @bots_ia_l188
-bots_ia_l187:
+    jump @bots_ia_l220
+bots_ia_l219:
     zero.pri
-bots_ia_l188:
-    jzer @bots_ia_l186
-    push 0x4628
-    push 0x45a8
+bots_ia_l220:
+    jzer @bots_ia_l218
+    push 0x4638
+    push 0x45b8
     sysreq.n floatdiv, 2
     push.pri
-    push 0x45a8
+    push 0x45b8
     push.c 0x4
     call @pw_operatorsub_Float
     move.alt
-    load.pri 0x4628
+    load.pri 0x4638
     push.pri
     push.alt
     sysreq.n floatdiv, 2
@@ -2906,9 +3152,9 @@ bots_ia_l188:
     push.pri
     push.c 0xc
     call @pw_fclamp
-    stor.pri 0x4608
-bots_ia_l186:
-bots_ia_l185:
+    stor.pri 0x4618
+bots_ia_l218:
+bots_ia_l217:
     const.pri 0x44610000
     load.s.alt -20
     push.pri
@@ -2917,8 +3163,8 @@ bots_ia_l185:
     push.c 0x8
     call @pw_operatorlt_Float_Float
     pop.alt
-    jzer @bots_ia_l190
-    load.pri 0x45f0
+    jzer @bots_ia_l222
+    load.pri 0x4600
     move.alt
     zero.pri
     push.pri
@@ -2927,16 +3173,16 @@ bots_ia_l185:
     push.c 0x8
     call @pw_operatorgt_Float_Float
     pop.alt
-    jzer @bots_ia_l190
+    jzer @bots_ia_l222
     const.pri 0x1
-    jump @bots_ia_l191
-bots_ia_l190:
+    jump @bots_ia_l223
+bots_ia_l222:
     zero.pri
-bots_ia_l191:
-    jzer @bots_ia_l189
+bots_ia_l223:
+    jzer @bots_ia_l221
     const.pri -1082130432
-    stor.pri 0x45f0
-bots_ia_l189:
+    stor.pri 0x4600
+bots_ia_l221:
     push.s -52
     push.s -20
     push.adr -44
@@ -2950,8 +3196,8 @@ pw_guess:
     proc
     stack -4
     push.c 0x3c
-    load.pri 0x475c
-    load.alt 0x458c
+    load.pri 0x4774
+    load.alt 0x459c
     sub.alt
     push.pri
     sysreq.n min, 2
@@ -2963,10 +3209,10 @@ pw_guess:
     addr.alt -16
     fill 0xc
     addr.alt -16
-    const.pri 0x4760
+    const.pri 0x4778
     movs 0xc
     push.s -4
-    push.c 0x476c
+    push.c 0x4784
     push.adr -16
     sysreq.n floatvecaddscale, 3
     stack -12
@@ -2980,11 +3226,11 @@ pw_guess:
     push.adr -28
     push.c 0x4
     call @pw_yawOf
-    stor.pri 0x45f4
+    stor.pri 0x4604
     addr.pri -16
     add.c 0x4
     load.i
-    stor.pri 0x4604
+    stor.pri 0x4614
     push.adr -28
     sysreq.n floatveclength, 1
     move.alt
@@ -2995,35 +3241,35 @@ pw_guess:
     push.c 0x8
     call @pw_operatorgt_Float_Float
     pop.alt
-    jzer @bots_ia_l192
+    jzer @bots_ia_l224
     const.pri 0x3f4ccccd
-    jump @bots_ia_l193
-bots_ia_l192:
+    jump @bots_ia_l225
+bots_ia_l224:
     const.pri 0x3e99999a
-bots_ia_l193:
-    stor.pri 0x45f0
-    load.pri 0x477c
-    jzer @bots_ia_l194
-    load.pri 0x4780
-    stor.pri 0x45f4
+bots_ia_l225:
+    stor.pri 0x4600
+    load.pri 0x4794
+    jzer @bots_ia_l226
+    load.pri 0x4798
+    stor.pri 0x4604
     const.pri 0x3f800000
-    stor.pri 0x45f0
-bots_ia_l194:
-    load.pri 0x4778
+    stor.pri 0x4600
+bots_ia_l226:
+    load.pri 0x4790
     const.alt 0x2
-    jsgeq @bots_ia_l196
-    load.pri 0x45b4
-    jzer @bots_ia_l196
-    load.pri 0x45b4
+    jsgeq @bots_ia_l228
+    load.pri 0x45c4
+    jzer @bots_ia_l228
+    load.pri 0x45c4
     push.pri
     const.pri 0x2
-    load.alt 0x45b0
+    load.alt 0x45c0
     sdiv.alt
     pop.alt
     xchg
-    jsless @bots_ia_l196
-    load.pri 0x45c4
-    jnz @bots_ia_l196
+    jsless @bots_ia_l228
+    load.pri 0x45d4
+    jnz @bots_ia_l228
     push.c 0x0
     call @pw_frandom
     move.alt
@@ -3034,17 +3280,17 @@ bots_ia_l194:
     push.c 0x8
     call @pw_operatorgt_Float_Float
     pop.alt
-    jnz @bots_ia_l196
+    jnz @bots_ia_l228
     zero.pri
-    jump @bots_ia_l197
-bots_ia_l196:
+    jump @bots_ia_l229
+bots_ia_l228:
     const.pri 0x1
-bots_ia_l197:
-    jzer @bots_ia_l195
+bots_ia_l229:
+    jzer @bots_ia_l227
     zero.pri
     stack 0x1c
     retn
-bots_ia_l195:
+bots_ia_l227:
     stack -12
     zero.pri
     addr.alt -40
@@ -3054,24 +3300,24 @@ bots_ia_l195:
     addr.alt -52
     fill 0xc
     addr.alt -40
-    const.pri 0x4680
+    const.pri 0x4690
     movs 0xc
     addr.alt -52
-    const.pri 0x468c
+    const.pri 0x469c
     movs 0xc
     stack -4
-    load.pri 0x4698
+    load.pri 0x46a8
     stor.s.pri -56
-    const.pri 0x4680
+    const.pri 0x4690
     push.pri
     addr.pri -16
     pop.alt
     movs 0xc
-    const.pri 0x468c
+    const.pri 0x469c
     move.alt
-    const.pri 0x476c
+    const.pri 0x4784
     movs 0xc
-    zero 0x4698
+    zero 0x46a8
     push.c 0x0
     stack -4
     push.adr -60
@@ -3086,16 +3332,16 @@ bots_ia_l195:
     push.c 0x8
     call @pw_operatorlt_Float_Float
     pop.alt
-    jzer @bots_ia_l199
+    jzer @bots_ia_l231
     load.s.pri -60
     const.alt 0x8
-    jsless @bots_ia_l199
+    jsless @bots_ia_l231
     const.pri 0x1
-    jump @bots_ia_l200
-bots_ia_l199:
+    jump @bots_ia_l232
+bots_ia_l231:
     zero.pri
-bots_ia_l200:
-    jzer @bots_ia_l198
+bots_ia_l232:
+    jzer @bots_ia_l230
     stack -12
     zero.pri
     addr.alt -76
@@ -3108,24 +3354,24 @@ bots_ia_l200:
     push.adr -76
     push.c 0xc
     call @pw_clearLine
-    jzer @bots_ia_l202
+    jzer @bots_ia_l234
     push.adr -16
     push.adr -76
     push.c 0x8
     call @pw_mateInTheWay
-    jnz @bots_ia_l202
+    jnz @bots_ia_l234
     const.pri 0x1
-    jump @bots_ia_l203
-bots_ia_l202:
+    jump @bots_ia_l235
+bots_ia_l234:
     zero.pri
-bots_ia_l203:
-    jzer @bots_ia_l201
+bots_ia_l235:
+    jzer @bots_ia_l233
     stack -128
     zero.pri
     addr.alt -204
     fill 0x80
-    push.c 0x45ac
-    push.c 0x5138
+    push.c 0x45bc
+    push.c 0x5220
     push.c 0x0
     push.c 0x20
     push.adr -204
@@ -3134,19 +3380,19 @@ bots_ia_l203:
     push.adr -76
     push.c 0x8
     call @pw_launch
-    push 0x4860
+    push 0x4878
     push 0x1cc8
-    push.c 0x5194
+    push.c 0x527c
     sysreq.n actorSetPropReal, 3
-    dec 0x45b4
-    load.pri 0x45bc
+    dec 0x45c4
+    load.pri 0x45cc
     move.alt
     zero.pri
-    jsless @bots_ia_l204
-    load.pri 0x45b8
-    stor.pri 0x45bc
-bots_ia_l204:
-    load.pri 0x45c0
+    jsless @bots_ia_l236
+    load.pri 0x45c8
+    stor.pri 0x45cc
+bots_ia_l236:
+    load.pri 0x45d0
     push.pri
     load.pri 0x4574
     const.alt 0x4534
@@ -3154,38 +3400,38 @@ bots_ia_l204:
     load.i
     pop.alt
     add
-    stor.pri 0x45c4
-    load.pri 0x4624
-    stor.pri 0x4618
+    stor.pri 0x45d4
+    load.pri 0x4634
+    stor.pri 0x4628
     const.pri 0x3f800000
-    stor.pri 0x461c
-    load.pri 0x45d8
+    stor.pri 0x462c
+    load.pri 0x45e8
     neg
-    stor.pri 0x45d8
-    inc 0x4778
+    stor.pri 0x45e8
+    inc 0x4790
     stack 0x80
-bots_ia_l201:
+bots_ia_l233:
     stack 0xc
-bots_ia_l198:
-    const.pri 0x4680
+bots_ia_l230:
+    const.pri 0x4690
     push.pri
     addr.pri -40
     pop.alt
     movs 0xc
-    const.pri 0x468c
+    const.pri 0x469c
     push.pri
     addr.pri -52
     pop.alt
     movs 0xc
     load.s.pri -56
-    stor.pri 0x4698
+    stor.pri 0x46a8
     stack 0x40
     zero.pri
     retn
 pw_wander:
     proc
-    load.pri 0x4758
-    jzer @bots_ia_l206
+    load.pri 0x4768
+    jzer @bots_ia_l238
     const.pri 0x1c80
     add.c 0x8
     load.i
@@ -3194,13 +3440,13 @@ pw_wander:
     push.alt
     push.c 0x8
     call @pw_operatornoteq_Float_Float
-    jzer @bots_ia_l206
+    jzer @bots_ia_l238
     const.pri 0x1
-    jump @bots_ia_l207
-bots_ia_l206:
+    jump @bots_ia_l239
+bots_ia_l238:
     zero.pri
-bots_ia_l207:
-    jzer @bots_ia_l205
+bots_ia_l239:
+    jzer @bots_ia_l237
     stack -12
     zero.pri
     addr.alt -12
@@ -3212,22 +3458,22 @@ bots_ia_l207:
     push.adr -12
     push.c 0x4
     call @pw_yawOf
-    stor.pri 0x45f4
+    stor.pri 0x4604
     const.pri 0x3f19999a
-    stor.pri 0x45f0
+    stor.pri 0x4600
     zero.pri
     stack 0xc
     retn
-bots_ia_l205:
-    load.pri 0x4720
-    jzer @bots_ia_l209
-    load.pri 0x4720
-    load.alt 0x458c
+bots_ia_l237:
+    load.pri 0x4730
+    jzer @bots_ia_l241
+    load.pri 0x4730
+    load.alt 0x459c
     sub.alt
     const.alt 0x258
-    jsgeq @bots_ia_l209
+    jsgeq @bots_ia_l241
     push.c 0x1ca0
-    push.c 0x4714
+    push.c 0x4724
     push.c 0x8
     call @pw_distance2D
     move.alt
@@ -3238,39 +3484,39 @@ bots_ia_l205:
     push.c 0x8
     call @pw_operatorgt_Float_Float
     pop.alt
-    jzer @bots_ia_l209
+    jzer @bots_ia_l241
     const.pri 0x1
-    jump @bots_ia_l210
-bots_ia_l209:
+    jump @bots_ia_l242
+bots_ia_l241:
     zero.pri
-bots_ia_l210:
-    jzer @bots_ia_l208
+bots_ia_l242:
+    jzer @bots_ia_l240
     stack -12
     zero.pri
     addr.alt -12
     fill 0xc
     push.c 0x1ca0
-    push.c 0x4714
+    push.c 0x4724
     push.adr -12
     sysreq.n floatvecsubto, 3
     push.adr -12
     push.c 0x4
     call @pw_yawOf
-    stor.pri 0x45f4
-    const.pri 0x4714
+    stor.pri 0x4604
+    const.pri 0x4724
     add.c 0x4
     load.i
-    stor.pri 0x4604
+    stor.pri 0x4614
     const.pri 0x3f800000
-    stor.pri 0x45f0
+    stor.pri 0x4600
     zero.pri
     stack 0xc
     retn
-bots_ia_l208:
-    load.pri 0x4730
-    jzer @bots_ia_l212
+bots_ia_l240:
+    load.pri 0x4740
+    jzer @bots_ia_l244
     push.c 0x1ca0
-    push.c 0x4724
+    push.c 0x4734
     push.c 0x8
     call @pw_distance2D
     move.alt
@@ -3281,41 +3527,41 @@ bots_ia_l208:
     push.c 0x8
     call @pw_operatorgt_Float_Float
     pop.alt
-    jzer @bots_ia_l212
+    jzer @bots_ia_l244
     const.pri 0x1
-    jump @bots_ia_l213
-bots_ia_l212:
+    jump @bots_ia_l245
+bots_ia_l244:
     zero.pri
-bots_ia_l213:
-    jzer @bots_ia_l211
+bots_ia_l245:
+    jzer @bots_ia_l243
     stack -12
     zero.pri
     addr.alt -12
     fill 0xc
     push.c 0x1ca0
-    push.c 0x4724
+    push.c 0x4734
     push.adr -12
     sysreq.n floatvecsubto, 3
     push.adr -12
     push.c 0x4
     call @pw_yawOf
-    stor.pri 0x45f4
-    const.pri 0x4724
+    stor.pri 0x4604
+    const.pri 0x4734
     add.c 0x4
     load.i
-    stor.pri 0x4604
+    stor.pri 0x4614
     const.pri 0x3f800000
-    stor.pri 0x45f0
+    stor.pri 0x4600
     zero.pri
     stack 0xc
     retn
-bots_ia_l211:
+bots_ia_l243:
     const.pri 0xf0
-    load.alt 0x458c
+    load.alt 0x459c
     sdiv.alt
     move.pri
-    jnz @bots_ia_l214
-    load.pri 0x45f4
+    jnz @bots_ia_l246
+    load.pri 0x4604
     push.pri
     push.c 0x0
     call @pw_frandom
@@ -3335,45 +3581,45 @@ bots_ia_l211:
     push.pri
     push.c 0x4
     call @pw_wrapAngle
-    stor.pri 0x45f4
-bots_ia_l214:
+    stor.pri 0x4604
+bots_ia_l246:
     push.c -1005191168
-    push 0x4658
+    push 0x4668
     push.c 0x43960000
     sysreq.n floatadd, 2
     push.pri
     push.c 0x8
     call @pw_fmax
-    stor.pri 0x4604
+    stor.pri 0x4614
     const.pri 0x3f19999a
-    stor.pri 0x45f0
+    stor.pri 0x4600
     zero.pri
     retn
 pw_agile:
     proc
-    load.pri 0x470c
-    load.alt 0x458c
+    load.pri 0x471c
+    load.alt 0x459c
     sub.alt
     const.alt 0x78
     sless
     retn
 pw_torpedoRange:
     proc
-    load.pri 0x45ac
+    load.pri 0x45bc
     eq.c.pri 0x1
-    jzer @bots_ia_l215
+    jzer @bots_ia_l247
     const.pri 0x45cb2000
-    jump @bots_ia_l216
-bots_ia_l215:
-    load.pri 0x45ac
+    jump @bots_ia_l248
+bots_ia_l247:
+    load.pri 0x45bc
     eq.c.pri 0x2
-    jzer @bots_ia_l217
+    jzer @bots_ia_l249
     const.pri 0x4604d000
-    jump @bots_ia_l218
-bots_ia_l217:
+    jump @bots_ia_l250
+bots_ia_l249:
     const.pri 0x461c4000
-bots_ia_l218:
-bots_ia_l216:
+bots_ia_l250:
+bots_ia_l248:
     retn
 pw_torpedoRun:
     proc
@@ -3424,43 +3670,22 @@ pw_targetAt:
     push.alt
     sysreq.n floatadd, 2
     stor.s.pri -4
-    const.pri 0x4680
+    const.pri 0x4690
     load.s.alt 0x10
     movs 0xc
-    load.pri 0x51b4
+    load.pri 0x529c
     zero.alt
     push.pri
     push.alt
     push.c 0x8
     call @pw_operatoreqeq_Float_Float
-    jzer @bots_ia_l219
+    jzer @bots_ia_l251
     load.s.pri 0x10
     push.pri
     load.s.pri 0x10
     load.i
     push.pri
-    const.pri 0x468c
-    load.i
-    move.alt
-    load.s.pri -4
-    push.pri
-    push.alt
-    sysreq.n floatmul, 2
-    pop.alt
-    push.pri
-    push.alt
-    sysreq.n floatadd, 2
-    pop.alt
-    stor.i
-    load.s.pri 0x10
-    add.c 0x8
-    push.pri
-    load.s.pri 0x10
-    add.c 0x8
-    load.i
-    push.pri
-    const.pri 0x468c
-    add.c 0x8
+    const.pri 0x469c
     load.i
     move.alt
     load.s.pri -4
@@ -3473,13 +3698,34 @@ pw_targetAt:
     sysreq.n floatadd, 2
     pop.alt
     stor.i
-    jump @bots_ia_l220
-bots_ia_l219:
+    load.s.pri 0x10
+    add.c 0x8
+    push.pri
+    load.s.pri 0x10
+    add.c 0x8
+    load.i
+    push.pri
+    const.pri 0x469c
+    add.c 0x8
+    load.i
+    move.alt
+    load.s.pri -4
+    push.pri
+    push.alt
+    sysreq.n floatmul, 2
+    pop.alt
+    push.pri
+    push.alt
+    sysreq.n floatadd, 2
+    pop.alt
+    stor.i
+    jump @bots_ia_l252
+bots_ia_l251:
     stack -4
-    load.pri 0x4704
+    load.pri 0x4714
     push.pri
     load.s.pri -4
-    load.alt 0x4698
+    load.alt 0x46a8
     push.pri
     push.alt
     sysreq.n floatmul, 2
@@ -3493,9 +3739,9 @@ bots_ia_l219:
     load.s.pri 0x10
     load.i
     push.pri
-    load.pri 0x51b4
+    load.pri 0x529c
     push.pri
-    load.pri 0x51b8
+    load.pri 0x52a0
     push.pri
     push.c 0x0
     push.s -8
@@ -3521,13 +3767,13 @@ bots_ia_l219:
     add.c 0x8
     load.i
     push.pri
-    load.pri 0x51b4
+    load.pri 0x529c
     push.pri
     push.c 0x0
     push.s -8
     sysreq.n floatsin, 2
     move.alt
-    load.pri 0x51bc
+    load.pri 0x52a4
     push.pri
     push.alt
     sysreq.n floatsub, 2
@@ -3542,7 +3788,7 @@ bots_ia_l219:
     pop.alt
     stor.i
     stack 0x4
-bots_ia_l220:
+bots_ia_l252:
     load.s.pri 0x10
     add.c 0x4
     push.pri
@@ -3550,7 +3796,7 @@ bots_ia_l220:
     add.c 0x4
     load.i
     push.pri
-    const.pri 0x468c
+    const.pri 0x469c
     add.c 0x4
     load.i
     push.pri
@@ -3579,13 +3825,13 @@ bots_ia_l220:
     push.c 0x8
     call @pw_operatorgt_Float_Float
     pop.alt
-    jzer @bots_ia_l221
+    jzer @bots_ia_l253
     load.s.pri 0x10
     add.c 0x4
     move.alt
     const.pri -1031012352
     stor.i
-bots_ia_l221:
+bots_ia_l253:
     stack 0x4
     zero.pri
     retn
@@ -3598,11 +3844,11 @@ pw_intercept:
     push.adr -12
     push.c 0x4
     call @pw_tubePosition
-    zero 0x51b4
+    zero 0x529c
     load.pri 0x4574
     const.alt 0x2
-    jsless @bots_ia_l223
-    push 0x4698
+    jsless @bots_ia_l255
+    push 0x46a8
     push.c 0x4
     call @pw_fabs
     move.alt
@@ -3613,28 +3859,28 @@ pw_intercept:
     push.c 0x8
     call @pw_operatorgteq_Float_Float
     pop.alt
-    jzer @bots_ia_l223
+    jzer @bots_ia_l255
     const.pri 0x1
-    jump @bots_ia_l224
-bots_ia_l223:
+    jump @bots_ia_l256
+bots_ia_l255:
     zero.pri
-bots_ia_l224:
-    jzer @bots_ia_l222
-    const.pri 0x468c
+bots_ia_l256:
+    jzer @bots_ia_l254
+    const.pri 0x469c
     load.i
     push.pri
-    const.pri 0x468c
+    const.pri 0x469c
     load.i
     pop.alt
     push.pri
     push.alt
     sysreq.n floatmul, 2
     push.pri
-    const.pri 0x468c
+    const.pri 0x469c
     add.c 0x8
     load.i
     push.pri
-    const.pri 0x468c
+    const.pri 0x469c
     add.c 0x8
     load.i
     pop.alt
@@ -3648,20 +3894,20 @@ bots_ia_l224:
     push.pri
     sysreq.n floatsqroot, 1
     move.alt
-    load.pri 0x4698
+    load.pri 0x46a8
     push.pri
     push.alt
     sysreq.n floatdiv, 2
-    stor.pri 0x51b4
+    stor.pri 0x529c
     push.c 0x0
-    push 0x4704
+    push 0x4714
     sysreq.n floatcos, 2
-    stor.pri 0x51b8
+    stor.pri 0x52a0
     push.c 0x0
-    push 0x4704
+    push 0x4714
     sysreq.n floatsin, 2
-    stor.pri 0x51bc
-bots_ia_l222:
+    stor.pri 0x52a4
+bots_ia_l254:
     push.c 0x0
     push.c 0x43700000
     stack -12
@@ -3688,19 +3934,19 @@ bots_ia_l222:
     push.c 0x8
     call @pw_operatorlt_Float_Float
     pop.alt
-    jzer @bots_ia_l225
+    jzer @bots_ia_l257
     zero.pri
     stack 0x20
     retn
-bots_ia_l225:
+bots_ia_l257:
     push.c 0x0
-    jump @bots_ia_l228
-bots_ia_l226:
+    jump @bots_ia_l260
+bots_ia_l258:
     inc.s -36
-bots_ia_l228:
+bots_ia_l260:
     load.s.pri -36
     const.alt 0xc
-    jsgeq @bots_ia_l227
+    jsgeq @bots_ia_l259
     stack -4
     load.s.pri -20
     load.s.alt -16
@@ -3732,17 +3978,17 @@ bots_ia_l228:
     push.c 0x8
     call @pw_operatorlt_Float_Float
     pop.alt
-    jzer @bots_ia_l229
+    jzer @bots_ia_l261
     load.s.pri -40
     stor.s.pri -16
-    jump @bots_ia_l230
-bots_ia_l229:
+    jump @bots_ia_l262
+bots_ia_l261:
     load.s.pri -40
     stor.s.pri -20
-bots_ia_l230:
+bots_ia_l262:
     stack 0x4
-    jump @bots_ia_l226
-bots_ia_l227:
+    jump @bots_ia_l258
+bots_ia_l259:
     stack 0x4
     push.adr -32
     push.adr -12
@@ -3762,11 +4008,11 @@ bots_ia_l227:
     push.c 0x8
     call @pw_operatorgt_Float_Float
     pop.alt
-    jzer @bots_ia_l231
+    jzer @bots_ia_l263
     zero.pri
     stack 0x20
     retn
-bots_ia_l231:
+bots_ia_l263:
     push.adr -12
     push.adr -32
     push.s 0xc
@@ -3819,7 +4065,7 @@ pw_aimAhead:
     push.c 0x4
     call @pw_operatorsub_Float
     push.pri
-    push.c 0x45dc
+    push.c 0x45ec
     push.s 0x14
     sysreq.n floatvecaddscale, 3
     zero.pri
@@ -3875,19 +4121,19 @@ pw_missNow:
     push.c 0x8
     call @pw_operatorgt_Float_Float
     pop.alt
-    jzer @bots_ia_l232
+    jzer @bots_ia_l264
     const.pri 0x47c35000
     stack 0x38
     retn
-bots_ia_l232:
+bots_ia_l264:
     push.c 0x0
-    jump @bots_ia_l235
-bots_ia_l233:
+    jump @bots_ia_l267
+bots_ia_l265:
     inc.s -60
-bots_ia_l235:
+bots_ia_l267:
     load.s.pri -60
     const.alt 0xc
-    jsgeq @bots_ia_l234
+    jsgeq @bots_ia_l266
     stack -4
     load.s.pri -32
     load.s.alt -28
@@ -3923,17 +4169,17 @@ bots_ia_l235:
     push.c 0x8
     call @pw_operatorgt_Float_Float
     pop.alt
-    jzer @bots_ia_l236
+    jzer @bots_ia_l268
     load.s.pri -64
     stor.s.pri -28
-    jump @bots_ia_l237
-bots_ia_l236:
+    jump @bots_ia_l269
+bots_ia_l268:
     load.s.pri -64
     stor.s.pri -32
-bots_ia_l237:
+bots_ia_l269:
     stack 0x4
-    jump @bots_ia_l233
-bots_ia_l234:
+    jump @bots_ia_l265
+bots_ia_l266:
     stack 0x4
     push.adr -56
     push.adr -24
@@ -3962,11 +4208,11 @@ bots_ia_l234:
     push.c 0x8
     call @pw_operatorgt_Float_Float
     pop.alt
-    jzer @bots_ia_l238
+    jzer @bots_ia_l270
     const.pri 0x47c35000
     stack 0x38
     retn
-bots_ia_l238:
+bots_ia_l270:
     push.adr -56
     push.adr -44
     push.c 0x8
@@ -3989,7 +4235,7 @@ pw_torpedoAt:
     push.c 0x4
     call @pw_drift
     push.pri
-    push.c 0x45dc
+    push.c 0x45ec
     push.s 0x18
     sysreq.n floatvecaddscale, 3
     zero.pri
@@ -4000,18 +4246,18 @@ pw_tubePosition:
     zero.pri
     addr.alt -12
     fill 0xc
-    const.pri 0x462c
+    const.pri 0x463c
     add.c 0x8
     load.i
     push.pri
-    const.pri 0x462c
+    const.pri 0x463c
     add.c 0x4
     load.i
     push.pri
-    const.pri 0x462c
+    const.pri 0x463c
     load.i
     push.pri
-    push 0x45d8
+    push 0x45e8
     sysreq.n float, 1
     pop.alt
     push.pri
@@ -4030,72 +4276,72 @@ pw_tubePosition:
 pw_fire:
     proc
     const.pri 0x1
-    stor.pri 0x485c
-    load.pri 0x45c4
-    jnz @bots_ia_l240
+    stor.pri 0x4874
     load.pri 0x45d4
-    jnz @bots_ia_l240
-    push.c 0x51c0
+    jnz @bots_ia_l272
+    load.pri 0x45e4
+    jnz @bots_ia_l272
+    push.c 0x52a8
     sysreq.n sysGetGlobal, 1
-    jnz @bots_ia_l240
-    push.c 0x51f8
+    jnz @bots_ia_l272
+    push.c 0x52e0
     sysreq.n sysGetGlobal, 1
-    jnz @bots_ia_l240
+    jnz @bots_ia_l272
     zero.pri
-    jump @bots_ia_l241
-bots_ia_l240:
+    jump @bots_ia_l273
+bots_ia_l272:
     const.pri 0x1
-bots_ia_l241:
-    jzer @bots_ia_l239
+bots_ia_l273:
+    jzer @bots_ia_l271
     zero.pri
     retn
-bots_ia_l239:
+bots_ia_l271:
     const.pri 0x2
-    stor.pri 0x485c
-    load.pri 0x45b4
-    jnz @bots_ia_l243
-    load.pri 0x45c8
-    jnz @bots_ia_l243
+    stor.pri 0x4874
+    load.pri 0x45c4
+    jnz @bots_ia_l275
+    load.pri 0x45d8
+    jnz @bots_ia_l275
     const.pri 0x1
-    jump @bots_ia_l244
-bots_ia_l243:
+    jump @bots_ia_l276
+bots_ia_l275:
     zero.pri
-bots_ia_l244:
-    jzer @bots_ia_l242
+bots_ia_l276:
+    jzer @bots_ia_l274
     zero.pri
     retn
-bots_ia_l242:
+bots_ia_l274:
     const.pri 0x3
-    stor.pri 0x485c
-    load.pri 0x467c
-    load.alt 0x458c
+    stor.pri 0x4874
+    load.pri 0x468c
+    load.alt 0x459c
     sub.alt
     const.alt 0x14
-    jsless @bots_ia_l246
-    load.pri 0x4710
-    jzer @bots_ia_l246
+    jsless @bots_ia_l278
+    load.pri 0x4720
+    jzer @bots_ia_l278
     load.s.pri 0x18
-    jzer @bots_ia_l246
+    jzer @bots_ia_l278
     zero.pri
-    jump @bots_ia_l247
-bots_ia_l246:
+    jump @bots_ia_l279
+bots_ia_l278:
     const.pri 0x1
-bots_ia_l247:
-    jzer @bots_ia_l245
+bots_ia_l279:
+    jzer @bots_ia_l277
     zero.pri
     retn
-bots_ia_l245:
+bots_ia_l277:
     const.pri 0x4
-    stor.pri 0x485c
+    stor.pri 0x4874
     load.pri 0x4574
     const.alt 0x2
-    jsless @bots_ia_l249
+    jsless @bots_ia_l281
     push.c 0x0
     call @pw_agile
-    jzer @bots_ia_l249
+    jzer @bots_ia_l281
     load.s.pri 0x18
     const.alt 0x3c
-    jsleq @bots_ia_l249
+    jsleq @bots_ia_l281
     const.pri 0x44c80000
     load.s.alt 0x14
     push.pri
@@ -4104,20 +4350,20 @@ bots_ia_l245:
     push.c 0x8
     call @pw_operatorgt_Float_Float
     pop.alt
-    jzer @bots_ia_l249
+    jzer @bots_ia_l281
     const.pri 0x1
-    jump @bots_ia_l250
-bots_ia_l249:
+    jump @bots_ia_l282
+bots_ia_l281:
     zero.pri
-bots_ia_l250:
-    jzer @bots_ia_l248
+bots_ia_l282:
+    jzer @bots_ia_l280
     zero.pri
     retn
-bots_ia_l248:
+bots_ia_l280:
     push.c 0x0
     const.pri 0x5
-    stor.pri 0x485c
-    push.c 0x4864
+    stor.pri 0x4874
+    push.c 0x487c
     push.c 0x4
     call @pw_yawOf
     move.alt
@@ -4139,18 +4385,18 @@ bots_ia_l248:
     push.c 0x8
     call @pw_operatorgt_Float_Float
     pop.alt
-    jzer @bots_ia_l251
+    jzer @bots_ia_l283
     zero.pri
     stack 0x4
     retn
-bots_ia_l251:
+bots_ia_l283:
     stack -4
     push.adr -4
     push.c 0x4
     call @pw_missNow
     stor.s.pri -8
     load.s.pri -8
-    stor.pri 0x4858
+    stor.pri 0x4870
     load.s.pri -8
     push.pri
     load.pri 0x4574
@@ -4164,22 +4410,22 @@ bots_ia_l251:
     push.c 0x8
     call @pw_operatorgt_Float_Float
     pop.alt
-    jnz @bots_ia_l253
+    jnz @bots_ia_l285
     load.s.pri -4
     const.alt 0x8
-    jsless @bots_ia_l253
+    jsless @bots_ia_l285
     zero.pri
-    jump @bots_ia_l254
-bots_ia_l253:
+    jump @bots_ia_l286
+bots_ia_l285:
     const.pri 0x1
-bots_ia_l254:
-    jzer @bots_ia_l252
+bots_ia_l286:
+    jzer @bots_ia_l284
     zero.pri
     stack 0x8
     retn
-bots_ia_l252:
+bots_ia_l284:
     const.pri 0x6
-    stor.pri 0x485c
+    stor.pri 0x4874
     stack -12
     zero.pri
     addr.alt -20
@@ -4192,40 +4438,40 @@ bots_ia_l252:
     push.adr -20
     push.c 0xc
     call @pw_clearLine
-    jnz @bots_ia_l255
+    jnz @bots_ia_l287
     zero.pri
     stack 0x14
     retn
-bots_ia_l255:
+bots_ia_l287:
     push.s 0x10
     push.adr -20
     push.c 0x8
     call @pw_mateInTheWay
-    jzer @bots_ia_l256
+    jzer @bots_ia_l288
     zero.pri
     stack 0x14
     retn
-bots_ia_l256:
-    zero 0x485c
+bots_ia_l288:
+    zero 0x4874
     stack -4
     load.pri 0x1cc8
     stor.s.pri -24
     stack -4
-    const.pri 0x468c
+    const.pri 0x469c
     load.i
     push.pri
-    const.pri 0x468c
+    const.pri 0x469c
     load.i
     pop.alt
     push.pri
     push.alt
     sysreq.n floatmul, 2
     push.pri
-    const.pri 0x468c
+    const.pri 0x469c
     add.c 0x8
     load.i
     push.pri
-    const.pri 0x468c
+    const.pri 0x469c
     add.c 0x8
     load.i
     pop.alt
@@ -4241,7 +4487,7 @@ bots_ia_l256:
     push.pri
     push.c 0x0
     load.s.pri -24
-    load.alt 0x4704
+    load.alt 0x4714
     push.pri
     push.alt
     sysreq.n floatsub, 2
@@ -4258,12 +4504,12 @@ bots_ia_l256:
     push.alt
     sysreq.n floatmul, 2
     stor.s.pri -28
-    load.pri 0x45c8
-    jzer @bots_ia_l258
-    push 0x4678
+    load.pri 0x45d8
+    jzer @bots_ia_l290
+    push 0x4688
     push.c 0x4
     call @pw_isMasked
-    jnz @bots_ia_l258
+    jnz @bots_ia_l290
     const.pri 0x44960000
     load.s.alt 0x14
     push.pri
@@ -4272,7 +4518,7 @@ bots_ia_l256:
     push.c 0x8
     call @pw_operatorgt_Float_Float
     pop.alt
-    jzer @bots_ia_l258
+    jzer @bots_ia_l290
     const.pri 0x45abe000
     load.s.alt 0x14
     push.pri
@@ -4281,8 +4527,8 @@ bots_ia_l256:
     push.c 0x8
     call @pw_operatorlt_Float_Float
     pop.alt
-    jzer @bots_ia_l258
-    push 0x4698
+    jzer @bots_ia_l290
+    push 0x46a8
     push.c 0x4
     call @pw_fabs
     move.alt
@@ -4293,7 +4539,7 @@ bots_ia_l256:
     push.c 0x8
     call @pw_operatorgt_Float_Float
     pop.alt
-    jnz @bots_ia_l259
+    jnz @bots_ia_l291
     const.pri 0x40c00000
     load.s.alt -28
     push.pri
@@ -4302,10 +4548,10 @@ bots_ia_l256:
     push.c 0x8
     call @pw_operatorgt_Float_Float
     pop.alt
-    jnz @bots_ia_l259
+    jnz @bots_ia_l291
     load.pri 0x1c68
     push.pri
-    push 0x4598
+    push 0x45a8
     push.c 0x3ecccccd
     sysreq.n floatmul, 2
     pop.alt
@@ -4315,44 +4561,44 @@ bots_ia_l256:
     push.c 0x8
     call @pw_operatorlt_Float_Float
     pop.alt
-    jnz @bots_ia_l259
-    load.pri 0x45b4
-    jzer @bots_ia_l259
+    jnz @bots_ia_l291
+    load.pri 0x45c4
+    jzer @bots_ia_l291
     zero.pri
-    jump @bots_ia_l260
-bots_ia_l259:
+    jump @bots_ia_l292
+bots_ia_l291:
     const.pri 0x1
-bots_ia_l260:
-    jzer @bots_ia_l258
+bots_ia_l292:
+    jzer @bots_ia_l290
     const.pri 0x1
-    jump @bots_ia_l261
-bots_ia_l258:
+    jump @bots_ia_l293
+bots_ia_l290:
     zero.pri
-bots_ia_l261:
-    jzer @bots_ia_l257
-    push.c 0x5238
+bots_ia_l293:
+    jzer @bots_ia_l289
+    push.c 0x5320
     push.adr -20
     push.c 0x8
     call @pw_launch
-    push.c 0x4678
-    push.c 0x529c
-    push 0x4860
+    push.c 0x4688
+    push.c 0x5384
+    push 0x4878
     sysreq.n sysCallPublic, 3
-    push 0x4860
+    push 0x4878
     push.c 0x1
-    push.c 0x52d4
+    push.c 0x53bc
     sysreq.n actorSetPropInt, 3
-    dec 0x45c8
-    jump @bots_ia_l262
-bots_ia_l257:
-    load.pri 0x45b4
-    jzer @bots_ia_l263
+    dec 0x45d8
+    jump @bots_ia_l294
+bots_ia_l289:
+    load.pri 0x45c4
+    jzer @bots_ia_l295
     stack -128
     zero.pri
     addr.alt -156
     fill 0x80
-    push.c 0x45ac
-    push.c 0x52f8
+    push.c 0x45bc
+    push.c 0x53e0
     push.c 0x0
     push.c 0x20
     push.adr -156
@@ -4361,27 +4607,27 @@ bots_ia_l257:
     push.adr -20
     push.c 0x8
     call @pw_launch
-    push 0x4860
+    push 0x4878
     push.s -24
-    push.c 0x5354
+    push.c 0x543c
     sysreq.n actorSetPropReal, 3
-    dec 0x45b4
-    load.pri 0x45bc
+    dec 0x45c4
+    load.pri 0x45cc
     move.alt
     zero.pri
-    jsless @bots_ia_l264
-    load.pri 0x45b8
-    stor.pri 0x45bc
-bots_ia_l264:
+    jsless @bots_ia_l296
+    load.pri 0x45c8
+    stor.pri 0x45cc
+bots_ia_l296:
     stack 0x80
-    jump @bots_ia_l265
-bots_ia_l263:
+    jump @bots_ia_l297
+bots_ia_l295:
     zero.pri
     stack 0x1c
     retn
-bots_ia_l265:
-bots_ia_l262:
-    load.pri 0x45c0
+bots_ia_l297:
+bots_ia_l294:
+    load.pri 0x45d0
     push.pri
     load.pri 0x4574
     const.alt 0x4534
@@ -4389,14 +4635,14 @@ bots_ia_l262:
     load.i
     pop.alt
     add
-    stor.pri 0x45c4
-    load.pri 0x4624
-    stor.pri 0x4618
+    stor.pri 0x45d4
+    load.pri 0x4634
+    stor.pri 0x4628
     const.pri 0x3f800000
-    stor.pri 0x461c
-    load.pri 0x45d8
+    stor.pri 0x462c
+    load.pri 0x45e8
     neg
-    stor.pri 0x45d8
+    stor.pri 0x45e8
     stack 0x1c
     zero.pri
     retn
@@ -4422,11 +4668,11 @@ pw_mateInTheWay:
     push.c 0x8
     call @pw_operatorlt_Float_Float
     pop.alt
-    jzer @bots_ia_l266
+    jzer @bots_ia_l298
     zero.pri
     stack 0x10
     retn
-bots_ia_l266:
+bots_ia_l298:
     load.s.pri -16
     const.alt 0x3f800000
     push.pri
@@ -4436,27 +4682,27 @@ bots_ia_l266:
     push.adr -12
     sysreq.n floatvecscale, 2
     push.c 0x0
-    jump @bots_ia_l269
-bots_ia_l267:
+    jump @bots_ia_l301
+bots_ia_l299:
     inc.s -20
-bots_ia_l269:
+bots_ia_l301:
     load.s.pri -20
-    load.alt 0x4754
-    jsgeq @bots_ia_l268
+    load.alt 0x4764
+    jsgeq @bots_ia_l300
     stack -12
     zero.pri
     addr.alt -32
     fill 0xc
-    const.alt 0x4734
+    const.alt 0x4744
     load.s.pri -20
     lidx.b 0x2
     push.pri
     push.adr -32
     sysreq.n actorGetPosition, 2
-    jnz @bots_ia_l270
+    jnz @bots_ia_l302
     stack 0xc
-    jump @bots_ia_l267
-bots_ia_l270:
+    jump @bots_ia_l299
+bots_ia_l302:
     stack -12
     zero.pri
     addr.alt -44
@@ -4478,7 +4724,7 @@ bots_ia_l270:
     push.c 0x8
     call @pw_operatorlt_Float_Float
     pop.alt
-    jnz @bots_ia_l272
+    jnz @bots_ia_l304
     load.s.pri -48
     push.pri
     load.s.pri -16
@@ -4493,16 +4739,16 @@ bots_ia_l270:
     push.c 0x8
     call @pw_operatorgt_Float_Float
     pop.alt
-    jnz @bots_ia_l272
+    jnz @bots_ia_l304
     zero.pri
-    jump @bots_ia_l273
-bots_ia_l272:
+    jump @bots_ia_l305
+bots_ia_l304:
     const.pri 0x1
-bots_ia_l273:
-    jzer @bots_ia_l271
+bots_ia_l305:
+    jzer @bots_ia_l303
     stack 0x1c
-    jump @bots_ia_l267
-bots_ia_l271:
+    jump @bots_ia_l299
+bots_ia_l303:
     push.s -48
     push.c 0x4
     call @pw_operatorsub_Float
@@ -4520,14 +4766,14 @@ bots_ia_l271:
     push.c 0x8
     call @pw_operatorlt_Float_Float
     pop.alt
-    jzer @bots_ia_l274
+    jzer @bots_ia_l306
     const.pri 0x1
     stack 0x30
     retn
-bots_ia_l274:
+bots_ia_l306:
     stack 0x1c
-    jump @bots_ia_l267
-bots_ia_l268:
+    jump @bots_ia_l299
+bots_ia_l300:
     stack 0x4
     zero.pri
     stack 0x10
@@ -4549,34 +4795,34 @@ pw_spawn:
 pw_arm:
     proc
     push.s 0xc
-    push 0x4590
+    push 0x45a0
     sysreq.n actorSetParent, 2
     push.s 0xc
     push.c 0x0
     sysreq.n actorSetIdleDistance, 2
     push.s 0xc
     push.c 0x1
-    push.c 0x5374
+    push.c 0x545c
     sysreq.n actorSetPropInt, 3
     push.s 0xc
     push.c 0x1
-    push.c 0x53a4
+    push.c 0x548c
     sysreq.n actorSetPropInt, 3
     push.s 0xc
     push.c 0x1
-    push.c 0x53bc
+    push.c 0x54a4
     sysreq.n actorSetPropInt, 3
     push.s 0xc
-    push 0x4590
-    push.c 0x53cc
+    push 0x45a0
+    push.c 0x54b4
     sysreq.n actorSetPropInt, 3
     push.s 0xc
-    push 0x4594
-    push.c 0x53f0
+    push 0x45a4
+    push.c 0x54d8
     sysreq.n actorSetPropInt, 3
     push.s 0xc
     push.c 0x1
-    push.c 0x5418
+    push.c 0x5500
     sysreq.n actorSetPropInt, 3
     zero.pri
     retn
@@ -4602,12 +4848,12 @@ pw_launch:
     push.adr -16
     sysreq.n actorSetRotation, 2
     push.s -4
-    push.c 0x45dc
+    push.c 0x45ec
     sysreq.n actorSetVelocity, 2
     push.s -4
     sysreq.n actorUpdateMatrix, 1
     load.s.pri -4
-    stor.pri 0x4860
+    stor.pri 0x4878
     stack 0x10
     zero.pri
     retn
@@ -4616,43 +4862,43 @@ pw_maskerOn:
     load.pri 0x4588
     push.pri
     push.c 0x1
-    push 0x45cc
+    push 0x45dc
     push.c 0x42c80000
     sysreq.n floatdiv, 2
     push.pri
     sysreq.n floatround, 2
     pop.alt
-    jsgrtr @bots_ia_l275
+    jsgrtr @bots_ia_l307
     zero.pri
     retn
-bots_ia_l275:
+bots_ia_l307:
     inc 0x4588
-    push 0x45cc
-    push 0x45d0
+    push 0x45dc
+    push 0x45e0
     sysreq.n floatsub, 2
-    stor.pri 0x45d0
+    stor.pri 0x45e0
     const.pri 0x12c
-    stor.pri 0x45d4
+    stor.pri 0x45e4
     push.c 0x0
     push.c 0x1
-    push.c 0x5438
+    push.c 0x5520
     sysreq.n actorSetPropInt, 3
     push.c 0x0
     push.c 0x1
-    push.c 0x5454
+    push.c 0x553c
     sysreq.n actorSetPropInt, 3
     zero.pri
     retn
 pw_maskerOff:
     proc
-    zero 0x45d4
+    zero 0x45e4
     push.c 0x0
     push.c 0x0
-    push.c 0x547c
+    push.c 0x5564
     sysreq.n actorSetPropInt, 3
     push.c 0x0
     push.c 0x0
-    push.c 0x5498
+    push.c 0x5580
     sysreq.n actorSetPropInt, 3
     zero.pri
     retn
@@ -4680,23 +4926,23 @@ pw_steerClear:
     push.pri
     push.alt
     sysreq.n floatsub, 2
-    stor.pri 0x4658
+    stor.pri 0x4668
     stack -4
-    const.pri 0x45dc
+    const.pri 0x45ec
     load.i
     push.pri
-    const.pri 0x45dc
+    const.pri 0x45ec
     load.i
     pop.alt
     push.pri
     push.alt
     sysreq.n floatmul, 2
     push.pri
-    const.pri 0x45dc
+    const.pri 0x45ec
     add.c 0x8
     load.i
     push.pri
-    const.pri 0x45dc
+    const.pri 0x45ec
     add.c 0x8
     load.i
     pop.alt
@@ -4725,20 +4971,20 @@ pw_steerClear:
     zero.pri
     addr.alt -32
     fill 0xc
-    load.pri 0x466c
-    jzer @bots_ia_l276
-    push 0x4670
+    load.pri 0x467c
+    jzer @bots_ia_l308
+    push 0x4680
     push 0x1cc8
     sysreq.n floatadd, 2
     push.pri
     push.c 0x4
     call @pw_wrapAngle
-    stor.pri 0x45f8
+    stor.pri 0x4608
     zero.pri
     stack 0x20
     retn
-bots_ia_l276:
-    load.pri 0x45f0
+bots_ia_l308:
+    load.pri 0x4600
     move.alt
     zero.pri
     push.pri
@@ -4747,7 +4993,7 @@ bots_ia_l276:
     push.c 0x8
     call @pw_operatorlt_Float_Float
     pop.alt
-    jzer @bots_ia_l277
+    jzer @bots_ia_l309
     push 0x1cc8
     push.c 0x40490fda
     sysreq.n floatadd, 2
@@ -4768,29 +5014,29 @@ bots_ia_l276:
     push.c 0x8
     call @pw_operatorlt_Float_Float
     pop.alt
-    jzer @bots_ia_l278
+    jzer @bots_ia_l310
     const.pri 0x3e99999a
-    stor.pri 0x45f0
-bots_ia_l278:
-    load.pri 0x45f4
-    stor.pri 0x45f8
+    stor.pri 0x4600
+bots_ia_l310:
+    load.pri 0x4604
+    stor.pri 0x4608
     zero.pri
     stack 0x20
     retn
-bots_ia_l277:
+bots_ia_l309:
     stack -24
-    const.pri 0x54c0
+    const.pri 0x55a8
     addr.alt -56
     movs 0x18
     push.c -1082130432
     stack -4
-    load.pri 0x45f4
+    load.pri 0x4604
     stor.s.pri -64
-    load.pri 0x4674
-    jnz @bots_ia_l279
+    load.pri 0x4684
+    jnz @bots_ia_l311
     push.c 0x0
     push.c 0x0
-    push 0x45f4
+    push 0x4604
     push.c 0x3f4ccccd
     sysreq.n floatadd, 2
     push.pri
@@ -4809,7 +5055,7 @@ bots_ia_l277:
     sysreq.n worldClipLine, 4
     stor.s.pri -68
     push.c 0x3f4ccccd
-    push 0x45f4
+    push 0x4604
     sysreq.n floatsub, 2
     push.pri
     push.adr -32
@@ -4834,56 +5080,56 @@ bots_ia_l277:
     push.c 0x8
     call @pw_operatorgteq_Float_Float
     pop.alt
-    jzer @bots_ia_l280
+    jzer @bots_ia_l312
     const.pri 0x1
-    jump @bots_ia_l281
-bots_ia_l280:
+    jump @bots_ia_l313
+bots_ia_l312:
     const.pri -1
-bots_ia_l281:
-    stor.pri 0x4674
+bots_ia_l313:
+    stor.pri 0x4684
     stack 0x8
-bots_ia_l279:
+bots_ia_l311:
     push.c 0x0
     push.c 0x0
-    jump @bots_ia_l284
-bots_ia_l282:
+    jump @bots_ia_l316
+bots_ia_l314:
     inc.s -72
-bots_ia_l284:
+bots_ia_l316:
     load.s.pri -72
     const.alt 0x2
-    jsgeq @bots_ia_l285
+    jsgeq @bots_ia_l317
     load.s.pri -68
-    jnz @bots_ia_l285
+    jnz @bots_ia_l317
     const.pri 0x1
-    jump @bots_ia_l286
-bots_ia_l285:
+    jump @bots_ia_l318
+bots_ia_l317:
     zero.pri
-bots_ia_l286:
-    jzer @bots_ia_l283
+bots_ia_l318:
+    jzer @bots_ia_l315
     stack -4
     load.s.pri -72
-    jnz @bots_ia_l287
-    load.pri 0x4674
-    jump @bots_ia_l288
-bots_ia_l287:
-    load.pri 0x4674
+    jnz @bots_ia_l319
+    load.pri 0x4684
+    jump @bots_ia_l320
+bots_ia_l319:
+    load.pri 0x4684
     neg
-bots_ia_l288:
+bots_ia_l320:
     push.pri
     sysreq.n float, 1
     stor.s.pri -76
     stack -4
     load.s.pri -72
     stor.s.pri -80
-    jump @bots_ia_l291
-bots_ia_l289:
+    jump @bots_ia_l323
+bots_ia_l321:
     inc.s -80
-bots_ia_l291:
+bots_ia_l323:
     load.s.pri -80
     const.alt 0x6
-    jsgeq @bots_ia_l290
+    jsgeq @bots_ia_l322
     stack -4
-    load.pri 0x45f4
+    load.pri 0x4604
     push.pri
     addr.alt -56
     load.s.pri -80
@@ -4917,7 +5163,7 @@ bots_ia_l291:
     push.c 0x8
     call @pw_operatorgteq_Float_Float
     pop.alt
-    jzer @bots_ia_l292
+    jzer @bots_ia_l324
     addr.pri -32
     add.c 0x4
     move.alt
@@ -4949,7 +5195,7 @@ bots_ia_l291:
     push.c 0x8
     call @pw_operatorlt_Float_Float
     pop.alt
-    jzer @bots_ia_l293
+    jzer @bots_ia_l325
     const.pri 0x1ca0
     add.c 0x4
     load.i
@@ -4958,11 +5204,11 @@ bots_ia_l291:
     push.alt
     sysreq.n floatadd, 2
     push.pri
-    push 0x4604
+    push 0x4614
     push.c 0x8
     call @pw_fmax
-    stor.pri 0x4604
-bots_ia_l293:
+    stor.pri 0x4614
+bots_ia_l325:
     load.s.pri -84
     stor.s.pri -64
     load.s.pri -88
@@ -4970,12 +5216,12 @@ bots_ia_l293:
     const.pri 0x1
     stor.s.pri -68
     load.s.pri -80
-    jnz @bots_ia_l294
-    zero 0x4674
-bots_ia_l294:
+    jnz @bots_ia_l326
+    zero 0x4684
+bots_ia_l326:
     stack 0x8
-    jump @bots_ia_l290
-bots_ia_l292:
+    jump @bots_ia_l322
+bots_ia_l324:
     load.s.pri -60
     load.s.alt -88
     push.pri
@@ -4984,24 +5230,24 @@ bots_ia_l292:
     push.c 0x8
     call @pw_operatorgt_Float_Float
     pop.alt
-    jzer @bots_ia_l295
+    jzer @bots_ia_l327
     load.s.pri -88
     stor.s.pri -60
     load.s.pri -84
     stor.s.pri -64
-bots_ia_l295:
+bots_ia_l327:
     stack 0x8
-    jump @bots_ia_l289
-bots_ia_l290:
+    jump @bots_ia_l321
+bots_ia_l322:
     stack 0x4
     stack 0x4
-    jump @bots_ia_l282
-bots_ia_l283:
+    jump @bots_ia_l314
+bots_ia_l315:
     stack 0x4
     push.s -64
     push.c 0x4
     call @pw_wrapAngle
-    stor.pri 0x45f8
+    stor.pri 0x4608
     push 0x1cc8
     push.adr -32
     push.c 0x8
@@ -5019,7 +5265,7 @@ bots_ia_l283:
     push.c 0x8
     call @pw_operatorlt_Float_Float
     pop.alt
-    jnz @bots_ia_l297
+    jnz @bots_ia_l329
     const.pri 0x437a0000
     load.s.alt -60
     push.pri
@@ -5028,32 +5274,32 @@ bots_ia_l283:
     push.c 0x8
     call @pw_operatorlt_Float_Float
     pop.alt
-    jnz @bots_ia_l297
+    jnz @bots_ia_l329
     zero.pri
-    jump @bots_ia_l298
-bots_ia_l297:
+    jump @bots_ia_l330
+bots_ia_l329:
     const.pri 0x1
-bots_ia_l298:
-    jzer @bots_ia_l296
+bots_ia_l330:
+    jzer @bots_ia_l328
     push.c 0x3e19999a
-    push 0x45f0
+    push 0x4600
     push.c 0x8
     call @pw_fmin
-    stor.pri 0x45f0
-bots_ia_l296:
+    stor.pri 0x4600
+bots_ia_l328:
     stack 0x44
     zero.pri
     retn
 pw_move:
     proc
-    inc 0x4668
-    load.pri 0x4668
+    inc 0x4678
+    load.pri 0x4678
     const.alt 0x3c
-    jsless @bots_ia_l299
-    zero 0x4668
-    load.pri 0x466c
-    jnz @bots_ia_l301
-    push 0x45ec
+    jsless @bots_ia_l331
+    zero 0x4678
+    load.pri 0x467c
+    jnz @bots_ia_l333
+    push 0x45fc
     push.c 0x4
     call @pw_fabs
     move.alt
@@ -5064,14 +5310,14 @@ pw_move:
     push.c 0x8
     call @pw_operatorgt_Float_Float
     pop.alt
-    jzer @bots_ia_l301
-    load.pri 0x4654
-    load.alt 0x458c
+    jzer @bots_ia_l333
+    load.pri 0x4664
+    load.alt 0x459c
     sub.alt
     const.alt 0x3c
-    jsgeq @bots_ia_l301
+    jsgeq @bots_ia_l333
     push.c 0x1ca0
-    push.c 0x465c
+    push.c 0x466c
     push.c 0x8
     call @pw_distance
     move.alt
@@ -5082,15 +5328,15 @@ pw_move:
     push.c 0x8
     call @pw_operatorlt_Float_Float
     pop.alt
-    jzer @bots_ia_l301
+    jzer @bots_ia_l333
     const.pri 0x1
-    jump @bots_ia_l302
-bots_ia_l301:
+    jump @bots_ia_l334
+bots_ia_l333:
     zero.pri
-bots_ia_l302:
-    jzer @bots_ia_l300
+bots_ia_l334:
+    jzer @bots_ia_l332
     const.pri 0x32
-    stor.pri 0x466c
+    stor.pri 0x467c
     push.c 0x0
     call @pw_frandom
     move.alt
@@ -5101,22 +5347,22 @@ bots_ia_l302:
     push.c 0x8
     call @pw_operatorgt_Float_Float
     pop.alt
-    jzer @bots_ia_l303
+    jzer @bots_ia_l335
     const.pri 0x3f99999a
-    jump @bots_ia_l304
-bots_ia_l303:
+    jump @bots_ia_l336
+bots_ia_l335:
     const.pri -1080452710
-bots_ia_l304:
-    stor.pri 0x4670
-bots_ia_l300:
-    const.pri 0x465c
+bots_ia_l336:
+    stor.pri 0x4680
+bots_ia_l332:
+    const.pri 0x466c
     move.alt
     const.pri 0x1ca0
     movs 0xc
-bots_ia_l299:
-    load.pri 0x466c
-    jzer @bots_ia_l305
-    load.pri 0x45ec
+bots_ia_l331:
+    load.pri 0x467c
+    jzer @bots_ia_l337
+    load.pri 0x45fc
     move.alt
     zero.pri
     push.pri
@@ -5125,20 +5371,20 @@ bots_ia_l299:
     push.c 0x8
     call @pw_operatorgt_Float_Float
     pop.alt
-    jzer @bots_ia_l306
+    jzer @bots_ia_l338
     const.pri -1082130432
-    jump @bots_ia_l307
-bots_ia_l306:
+    jump @bots_ia_l339
+bots_ia_l338:
     const.pri 0x3f4ccccd
-bots_ia_l307:
-    stor.pri 0x45f0
-bots_ia_l305:
-    load.pri 0x45ec
+bots_ia_l339:
+    stor.pri 0x4600
+bots_ia_l337:
+    load.pri 0x45fc
     push.pri
     push.c 0x3d4ccccd
     push.c -1119040307
-    push 0x45ec
-    push 0x45f0
+    push 0x45fc
+    push 0x4600
     sysreq.n floatsub, 2
     push.pri
     push.c 0xc
@@ -5147,15 +5393,15 @@ bots_ia_l305:
     push.pri
     push.alt
     sysreq.n floatadd, 2
-    stor.pri 0x45ec
+    stor.pri 0x45fc
     push.c 0x3f800000
     push.c -1082130432
-    push 0x45ec
+    push 0x45fc
     push.c 0xc
     call @pw_fclamp
-    stor.pri 0x45ec
+    stor.pri 0x45fc
     stack -4
-    load.pri 0x45ec
+    load.pri 0x45fc
     move.alt
     zero.pri
     push.pri
@@ -5164,38 +5410,38 @@ bots_ia_l305:
     push.c 0x8
     call @pw_operatorlt_Float_Float
     pop.alt
-    jzer @bots_ia_l308
+    jzer @bots_ia_l340
     push.c 0x40000000
-    push 0x45ec
+    push 0x45fc
     sysreq.n floatdiv, 2
-    jump @bots_ia_l309
-bots_ia_l308:
-    load.pri 0x45ec
-bots_ia_l309:
+    jump @bots_ia_l341
+bots_ia_l340:
+    load.pri 0x45fc
+bots_ia_l341:
     stor.s.pri -4
-    load.pri 0x4618
-    jzer @bots_ia_l310
-    dec 0x4618
-    push 0x4620
-    push 0x461c
+    load.pri 0x4628
+    jzer @bots_ia_l342
+    dec 0x4628
+    push 0x4630
+    push 0x462c
     sysreq.n floatmul, 2
-    stor.pri 0x461c
-    load.pri 0x461c
+    stor.pri 0x462c
+    load.pri 0x462c
     load.s.alt -4
     push.pri
     push.alt
     sysreq.n floatmul, 2
     stor.s.pri -4
-    load.pri 0x4618
-    jnz @bots_ia_l311
+    load.pri 0x4628
+    jnz @bots_ia_l343
     const.pri 0x3f800000
-    stor.pri 0x461c
-bots_ia_l311:
-bots_ia_l310:
+    stor.pri 0x462c
+bots_ia_l343:
+bots_ia_l342:
     stack -4
     push.c 0x3ecccccd
     push.c 0x0
-    push 0x4614
+    push 0x4624
     push.c 0x8
     call @pw_fmax
     push.pri
@@ -5211,7 +5457,7 @@ bots_ia_l310:
     stor.s.pri -8
     stack -4
     push 0x1cc8
-    push 0x45f8
+    push 0x4608
     sysreq.n floatsub, 2
     push.pri
     push.c 0x4
@@ -5219,17 +5465,17 @@ bots_ia_l310:
     stor.s.pri -12
     stack -4
     load.s.pri -8
-    load.alt 0x45a0
+    load.alt 0x45b0
     push.pri
     push.alt
     sysreq.n floatmul, 2
     stor.s.pri -16
-    push 0x4600
+    push 0x4610
     push.c 0x3f4ccccd
     sysreq.n floatmul, 2
     push.pri
-    push 0x45fc
-    push 0x45f8
+    push 0x460c
+    push 0x4608
     sysreq.n floatsub, 2
     push.pri
     push.c 0x4
@@ -5242,16 +5488,16 @@ bots_ia_l310:
     push.pri
     push.alt
     sysreq.n floatadd, 2
-    stor.pri 0x4600
-    load.pri 0x45f8
-    stor.pri 0x45fc
+    stor.pri 0x4610
+    load.pri 0x4608
+    stor.pri 0x460c
     stack -4
     push.s -16
     push.s -16
     push.c 0x4
     call @pw_operatorsub_Float
     push.pri
-    load.pri 0x4600
+    load.pri 0x4610
     push.pri
     const.pri 0x41a00000
     load.s.alt -12
@@ -5269,9 +5515,9 @@ bots_ia_l310:
     stack -4
     push.c 0x3f800000
     push.c -1082130432
-    load.pri 0x45e8
+    load.pri 0x45f8
     push.pri
-    load.pri 0x45e8
+    load.pri 0x45f8
     load.s.alt -20
     push.pri
     push.alt
@@ -5305,10 +5551,10 @@ bots_ia_l310:
     push.c 0x8
     call @pw_operatorlt_Float_Float
     pop.alt
-    jzer @bots_ia_l312
+    jzer @bots_ia_l344
     zero.s -24
-bots_ia_l312:
-    load.pri 0x45e8
+bots_ia_l344:
+    load.pri 0x45f8
     push.pri
     load.s.pri -24
     zero.alt
@@ -5316,12 +5562,12 @@ bots_ia_l312:
     push.alt
     push.c 0x8
     call @pw_operatornoteq_Float_Float
-    jzer @bots_ia_l313
+    jzer @bots_ia_l345
     const.pri 0x3ca3d70a
-    jump @bots_ia_l314
-bots_ia_l313:
+    jump @bots_ia_l346
+bots_ia_l345:
     const.pri 0x3d1ba5e3
-bots_ia_l314:
+bots_ia_l346:
     push.pri
     load.s.pri -24
     load.s.alt -16
@@ -5329,7 +5575,7 @@ bots_ia_l314:
     push.alt
     sysreq.n floatmul, 2
     move.alt
-    load.pri 0x45e8
+    load.pri 0x45f8
     push.pri
     push.alt
     sysreq.n floatsub, 2
@@ -5341,18 +5587,18 @@ bots_ia_l314:
     push.pri
     push.alt
     sysreq.n floatadd, 2
-    stor.pri 0x45e8
-    push 0x45e8
+    stor.pri 0x45f8
+    push 0x45f8
     push 0x1cc8
     sysreq.n floatadd, 2
     push.pri
     push.c 0x4
     call @pw_wrapAngle
     stor.pri 0x1cc8
-    push 0x45e8
+    push 0x45f8
     push.c 0x3f7fbe77
     sysreq.n floatmul, 2
-    stor.pri 0x45e8
+    stor.pri 0x45f8
     stack -12
     zero.pri
     addr.alt -36
@@ -5361,9 +5607,9 @@ bots_ia_l314:
     push.adr -36
     push.c 0x8
     call @pw_headingOf
-    const.pri 0x45dc
+    const.pri 0x45ec
     push.pri
-    const.pri 0x45dc
+    const.pri 0x45ec
     load.i
     push.pri
     addr.pri -36
@@ -5374,7 +5620,7 @@ bots_ia_l314:
     push.alt
     sysreq.n floatmul, 2
     move.alt
-    load.pri 0x45a4
+    load.pri 0x45b4
     push.pri
     push.alt
     sysreq.n floatmul, 2
@@ -5384,10 +5630,10 @@ bots_ia_l314:
     sysreq.n floatadd, 2
     pop.alt
     stor.i
-    const.pri 0x45dc
+    const.pri 0x45ec
     add.c 0x8
     push.pri
-    const.pri 0x45dc
+    const.pri 0x45ec
     add.c 0x8
     load.i
     push.pri
@@ -5400,7 +5646,7 @@ bots_ia_l314:
     push.alt
     sysreq.n floatmul, 2
     move.alt
-    load.pri 0x45a4
+    load.pri 0x45b4
     push.pri
     push.alt
     sysreq.n floatmul, 2
@@ -5411,21 +5657,21 @@ bots_ia_l314:
     pop.alt
     stor.i
     stack -4
-    const.pri 0x45dc
+    const.pri 0x45ec
     load.i
     push.pri
-    const.pri 0x45dc
+    const.pri 0x45ec
     load.i
     pop.alt
     push.pri
     push.alt
     sysreq.n floatmul, 2
     push.pri
-    const.pri 0x45dc
+    const.pri 0x45ec
     add.c 0x8
     load.i
     push.pri
-    const.pri 0x45dc
+    const.pri 0x45ec
     add.c 0x8
     load.i
     pop.alt
@@ -5447,9 +5693,9 @@ bots_ia_l314:
     push.c 0x8
     call @pw_operatorgt_Float_Float
     pop.alt
-    jzer @bots_ia_l315
+    jzer @bots_ia_l347
     stack -4
-    const.pri 0x45dc
+    const.pri 0x45ec
     load.i
     push.pri
     addr.pri -36
@@ -5459,7 +5705,7 @@ bots_ia_l314:
     push.alt
     sysreq.n floatmul, 2
     push.pri
-    const.pri 0x45dc
+    const.pri 0x45ec
     add.c 0x8
     load.i
     push.pri
@@ -5484,7 +5730,7 @@ bots_ia_l314:
     call @pw_fabs
     stor.s.pri -44
     stack -4
-    const.pri 0x45dc
+    const.pri 0x45ec
     load.i
     push.pri
     addr.pri -36
@@ -5495,7 +5741,7 @@ bots_ia_l314:
     push.alt
     sysreq.n floatmul, 2
     push.pri
-    const.pri 0x45dc
+    const.pri 0x45ec
     add.c 0x8
     load.i
     push.pri
@@ -5539,9 +5785,9 @@ bots_ia_l314:
     push.alt
     sysreq.n floatsub, 2
     stor.s.pri -52
-    const.pri 0x45dc
+    const.pri 0x45ec
     push.pri
-    const.pri 0x45dc
+    const.pri 0x45ec
     load.i
     move.alt
     load.s.pri -52
@@ -5550,10 +5796,10 @@ bots_ia_l314:
     sysreq.n floatmul, 2
     pop.alt
     stor.i
-    const.pri 0x45dc
+    const.pri 0x45ec
     add.c 0x8
     push.pri
-    const.pri 0x45dc
+    const.pri 0x45ec
     add.c 0x8
     load.i
     move.alt
@@ -5564,8 +5810,8 @@ bots_ia_l314:
     pop.alt
     stor.i
     stack 0xc
-bots_ia_l315:
-    const.pri 0x45dc
+bots_ia_l347:
+    const.pri 0x45ec
     load.i
     push.pri
     addr.pri -36
@@ -5575,7 +5821,7 @@ bots_ia_l315:
     push.alt
     sysreq.n floatmul, 2
     push.pri
-    const.pri 0x45dc
+    const.pri 0x45ec
     add.c 0x8
     load.i
     push.pri
@@ -5590,21 +5836,21 @@ bots_ia_l315:
     push.pri
     push.alt
     sysreq.n floatadd, 2
-    stor.pri 0x4614
+    stor.pri 0x4624
     stack -4
     push.c 0x41f00000
     push.c -1031012352
     sysreq.n floatsub, 2
     push.pri
     push.c -962838528
-    push 0x4658
+    push 0x4668
     push.c 0x430c0000
     sysreq.n floatadd, 2
     push.pri
     push.c 0x8
     call @pw_fmax
     push.pri
-    push 0x4604
+    push 0x4614
     push.c 0xc
     call @pw_fclamp
     stor.s.pri -44
@@ -5628,16 +5874,16 @@ bots_ia_l315:
     push.c 0xc
     call @pw_fclamp
     stor.s.pri -48
-    push 0x4608
+    push 0x4618
     push.c 0x447a0000
     push.c 0x8
     call @pw_operatornoteq_Float_Float
-    jzer @bots_ia_l317
+    jzer @bots_ia_l349
     const.pri 0x1ca0
     add.c 0x4
     load.i
     push.pri
-    push 0x4608
+    push 0x4618
     push.c 0x42200000
     sysreq.n floatmul, 2
     pop.alt
@@ -5655,12 +5901,12 @@ bots_ia_l315:
     push.c 0x8
     call @pw_operatorlt_Float_Float
     pop.alt
-    jzer @bots_ia_l317
+    jzer @bots_ia_l349
     const.pri 0x1ca0
     add.c 0x4
     load.i
     push.pri
-    push 0x4608
+    push 0x4618
     push.c 0x42200000
     sysreq.n floatmul, 2
     pop.alt
@@ -5668,7 +5914,7 @@ bots_ia_l315:
     push.alt
     sysreq.n floatadd, 2
     push.pri
-    push 0x4658
+    push 0x4668
     push.c 0x430c0000
     sysreq.n floatadd, 2
     pop.alt
@@ -5678,20 +5924,20 @@ bots_ia_l315:
     push.c 0x8
     call @pw_operatorgt_Float_Float
     pop.alt
-    jzer @bots_ia_l317
+    jzer @bots_ia_l349
     const.pri 0x1
-    jump @bots_ia_l318
-bots_ia_l317:
+    jump @bots_ia_l350
+bots_ia_l349:
     zero.pri
-bots_ia_l318:
-    jzer @bots_ia_l316
+bots_ia_l350:
+    jzer @bots_ia_l348
     push.c 0x3f800000
     push.c -1082130432
-    push 0x4628
-    push 0x4608
+    push 0x4638
+    push 0x4618
     sysreq.n floatmul, 2
     move.alt
-    load.pri 0x45a8
+    load.pri 0x45b8
     push.pri
     push.alt
     sysreq.n floatdiv, 2
@@ -5699,19 +5945,19 @@ bots_ia_l318:
     push.c 0xc
     call @pw_fclamp
     stor.s.pri -48
-bots_ia_l316:
-    const.pri 0x45dc
+bots_ia_l348:
+    const.pri 0x45ec
     add.c 0x4
     push.pri
-    const.pri 0x45dc
+    const.pri 0x45ec
     add.c 0x4
     load.i
     push.pri
-    const.pri 0x45dc
+    const.pri 0x45ec
     add.c 0x4
     load.i
     move.alt
-    load.pri 0x4628
+    load.pri 0x4638
     push.pri
     push.alt
     sysreq.n floatmul, 2
@@ -5720,7 +5966,7 @@ bots_ia_l316:
     push.alt
     sysreq.n floatsub, 2
     push.pri
-    load.pri 0x45a8
+    load.pri 0x45b8
     load.s.alt -48
     push.pri
     push.alt
@@ -5731,11 +5977,11 @@ bots_ia_l316:
     sysreq.n floatadd, 2
     pop.alt
     stor.i
-    load.pri 0x4650
-    jzer @bots_ia_l319
+    load.pri 0x4660
+    jzer @bots_ia_l351
     stack -4
-    push.c 0x4644
-    push.c 0x45dc
+    push.c 0x4654
+    push.c 0x45ec
     sysreq.n floatvecdot, 2
     stor.s.pri -52
     load.s.pri -52
@@ -5747,7 +5993,7 @@ bots_ia_l316:
     push.c 0x8
     call @pw_operatorlt_Float_Float
     pop.alt
-    jzer @bots_ia_l320
+    jzer @bots_ia_l352
     push.s -52
     push.c 0x4
     call @pw_operatorsub_Float
@@ -5756,14 +6002,14 @@ bots_ia_l316:
     push.alt
     sysreq.n floatmul, 2
     push.pri
-    push.c 0x4644
-    push.c 0x45dc
+    push.c 0x4654
+    push.c 0x45ec
     sysreq.n floatvecaddscale, 3
-bots_ia_l320:
+bots_ia_l352:
     stack 0x4
-bots_ia_l319:
+bots_ia_l351:
     stack -4
-    push.c 0x4638
+    push.c 0x4648
     sysreq.n floatveclength, 1
     stor.s.pri -52
     const.pri 0x40a00000
@@ -5774,23 +6020,23 @@ bots_ia_l319:
     push.c 0x8
     call @pw_operatorgt_Float_Float
     pop.alt
-    jzer @bots_ia_l321
+    jzer @bots_ia_l353
     load.s.pri -52
     const.alt 0x40a00000
     push.pri
     push.alt
     sysreq.n floatdiv, 2
     push.pri
-    push.c 0x4638
+    push.c 0x4648
     sysreq.n floatvecscale, 2
-bots_ia_l321:
-    push.c 0x45dc
+bots_ia_l353:
+    push.c 0x45ec
     push.c 0x1ca0
     sysreq.n floatvecadd, 2
-    push.c 0x4638
+    push.c 0x4648
     push.c 0x1ca0
     sysreq.n floatvecadd, 2
-    push.c 0x4638
+    push.c 0x4648
     sysreq.n floatveczero, 1
     const.pri 0x1ca0
     add.c 0x4
@@ -5803,13 +6049,13 @@ bots_ia_l321:
     push.c 0x8
     call @pw_operatorgt_Float_Float
     pop.alt
-    jzer @bots_ia_l322
+    jzer @bots_ia_l354
     const.pri 0x1ca0
     add.c 0x4
     move.alt
     const.pri -1031012352
     stor.i
-bots_ia_l322:
+bots_ia_l354:
     push 0x1c74
     push 0x1e7c
     sysreq.n floatadd, 2
@@ -5826,9 +6072,9 @@ bots_ia_l322:
     push.alt
     sysreq.n floatsub, 2
     stor.pri 0x1c74
-    load.pri 0x4610
+    load.pri 0x4620
     push.pri
-    const.pri 0x45dc
+    const.pri 0x45ec
     add.c 0x4
     load.i
     const.alt -1110651699
@@ -5836,7 +6082,7 @@ bots_ia_l322:
     push.alt
     sysreq.n floatmul, 2
     move.alt
-    load.pri 0x460c
+    load.pri 0x461c
     push.pri
     push.alt
     sysreq.n floatsub, 2
@@ -5848,16 +6094,16 @@ bots_ia_l322:
     push.pri
     push.alt
     sysreq.n floatadd, 2
-    stor.pri 0x4610
-    push 0x4610
-    push 0x460c
+    stor.pri 0x4620
+    push 0x4620
+    push 0x461c
     sysreq.n floatadd, 2
-    stor.pri 0x460c
-    push 0x4610
+    stor.pri 0x461c
+    push 0x4620
     push.c 0x3f19999a
     sysreq.n floatmul, 2
-    stor.pri 0x4610
-    load.pri 0x460c
+    stor.pri 0x4620
+    load.pri 0x461c
     stor.pri 0x1e78
     push.c 0x0
     push 0x1e7c
@@ -5869,7 +6115,7 @@ bots_ia_l322:
     push 0x1e78
     sysreq.n actorSetPitch, 2
     push.c 0x0
-    push.c 0x45dc
+    push.c 0x45ec
     sysreq.n actorSetVelocity, 2
     stack -12
     zero.pri
@@ -5891,7 +6137,7 @@ bots_ia_l322:
     sysreq.n actorSetTorque, 2
     const.pri 0x3064
     move.alt
-    const.pri 0x45dc
+    const.pri 0x45ec
     movs 0xc
     const.pri 0x3070
     push.pri
@@ -5901,11 +6147,11 @@ bots_ia_l322:
     push.c 0x0
     push.c 0x1ca0
     sysreq.n actorSetPosition, 2
-    load.pri 0x45ec
+    load.pri 0x45fc
     stor.pri 0x11f0
     push.c 0x0
-    push 0x45ec
-    push.c 0x54d8
+    push 0x45fc
+    push.c 0x55c0
     sysreq.n actorSetPropReal, 3
     stack 0x4c
     zero.pri

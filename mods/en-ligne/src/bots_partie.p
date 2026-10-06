@@ -57,6 +57,13 @@ botAsPlayer(k, team)
     return node;
 }
 
+/* The bot k of this team is in the battle (bots_ia.p): every console knows its name and team. */
+forward @botJoin(k, team);
+public @botJoin(k, team)
+{
+    botAsPlayer(k, team);
+}
+
 isPlayerNode(node)
 {
     return node > 0 && (node < BOT_NODE || node > BOT_NODE + 0xffff);
