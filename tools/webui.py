@@ -651,7 +651,7 @@ def build_mods(names: list[str], params: dict[str, str], install: bool, log) -> 
                 print(f"Installé ({version}) : {dest}")
                 result["installed"].append(str(dest))
     if install:
-        public = {k: v for k, v in mod.build.params.items() if k not in ("pid", "password", "token")}
+        public = dict(mod.build.options) | {"sdsw_version": mod.build.params["sdsw_version"]}   # the player's options
         store_state(installed={"mods": names or mod.fixes(), "params": public,
                                "date": time.strftime("%Y-%m-%d %H:%M")})
         print("Lancez (ou relancez) le jeu dans l'émulateur : le mod s'applique au démarrage.")

@@ -262,3 +262,25 @@ annulés, 2 torpilles infinies, 4 tirs trop rapprochés, 8 vitesse impossible) |
 (bits 16-30). Le jeu garde son dernier renvoi dans la sauvegarde (`save.sdsw.cheat`, `save.sdsw.kick`) et le
 répète à chaque recherche ; le serveur ne traite qu'une fois chaque numéro (`exclusions.json`). Les
 attributs 4 et 5 ne servent pas à apparier les joueurs.
+
+## 9. La mise à jour v5200
+
+*Avancement estimé : 70 % — connexion, recherche de partie et salon vérifiés avec la v5200 dans Azahar ; restent les
+bots et l'anti-triche du mod pour elle.*
+
+La mise à jour ([mise-a-jour.md](mise-a-jour.md)) garde le même identifiant de serveur NEX (`0x000D7C00`), la même
+clé d'accès (`fb9537fe`) et les mêmes bibliothèques NEX et Pia, à de nouvelles adresses : le même serveur la sert.
+Différences relevées pour le mod `en-ligne` :
+
+- les fonctions de `frd` et les étapes de `JobCTRLogin` sont identiques (`GetMyPrincipalId` `0x00222740`,
+  `GetMyPassword` `0x002C9224`, `GetGameAuthenticationData` `0x002226CC`) ;
+- **le Pia de la v5200 résout les noms des serveurs de NAT en ASCII** (`NatTraverser::updateNatServerAddress`, table
+  `0x003D8018`), celui de la v0 en UTF-16 (`0x003B0940`) ; la table de NEX reste en UTF-16 (`0x003C13E4`) ;
+- `MyNotificationEventHandler::ProcessNotificationEvent` (`0x0018A7B8`) est la même, sauf que le nouveau
+  propriétaire (notification 4xxx) va en `+0x1C` de sa structure (`0x003B5668`), contre `+0x18` en v0 ;
+- la somme de version de la recherche de partie (attribut 3, `sysGetVersionChecksum`) vaut **868960903** en v5200
+  (0xB95D7F2B en v0) : le serveur compare les attributs 0 à 3, donc les joueurs des deux versions ne se retrouvent
+  pas dans la même partie, et c'est voulu (cartes, sous-marins et scripts diffèrent) ;
+- le menu multijoueur de la v5200 n'a plus l'état inutilisé où le mod ouvrait le dialogue du serveur : il s'ouvre
+  dans l'état Dialog du jeu, et sa fermeture mène au menu Internet (accroches `0xA4B4` et `0x603C`).
+

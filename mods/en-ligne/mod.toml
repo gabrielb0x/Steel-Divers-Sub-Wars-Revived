@@ -18,7 +18,7 @@
 
 name = "Jeu en ligne"
 description = "Jouer en ligne sur un serveur Sub Wars Open Sourced (server/), dans Azahar"
-versions = ["v0"]
+versions = ["v0", "v5200"]
 
 [params.server]
 help = "adresse IP ou nom du serveur (31 caractères au plus)"
@@ -32,9 +32,24 @@ default = "61000"
 [identity]
 scope = "${server}:${port}"
 
+# Adresses du code, par version du jeu (la mise à jour v5200 : mêmes fonctions de frd et de NEX, ailleurs).
+[symbols]
+host_text = { v0 = 0x002AF4F8, v5200 = 0x002C9734 }      # adresse du serveur (dans GetServiceLocatorData)
+token_text = { v0 = 0x002AF56C, v5200 = 0x002C97A8 }     # jeton (dans RequestServiceLocator)
+host_utf16 = { v0 = 0x002AF690, v5200 = 0x002C9874 }     # adresse du serveur en UTF-16 (RequestGameAuthentication)
+wcslen = { v0 = 0x0023C598, v5200 = 0x00252010 }
+convertUTF16toUTF8 = { v0 = 0x0023B380, v5200 = 0x00250D2C }
+amxSysSetGlobal = { v0 = 0x002539C4, v5200 = 0x00269F64 }
+amxSysSetGlobalArray = { v0 = 0x001DA344, v5200 = 0x001E9E78 }
+session_globals = { v0 = 0x0038E660, v5200 = 0x003B5668 } # ce que retient MyNotificationEventHandler
+owner_field = { v0 = 0x18, v5200 = 0x1C }                 # nouveau propriétaire, dans session_globals
+# Dans les scripts : joinSession, juste après inetSetAttribute(3, somme de version)
+join_hook_internet = { v0 = 0xB8F0, v5200 = 0xA564 }      # mode_internet_menu
+join_hook_result = { v0 = 0xCD88, v5200 = 0x12100 }       # mode_peri_result
+
 # -- nn::friends::CTR::detail::GetMyPrincipalId (108 octets) --------------------------------------
 [[code]]
-address = 0x0021BD34
+address = { v0 = 0x0021BD34, v5200 = 0x00222740 }
 expect = "30402de914d04de2"
 max_size = 108
 arm = """
@@ -46,7 +61,7 @@ pid:
 
 # -- nn::friends::CTR::detail::GetMyPassword(char buffer[32]) (120 octets) -------------------------
 [[code]]
-address = 0x002AF2C0
+address = { v0 = 0x002AF2C0, v5200 = 0x002C9224 }
 expect = "70402de90050a0e1"
 max_size = 120
 arm = """
@@ -66,7 +81,7 @@ password:
 # Structure de 0x138 octets (taille du tampon IPC 0x4E0002) : +0 résultat, +4 code HTTP, +8 adresse
 # (32 octets), +0x28 port, +0x30 jeton (256 octets), +0x130 heure du serveur.
 [[code]]
-address = 0x0020E3CC
+address = { v0 = 0x0020E3CC, v5200 = 0x002226CC }
 expect = "70402de90050a0e1"
 max_size = 116
 arm = """
@@ -101,54 +116,56 @@ strcopy:
 port:
     .word ${port}
 host:
-    .word 0x002AF4F8
+    .word ${host_text}
 token:
-    .word 0x002AF56C
+    .word ${token_text}
 """
 
 # -- Données, dans trois fonctions que le patch rend inutiles (0x002AF4F0-0x002AF798) ----------------
-# Chacune commence par « rendre une erreur », au cas où le jeu l'appellerait encore.
+# Chacune commence par « rendre une erreur », au cas où le jeu l'appellerait encore (seules les étapes de
+# nn::nex::JobCTRLogin les appellent, et elles ne le font plus quand GetGameAuthenticationData réussit).
 [[code]]
-address = 0x002AF4F0                     # GetServiceLocatorData
+address = { v0 = 0x002AF4F0, v5200 = 0x002C972C }   # GetServiceLocatorData
 expect = "70402de90050a0e1"
 arm = "mvn r0, #0\nbx lr"
 
 [[code]]
-address = 0x002AF4F8                     # adresse du serveur
+address = "${host_text}"                  # adresse du serveur
 ascii = "${server}"
 max_size = 108
 
 [[code]]
-address = 0x002AF564                     # RequestServiceLocator
-expect = "ff4f2de90cd04de2"
+address = { v0 = 0x002AF564, v5200 = 0x002C97A0 }   # RequestServiceLocator
+expect = { v0 = "ff4f2de90cd04de2", v5200 = "f04f2de90cd04de2" }
 arm = "mvn r0, #0\nbx lr"
 
 [[code]]
-address = 0x002AF56C                     # jeton d'authentification
+address = "${token_text}"                 # jeton d'authentification
 ascii = "${token}"
-max_size = 284
+max_size = { v0 = 284, v5200 = 196 }
 
 [[code]]
-address = 0x002AF688                     # RequestGameAuthentication
+address = { v0 = 0x002AF688, v5200 = 0x002C986C }   # RequestGameAuthentication
 expect = "f84f2de90050a0e1"
 arm = "mvn r0, #0\nbx lr"
 
 [[code]]
-address = 0x002AF690                     # nom du serveur de NAT, en UTF-16
+address = "${host_utf16}"                 # nom du serveur de NAT, en UTF-16
 utf16 = "${server}"
-max_size = 264
+max_size = { v0 = 264, v5200 = 180 }
 
 # -- Serveurs de détection de NAT : nncs1 et nncs2 -> notre serveur ----------------------------------
-# Pointeurs lus par Pia (NatTraverser::updateNatServerAddress) et la table de NEX.
+# Pointeurs lus par Pia (NatTraverser::updateNatServerAddress) et la table de NEX. Le Pia de la v5200 lit des
+# noms en ASCII (sa table, 0x003D8018) : il reçoit l'adresse du serveur en ASCII.
 [[code]]
-address = 0x003B0940
-expect = "8e343800c4343800"
-words = ["0x002AF690", "0x002AF690"]
+address = { v0 = 0x003B0940, v5200 = 0x003D8018 }   # Pia
+expect = { v0 = "8e343800c4343800", v5200 = "b1963a00cc963a00" }
+words = { v0 = ["${host_utf16}", "${host_utf16}"], v5200 = ["${host_text}", "${host_text}"] }
 
 [[code]]
-address = 0x00399E90
-expect = "8e343800c4343800"
-words = ["0x002AF690", "0x002AF690"]
+address = { v0 = 0x00399E90, v5200 = 0x003C13E4 }   # NEX
+expect = { v0 = "8e343800c4343800", v5200 = "d4a83a000aa93a00" }
+words = ["${host_utf16}", "${host_utf16}"]
 
 # -- Messages du serveur : MyNotificationEventHandler::ProcessNotificationEvent (568 octets) -----------
 # Le jeu ne retient que trois notifications (3001 un joueur arrive, 4xxx nouveau propriétaire, 109xxx
@@ -159,7 +176,7 @@ words = ["0x002AF690", "0x002AF690"]
 # Le serveur règle ainsi les parties contre des bots (server.bots.*, les noms des bots…) ; un jeu sans ce
 # mod ignore ces types.
 [[code]]
-address = 0x00185264
+address = { v0 = 0x00185264, v5200 = 0x0018A7B8 }
 expect = "30402de987df4de2"
 max_size = 568
 arm = """
@@ -167,7 +184,7 @@ arm = """
     sub sp, sp, #0x210
     mov r4, r1                  @ NotificationEvent: +0xc type, +0x10 param1, +0x14 param2, +0x1c texte
     ldr r0, [r4, #0xc]
-    ldr r5, globals             @ 0x0038e660
+    ldr r5, globals
     ldr r1, joined
     cmp r0, r1
     moveq r2, #0
@@ -176,7 +193,7 @@ arm = """
     sub r1, r0, #4000
     cmp r1, #1000
     ldrlo r2, [r4, #0x14]
-    strlo r2, [r5, #0x18]       @ 4xxx : nouveau propriétaire (param2)
+    strlo r2, [r5, #${owner_field}]   @ 4xxx : nouveau propriétaire (param2)
     blo done
     ldr r1, unregistered
     sub r1, r0, r1
@@ -193,7 +210,7 @@ arm = """
     beq done
     mov r5, r1                  @ 0 : entier, 1 : chaîne
     mov r0, r6
-    bl 0x0023C598               @ wcslen
+    bl ${wcslen}
     add r1, r6, r0, lsl #1
     add r1, r1, #2              @ fin, après le zéro final
     str r6, [sp, #4]
@@ -204,7 +221,7 @@ arm = """
     str r12, [sp]
     add r0, sp, #4
     add r2, sp, #8
-    bl 0x0023B380               @ convertUTF16toUTF8(&texte, fin, &utf8, fin utf8, 1)
+    bl ${convertUTF16toUTF8}    @ (&texte, fin, &utf8, fin utf8, 1)
     add r0, sp, #0x10           @ seulement les variables du serveur (server.*) : ni la sauvegarde, ni le jeu
     adr r1, prefix
     mov r2, #7
@@ -219,7 +236,7 @@ prefix_loop:
     bne string_global
     add r0, sp, #0x10
     ldr r1, [r4, #0x10]
-    bl 0x002539C4               @ amxSysSetGlobal(nom, valeur)
+    bl ${amxSysSetGlobal}       @ (nom, valeur)
     b done
 string_global:
     add r0, sp, #0x10
@@ -250,12 +267,12 @@ store:
     add r0, sp, #0x10
     add r1, sp, #0x90
     mov r2, #96
-    bl 0x001DA344               @ amxSysSetGlobalArray(nom, cellules, 96), comme sysSetGlobalString
+    bl ${amxSysSetGlobalArray}  @ (nom, cellules, 96), comme sysSetGlobalString
 done:
     add sp, sp, #0x210
     pop {r4, r5, r6, pc}
 globals:
-    .word 0x0038e660
+    .word ${session_globals}
 joined:
     .word 3001
 unregistered:
@@ -285,7 +302,7 @@ text = "Online server in use:\n${server} (port ${port})\n\nSub Wars Open Sourced
 
 [[amx]]
 file = "amx/mode_multi_menu.amx"        # update<Top>, bouton Internet, après sysEulaConfirm()
-asm = """
+asm.v0 = """
 .hook 0x96a8
     push.c "sdsw_server"
     push.c 4
@@ -295,6 +312,35 @@ asm = """
     const.pri 3
     stor.pri g_0000                 ; state 3: OK -> sysSetMode("mode_internet_menu")
     jump 0x96cc
+"""
+# La v5200 n'a plus cet état inutilisé (ses états : 1 l'offre de la version complète, 2 Dialog, 3 Top) : le
+# dialogue s'ouvre dans l'état Dialog du jeu, et quand il se ferme (passage à Top dans update<Dialog>), on va au
+# menu Internet comme le faisait le bouton.
+asm.v5200 = """
+.var $sdsw_internet
+.hook 0xa4b4
+    push.c "sdsw_server"
+    push.c 4
+    call 0x5530                     ; dialogSetMessage
+    push.c 0
+    call 0x4888                     ; dialogConfirmWindowIn
+    const.pri 2
+    stor.pri g_0000                 ; state Dialog
+    const.pri 1
+    stor.pri $sdsw_internet
+    jump 0xa4d8
+
+.hook 0x603c                        ; update<Dialog>, the window closed: const.pri 3 (then stor.pri g_0000: Top)
+    load.pri $sdsw_internet
+    jzer @sdsw_menu
+    zero $sdsw_internet
+    push.c "mode_internet_menu"
+    push.c 4
+    call 0x01a8                     ; sysSetMode
+    zero g_a92c                     ; leave the mode's loop, as the button does
+sdsw_menu:
+    .original                       ; PRI = 3 for the stor.pri g_0000 after the hook
+    .return
 """
 
 # -- Parties contre les bots du serveur (bots_*.pasm, assembleur Pawn de tools/amxasm.py) -------------
@@ -318,17 +364,21 @@ select = "collshape"
 copy = { file = "bxml/pscope_ply01.bxml", select = "collshape" }
 
 [[amx]]
+versions = ["v0"]                       # v5200 : à porter (adresses des scripts)
 file = "amx/hud.amx"
 asm_file = "bots_hud.pasm"
 [[amx]]
+versions = ["v0"]                       # v5200 : à porter (adresses des scripts)
 file = "amx/mode_lobby.amx"
 asm_file = "bots_salon.pasm"
 
 [[amx]]
+versions = ["v0"]                       # v5200 : à porter (adresses des scripts)
 file = "amx/mode_periscope.amx"
 asm_file = "bots_bataille.pasm"
 
 [[amx]]
+versions = ["v0"]                       # v5200 : à porter (adresses des scripts)
 file = "amx/game_state.amx"
 asm_file = "bots_partie.pasm"
 
@@ -338,18 +388,22 @@ asm_file = "bots_partie.pasm"
 # là où sera la cible, torpilles à tête chercheuse, esquive, masqueur et repli quand la coque est basse.
 # Écrits en Pawn (src/*.p), compilés en assembleur par tools/pawn2pasm.py ; les .pasm sont générés.
 [[amx]]
+versions = ["v0"]                       # v5200 : à porter (adresses des scripts)
 file = "amx/surface_sub.amx"
 asm_file = "bots_ia.pasm"
 
 [[amx]]
+versions = ["v0"]                       # v5200 : à porter (adresses des scripts)
 file = "amx/surface_torpedo.amx"
 asm_file = "bots_torpille.pasm"
 
 [[amx]]
+versions = ["v0"]                       # v5200 : à porter (adresses des scripts)
 file = "amx/surface_torpedo_p_homing.amx"
 asm_file = "bots_torpille_tc.pasm"
 
 [[amx]]
+versions = ["v0"]                       # v5200 : à porter (adresses des scripts)
 file = "amx/pscope_player.amx"
 asm_file = "bots_joueur.pasm"
 
@@ -362,17 +416,20 @@ asm_file = "bots_joueur.pasm"
 # l'écart pendant anticheat_ban minutes (serveur.toml). Un jeu dont on a retiré ce mod échappe à la
 # surveillance : c'est la limite de tout anti-triche dans un jeu en P2P.
 [[amx]]
+versions = ["v0"]                       # v5200 : à porter (adresses des scripts)
 file = "amx/pscope_player.amx"
 asm_file = "anti_triche_joueur.pasm"
 
 [[amx]]
+versions = ["v0"]                       # v5200 : à porter (adresses des scripts)
 file = "amx/periscope_move.amx"
 asm_file = "anti_triche_tir.pasm"
 
 [[amx]]
+versions = ["v0"]                       # v5200 : à porter (adresses des scripts)
 file = "amx/mode_internet_menu.amx"     # joinSession, après inetSetAttribute(3, somme de version)
 asm = """
-.hook 0xb8f0
+.hook ${join_hook_internet}
     push.c 0
     call @acReport
     .original
@@ -402,9 +459,10 @@ acReport:
 """
 
 [[amx]]
+versions = ["v0"]                       # v5200 : à porter (adresses des scripts)
 file = "amx/mode_peri_result.amx"       # joinSession (« continuer en ligne »), au même endroit
 asm = """
-.hook 0xcd88
+.hook ${join_hook_result}
     push.c 0
     call @acReport
     .original

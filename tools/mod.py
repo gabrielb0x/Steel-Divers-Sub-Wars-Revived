@@ -546,6 +546,8 @@ def recipe_params(mods: list[dict], overrides: dict[str, str]) -> dict[str, str]
         for key, value in mod.get("symbols", {}).items():
             if not isinstance(value, int) or isinstance(value, bool):
                 raise ModError(f"[symbols] {key} = {value!r}: an address is expected")
+            if key in specs or key in ("sdsw_version", "pid", "password", "token") or key.startswith("arm_"):
+                raise ModError(f"[symbols] {key}: the name of a parameter")
             text = f"{value:#010x}"
             if params.get(key, text) != text:
                 raise ModError(f"symbol {key} is declared differently by two of these mods")
@@ -739,6 +741,7 @@ def build(names: list[str], out_root: Path, overrides: dict[str, str] | None = N
     print(f"[+] {title} ({version}): {len(edited) + len(scripts) + len(binaries)} file(s), {len(code)} code "
           f"patch(es) -> {out}")
     build.params = params
+    build.options = {key: params[key] for mod in mods for key in mod.get("params", {}) if key in params}
     return out.parent
 
 

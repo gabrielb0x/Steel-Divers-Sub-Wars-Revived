@@ -75,7 +75,8 @@ et le disent.
 
 ## Les mods et la v5200
 
-*Avancement estimé : 85 % — tous les mods sauf `en-ligne` marchent avec la v5200, vérifiés dans Azahar.*
+*Avancement estimé : 90 % — tous les mods marchent avec la v5200, vérifiés dans Azahar, sauf les bots et l'anti-triche
+du jeu en ligne.*
 
 Les adresses viennent de la correspondance des fonctions (code ARM) et des scripts Pawn entre les deux versions :
 même code aux adresses près, ou, pour les fonctions modifiées, alignement instruction par instruction de la
@@ -91,4 +92,4 @@ fonction la plus proche.
 | `triche` | ✓ | ✓ | l'invincibilité couvre aussi la mine flottante ; vérifié : tir sans délai, torpilles infinies |
 | `vitesse` | ✓ | ✓ | les tables d'accélération n'ont pas changé |
 | `specs` | ✓ | ✓ | les 39 sous-marins, dans un fichier à part (`sous-marins-v5200.toml`) : leurs valeurs diffèrent |
-| `en-ligne` | ✓ | à porter | patch du code et des scripts (bots, anti-triche) |
+| `en-ligne` | ✓ | en partie | connexion au serveur, recherche de partie et dialogue du serveur vérifiés ([online.md](online.md#9-la-mise-à-jour-v5200)) ; les bots du serveur et l'anti-triche restent à porter |
