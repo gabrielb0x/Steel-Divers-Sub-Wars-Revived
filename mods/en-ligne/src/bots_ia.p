@@ -148,7 +148,7 @@ new contactAt = -10000;
 new sonarIn;
 new pickedItem = -1;
 new container = -1;                  // a container it goes for
-new homingIn;                        // frames before the homing torpedoes can be fired (func_f878: 120 after a shot)
+new homingIn;                        // frames before the homing torpedoes can be fired (120 + 15 after a shot, func_10e04)
 new maskerIn;                        // frames before the masker can be used again (150 after one, periscope_move.p)
 new emptyFor;                        // frames since its last torpedo (all are reloaded torpedoReplenishTime later)
 new revealed = -1;                   // a masked enemy seen when it was hit
@@ -448,7 +448,7 @@ readSubmarine()
     if (k) {
         strformat(name, sizeof name, false, "server.bots.sub%d", k);
         sub = sysGetGlobal(name);
-        if (sub < 1 || sub > 23)
+        if (sub < 1 || sub > 39)                        // 23 in the game, 39 with the update
             sub = 1;
     }
     new a = worldNewActor();
@@ -943,8 +943,8 @@ guess()
             launch(tube, name);
             actorSetPropReal("bearing", g_1cc8, lastTorpedo);
             torpedoes--;
-            reload = fireInterval + FIRE_PAUSE[lvl];
-            homingIn = 120;
+            reload = fireInterval + 15 + FIRE_PAUSE[lvl];   // a player: torpedo.interval + 15 (func_10e04)
+            homingIn = 135;
             brakeTime = brakeFrames;
             brake = 1.0;
             side = -side;
@@ -1190,8 +1190,8 @@ fire(Float:aim[3], Float:point[3], Float:d, flight)
     } else {
         return;
     }
-    reload = fireInterval + FIRE_PAUSE[lvl];
-    homingIn = 120;                                     // a player's weapons wait 120 frames after a shot
+    reload = fireInterval + 15 + FIRE_PAUSE[lvl];
+    homingIn = 135;                                     // a player's weapons wait 120 + 15 frames after a shot
     brakeTime = brakeFrames;                            // a player's sub brakes when it fires
     brake = 1.0;
     side = -side;

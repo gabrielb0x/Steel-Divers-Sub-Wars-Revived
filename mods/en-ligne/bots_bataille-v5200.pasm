@@ -2,6 +2,8 @@
 ;   tools/amxport.py mode_periscope --pasm mods/en-ligne/bots_bataille.pasm mods/en-ligne/bots_bataille-v5200.pasm --overrides mods/en-ligne/v5200.toml
 ; mode_periscope: the start of a battle against the server's bots (see bots_salon.pasm).
 
+.heapstack 0x4000                   ; 16 KB of heap and stack, as the game's scripts (v5200's: 8 KB)
+
 ; init: "otherTeamPlayers = 0, so calling @checkGameStartFailure()": not a failure against bots.
 .hook 0x18e24
     .original                       ; load.s.pri -0xc: the other team has players

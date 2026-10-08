@@ -2,6 +2,8 @@
 ; player 100, times the other team's size over its own when outnumbered (1 against 4: 400), and counted only
 ; the players; the bots get the same (bots_ia.p teamSize).
 
+.heapstack 0x4000                   ; 16 KB of heap and stack, as the game's scripts (v5200's: 8 KB)
+
 ; func_14f60: getTeamPlayerCount(1), getTeamPlayerCount(2) (func_3500) -> teamSize(team).
 .hook 0x14fa4
     call @teamSize

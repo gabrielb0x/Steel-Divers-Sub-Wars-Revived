@@ -3,6 +3,8 @@
 ; pscope_player: damage cancelled without a reason of the game (invincibility: the developers' flag
 ; player.muteki, or a script patched to skip the damage). See anti_triche_tir.pasm.
 
+.heapstack 0x4000                   ; 16 KB of heap and stack, as the game's scripts (v5200's: 8 KB)
+
 .var $damage                        ; the damage as it came, before the game's checks
 
 ; @eventDamageTorp(damage, ...): its first argument.

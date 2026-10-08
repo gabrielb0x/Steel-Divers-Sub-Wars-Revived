@@ -256,13 +256,13 @@ async def login(host: str, port: int, pid: int, password: str, flags: str = "",
 V0, V5200 = 0xB95D7F2B, 868960903      # version checksums of the game and of its update
 
 
-def game_criteria(level: int, report: int | None = None, checksum: int = V0) -> StreamOut:
+def game_criteria(level: int, report: int | None = None, checksum: int = V0, lobby: int = 1) -> StreamOut:
     """setupCriteriaList / joinSession: continent 2 (Europe), lobby type 1, level, version checksum, and
     with the online mod the anti-cheat report (attribute 4)."""
     s = StreamOut()
     s.u32(1)
     c = StreamOut()
-    c.list(["2", "1", str(level), str(checksum), "" if report is None else str(report), ""], StreamOut.string)
+    c.list(["2", str(lobby), str(level), str(checksum), "" if report is None else str(report), ""], StreamOut.string)
     c.string("1000"); c.string(""); c.string(""); c.string("1")
     c.bool(True); c.bool(True); c.bool(False); c.u32(0); c.u16(1)
     s.u8(0); s.u32(len(c.data)); s.write(c.get())
@@ -270,12 +270,12 @@ def game_criteria(level: int, report: int | None = None, checksum: int = V0) -> 
 
 
 async def matchmake(secure: PRUDPClient, level: int, report: int | None = None,
-                    checksum: int = V0) -> MatchmakeSession:
+                    checksum: int = V0, lobby: int = 1) -> MatchmakeSession:
     proposal = MatchmakeSession(min_participants=1, max_participants=8, flags=0x10, description="Steel Matcher",
-                                game_mode=1000, attributes=[2, 1, level, checksum, report or 0, 0],
+                                game_mode=1000, attributes=[2, lobby, level, checksum, report or 0, 0],
                                 matchmake_system_type=1, application_buffer=b"\x01\x02\x03")
     params = StreamOut()
-    params.write(game_criteria(level, report, checksum).get())
+    params.write(game_criteria(level, report, checksum, lobby).get())
     params.anydata("MatchmakeSession", proposal)
     params.string("Steel Diver 2 Auto matchmake")
     s = await secure.call(109, 15, params)

@@ -66,8 +66,6 @@ REALM_OPTIONS = (
            choices=("normal", "difficile", "expert")),
     Option("bots_countdown", "int", 10, "Compte à rebours", "secondes avant la bataille contre les bots",
            low=6, high=120),
-    Option("bots_duration", "int", 5, "Durée contre les bots", "minutes d'une bataille contre les bots",
-           low=1, high=30),
 )
 
 

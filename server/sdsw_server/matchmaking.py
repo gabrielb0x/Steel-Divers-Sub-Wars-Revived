@@ -52,6 +52,8 @@ LEVELS = {"normal": 1, "difficile": 2, "expert": 3}
 # two versions never meet (maps, submarines and scripts differ), whatever their criteria say.
 VERSIONS = {0xB95D7F2B: "v0", 868960903: "v5200"}
 VERSION_ATTRIBUTE = 3
+LOBBY_ATTRIBUTE = 1                 # lobby type: 0 random battle, 1 matched skills, 2 Morse chat room (v0)
+CHAT_LOBBY = 2                      # no battle there: no bots
 # Submarines the bots show, one at random as players would: the game's 23, the update's 36 (37 to 39 are the
 # computer's own, rewards of the update's events).
 SUBS = {"v0": 23, "v5200": 36}
@@ -73,7 +75,7 @@ class BotSettings:
     map: int = 0                   # 0: a random map, else its number (MAPS)
     level: str = "difficile"       # how hard the bots are: normal, difficile, expert
     countdown: int = 10            # seconds before the battle once the bots are announced
-    duration: int = 5              # minutes of the battle (the game's online battles: 10)
+    duration: int = 10             # minutes of the battle: the realm's duration, as for the other battles
     names: tuple[str, ...] = BOT_NAMES                  # the bots look like players: names, subs, levels
 
     @classmethod
@@ -101,7 +103,8 @@ class BotSettings:
         if b.level not in LEVELS:
             raise ValueError(f"realm {realm}: bots_level must be one of {', '.join(LEVELS)}")
         b.countdown = int(entry.get("bots_countdown", b.countdown))
-        b.duration = int(entry.get("bots_duration", b.duration))
+        # a battle against bots lasts as the others (duration); bots_duration, an older option, is ignored
+        b.duration = int(entry.get("duration", 10))
         names = entry.get("bots_names", b.names)
         if isinstance(names, str):
             names = [n.strip() for n in names.split(",")]
@@ -110,7 +113,7 @@ class BotSettings:
         if len(b.names) < 7:
             raise ValueError(f"realm {realm}: bots_names needs 7 names at least")
         if not 1 <= b.duration <= 30:
-            raise ValueError(f"realm {realm}: bots_duration must be between 1 and 30 minutes")
+            raise ValueError(f"realm {realm}: duration must be between 1 and 30 minutes")
         if not 5 <= b.delay <= 3600:
             raise ValueError(f"realm {realm}: bots_delay must be between 5 and 3600 seconds")
         if not 6 <= b.countdown <= 120:
@@ -159,6 +162,11 @@ class Session:
 
     def full(self) -> bool:
         return len(self.participants) >= max(self.info.max_participants, 1)
+
+    @property
+    def chat_room(self) -> bool:
+        a = self.info.attributes
+        return len(a) > LOBBY_ATTRIBUTE and a[LOBBY_ATTRIBUTE] == CHAT_LOBBY
 
     @property
     def version_name(self) -> str:
@@ -292,7 +300,8 @@ class Matchmaker:
         now, started = self.clock(), []
         for session in self.sessions.values():
             if (not session.bots and not session.closed and len(session.participants) == 1
-                    and session.alone_since is not None and now - session.alone_since >= self.bots.delay):
+                    and session.alone_since is not None and now - session.alone_since >= self.bots.delay
+                    and not session.chat_room):
                 session.bots = True
                 session.alone_since = None
                 session.bot_globals = self.bots.game_globals(version=VERSIONS.get(session.version, "v0"))

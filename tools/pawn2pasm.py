@@ -20,6 +20,14 @@ their real addresses, and everything the source adds (globals, strings) comes af
 data, where tools/amxasm.py appends new data: the .pasm starts with `.data_at <size>`, which checks it. No
 address of the compiled code has to be translated.
 
+The constant SDSW_VERSION is the version compiled for (0, 5200): `#if SDSW_VERSION >= 5200` for what the update
+changed (its texts, for one).
+
+Room for the stack: the compiled code gets at least 16 KB of heap and stack (`.heapstack`), what the game's
+scripts have; the update v5200's have only 8 KB, which the mods' deeper calls overflowed (the abstract machine
+then aborts the public function midway). `// @heapstack 0` keeps the script's own, for scripts loaded many
+times at once (a torpedo each), where memory counts.
+
 Functions of the game: a stub of that name is compiled and its calls become `call <address>`.
 
 Addresses are those of the game's scripts as sold (v0). With --version v5200, the same source is compiled for
@@ -56,6 +64,8 @@ INCLUDES = [ROOT / "decomp" / "pawn"]
 _GAME = re.compile(r"^\s*//\s*@game\s+(?:(\w+):)?(g_([0-9a-fA-F]+))(?:\[(\w+)\])?(?:\s.*)?$")
 _CALL = re.compile(r"^\s*//\s*@call\s+(0x[0-9a-fA-F]+)\s+((?:\w+:)?(\w+)\s*\(([^)]*)\))(?:\s.*)?$")
 _TARGET = re.compile(r"^\s*//\s*@target\s+(\S+)\s*$")
+_HEAPSTACK = re.compile(r"^\s*//\s*@heapstack\s+(\S+)(?:\s.*)?$")
+HEAPSTACK = 0x4000                  # the game's scripts have 16 KB of heap and stack, v5200's only 8 KB
 _ASM = re.compile(r"/\*\s*asm\b(.*?)\*/", re.S)
 _HEX = re.compile(r"^-?[0-9a-fA-F]{8}$")
 
@@ -275,7 +285,8 @@ def build(path: Path, out: Path | None = None, version: str = versions.BASE) -> 
         src = Path(tmp) / f"{module}.p"
         src.write_text(head + f'#line 1\n#file "{path.name}"\n' + source, encoding="utf-8")
         includes = [f"-i{p}" for p in [path.parent, *INCLUDES]]
-        common = [str(PAWNCC), str(src), "-d0", "-O1", "-;+", *includes]
+        number = int(version[1:]) if version[1:].isdigit() else 0
+        common = [str(PAWNCC), str(src), "-d0", "-O1", "-;+", *includes, f"SDSW_VERSION={number}"]
         result = subprocess.run(common + [f"-o{Path(tmp) / module}"], capture_output=True, text=True)
         messages = [l for l in (result.stdout + result.stderr).splitlines()
                     if re.search(r"\b(error|warning)\b", l)]
@@ -302,6 +313,9 @@ def build(path: Path, out: Path | None = None, version: str = versions.BASE) -> 
              f"; Target: {target}" + (f" of the update {version} (addresses of v0 translated by tools/amxport.py; "
                                      f"the names g_<hex> of the source are those of v0)" if suffix else "") + ".", "",
              f".data_at {data_size:#x}"]
+    hs = next((int(m[1], 0) for m in map(_HEAPSTACK.match, source.splitlines()) if m), HEAPSTACK)
+    if hs:
+        lines.append(f".heapstack {hs:#x}                ; room for the stack of the code below (// @heapstack)")
     if cells:
         for k in range(0, len(cells), 16):
             lines.append((f".cells $pawn_data {', '.join(cells[k:k + 16])}" if k == 0

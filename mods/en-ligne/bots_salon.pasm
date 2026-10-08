@@ -16,6 +16,8 @@
 ; ready); once they are all in, the host starts the countdown. The game itself only counts down when
 ; each team has a player (checkCountdownStart, func_eb14).
 
+.heapstack 0x4000                   ; 16 KB of heap and stack, as the game's scripts (v5200's: 8 KB)
+
 .var $shown                         ; bots shown in the lobby so far
 .var $total                         ; bots of the match
 .var $wait                          ; frames before the next one joins

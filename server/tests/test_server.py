@@ -131,10 +131,10 @@ async def matchmade(port: int, pid: int, flags: str = ""):
     return await testclient.matchmake(secure, 3)
 
 
-async def console(port: int, pid: int, flags: str = "", checksum: int = testclient.V0):
+async def console(port: int, pid: int, flags: str = "", checksum: int = testclient.V0, lobby: int = 1):
     """A simulated console in a match: (its connection, the session)."""
     secure, _ = await testclient.login("127.0.0.1", port, pid, "password", flags)
-    session = await testclient.matchmake(secure, 3, checksum=checksum)
+    session = await testclient.matchmake(secure, 3, checksum=checksum, lobby=lobby)
     if session.owner_pid == pid:
         params = StreamOut(); params.u32(session.id)
         await secure.call(109, 2, params)                         # OpenParticipation, as the lobby does
@@ -241,7 +241,7 @@ class Bots(unittest.TestCase):
         others = {k: v for k, v in values.items() if k not in bots and k.startswith("server.bots")}
         self.assertEqual(others, {"server.bots": 1, "server.bots.mine": 1, "server.bots.other": 4,
                                   "server.bots.stage": 14, "server.bots.level": 3, "server.bots.countdown": 15000,
-                                  "server.bots.duration": 300})
+                                  "server.bots.duration": 600})
         names = [values[f"server.bots.name{k}"] for k in range(1, 8)]
         self.assertEqual(len(set(names)), 7)                       # seven players, all different
         self.assertTrue(all(1 <= values[f"server.bots.sub{k}"] <= 23 for k in range(1, 8)))
@@ -285,6 +285,13 @@ class Bots(unittest.TestCase):
             return after, len(again)
         self.assertEqual(self.run_bots(test), (0, 1))
 
+    def test_no_bots_in_a_chat_room(self):
+        async def test(realm, port, clock):
+            await console(port, 0x10000001, lobby=2)              # v0's Morse chat room: no battle
+            clock.now += 61
+            return realm.matchmaker.tick()
+        self.assertEqual(self.run_bots(test), [])
+
     def test_bots_of_the_update(self):
         async def test(realm, port, clock):
             secure, _ = await console(port, 0x10000001, checksum=testclient.V5200)
@@ -298,7 +305,7 @@ class Bots(unittest.TestCase):
 
     def test_settings(self):
         b = BotSettings.from_config({"bots_format": "2v3", "bots_map": "4", "bots_level": "normal",
-                                     "bots_delay": 30, "bots_countdown": 20, "bots_duration": 8,
+                                     "bots_delay": 30, "bots_countdown": 20, "duration": 8,
                                      "bots_names": "Un, Deux, Trois, Quatre, Cinq, Six, Sept, Huit"})
         self.assertEqual((b.mine, b.other, b.map, b.level, b.delay, b.countdown, b.duration),
                          (2, 3, 4, "normal", 30, 20, 8))

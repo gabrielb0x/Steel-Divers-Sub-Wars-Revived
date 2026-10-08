@@ -49,7 +49,7 @@ Chaque royaume a ses options de partie dans `serveur.toml` (le lanceur les affic
   l'envoie à chaque console quand elle cherche une partie (`server.duration`) et le mod
   [`en-ligne`](../mods/en-ligne/mod.toml) la met à la place des 600 secondes fixées par le jeu
   (`mode_periscope` › `inputProperties`) ; un mod en-ligne plus ancien garde 10 minutes. Les batailles contre
-  les bots ont leur propre durée, `bots_duration` (5 minutes).
+  les bots durent autant (l'ancienne option `bots_duration` est ignorée).
 * **Bots pour un joueur seul** (`bots = true`, avec le mod [`en-ligne`](../mods/en-ligne/mod.toml) à jour) :
   un joueur resté seul dans une partie `bots_delay` secondes (60) joue contre des bots. Le jeu d'origine
   attend sans fin un adversaire ; ici le serveur envoie au jeu les réglages de la partie, et les bots
@@ -67,7 +67,6 @@ Chaque royaume a ses options de partie dans `serveur.toml` (le lanceur les affic
     chercheuse, masqueur et repli quand leur coque est basse : `mods/en-ligne/src/bots_ia.p`), le niveau
     règle leurs réflexes et leur précision (expert : visée parfaite) ; vaut pour tous les bots des parties
     en ligne ;
-  * `bots_duration` : durée de la bataille en minutes (5 ; une bataille en ligne du jeu dure 10 minutes) ;
   * `bots_names` : les noms des bots (au moins 7, 10 caractères au plus), tirés au hasard à chaque partie.
 
   Comment le serveur parle au jeu : par des notifications NEX à lui (types 999001 et 999002) que le mod

@@ -1,5 +1,6 @@
 /* surface_torpedo: the torpedoes of the computer subs hit like a player's (bots_tir.inc). */
 
+// @heapstack 0               a torpedo each: the script's own room (small locals here)
 // @target amx/surface_torpedo.amx
 // @game Float:g_0dc0          damage (property "damage": 20, 25, 30 for the levels 1, 2, 3)
 // @game g_13f0                exploded

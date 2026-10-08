@@ -39,7 +39,6 @@ status_port = 0                 # page d'état (joueurs en ligne, parties) en HT
 #                   précision ; vaut pour tous les bots des parties en ligne, pas seulement ceux des
 #                   parties à un joueur
 #   bots_countdown  secondes de compte à rebours avant la bataille contre les bots (10)
-#   bots_duration   minutes d'une bataille contre les bots, de 1 à 30 (5) ; remplace duration pour elles
 # Pour bannir un joueur : son identifiant (journal du serveur : « login pid … ») sur une ligne de
 # <data_dir>/bannis.txt ; le fichier est relu à chaque connexion, sans redémarrer le serveur.
 
@@ -58,7 +57,6 @@ bots_format = "4v4"
 bots_map = "aleatoire"
 bots_level = "difficile"
 bots_countdown = 10
-bots_duration = 5
 
 [[realm]]
 name = "pc"                     # joueurs du portage PC
@@ -75,4 +73,3 @@ bots_format = "4v4"
 bots_map = "aleatoire"
 bots_level = "difficile"
 bots_countdown = 10
-bots_duration = 5

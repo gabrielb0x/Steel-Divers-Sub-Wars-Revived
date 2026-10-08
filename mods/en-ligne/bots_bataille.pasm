@@ -1,5 +1,7 @@
 ; mode_periscope: the start of a battle against the server's bots (see bots_salon.pasm).
 
+.heapstack 0x4000                   ; 16 KB of heap and stack, as the game's scripts (v5200's: 8 KB)
+
 ; init: "otherTeamPlayers = 0, so calling @checkGameStartFailure()": not a failure against bots.
 .hook 0x13abc
     .original                       ; load.s.pri -0xc: the other team has players

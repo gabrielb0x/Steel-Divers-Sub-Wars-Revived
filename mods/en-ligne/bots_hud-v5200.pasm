@@ -3,6 +3,8 @@
 ; hud: the team counters (top right) count the bots afloat with the players, against the server's bots
 ; (bots.alive1, bots.alive2: bots_bataille.pasm, bots_partie.pasm).
 
+.heapstack 0x4000                   ; 16 KB of heap and stack, as the game's scripts (v5200's: 8 KB)
+
 ; @setTeamCount(team, count): count += bots afloat of the team.
 .hook 0x58bc
     push.c "server.bots"

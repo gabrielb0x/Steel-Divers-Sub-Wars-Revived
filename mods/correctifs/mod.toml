@@ -33,7 +33,7 @@
 # Aucun effet sur le jeu en ligne : seul l'affichage d'un effet change, pas la partie.
 
 name = "Correctifs"
-description = "Corrige le plantage d'Azahar quand une torpille touche un sous-marin sous l'eau"
+description = "Corrige le plantage d'Azahar quand une torpille touche un sous-marin sous l'eau, et donne 2 Mo de plus aux scripts"
 versions = ["v0", "v5200"]
 always = true
 
@@ -48,3 +48,16 @@ file = "shaders/metaball.shbin"
 instruction = 0x061                       # draw_strip : loop i1 -> 0x06f
 expect = 0xA441BC00
 value = 0x84000000                        # nop
+
+# -- Mémoire principale : 26 Mo au lieu de 24 --------------------------------------------------------
+# Chaque acteur charge sa propre copie de son script (ScriptAMXLoader::load, MemBlock) dans la mémoire
+# principale, 24 Mo pris au démarrage (System::init, s_memoryBlock.Initialize(0x1800000)) sur le tas des blocs
+# de mémoire : 64 Mo de l'application, moins le code (environ 5 Mo) et les 32 Mo de mémoire vidéo, soit
+# environ 27 Mo. Une torpille en coûte environ 70 Ko dans la v5200 (scripts plus gros que ceux du jeu), et
+# en ligne, sept bots qui tirent comme des joueurs gardent des dizaines de torpilles en vie à la fois. La
+# mémoire s'épuisait : le chargement d'une torpille écrivait à l'adresse 0 et le jeu s'arrêtait (« Exception
+# Type: Break » dans Azahar, amx_FindPublic sur un script invalide). On prend 2 Mo de plus sur la marge.
+[[code]]
+address = { v0 = 0x00103950, v5200 = 0x0010393C }
+expect = "0615a0e3"                       # mov r1, #0x1800000 : 24 Mo
+arm = "mov r1, #0x1A00000"

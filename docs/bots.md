@@ -83,10 +83,11 @@ vitesse de pointe, axe de chaque tir.
   ennemi trop proche et ne l'éperonne jamais. Une torpille qui va passer près de lui, il la voit venir : il
   s'écarte de sa trajectoire et change de profondeur, parce qu'une torpille garde sa profondeur.
 - **Les temps d'attente d'un joueur** (`periscope_move.p`) :
-  - entre deux torpilles, `torpedoFireInterval` de son sous-marin ;
+  - entre deux torpilles, `torpedoFireInterval` de son sous-marin, plus 15 images ;
   - le rechargement, d'un coup, `torpedoReplenishTime` secondes après la dernière torpille, et seulement quand il
     n'en reste aucune ;
-  - les armes, dont les têtes chercheuses, attendent 120 images après chaque tir (`func_f878`) ;
+  - les armes, dont les têtes chercheuses, attendent 135 images après chaque tir, et la torpille suivante
+    `torpedoFireInterval` + 15 images (`func_10e04` : le délai du jeu plus 15) ;
   - le masqueur attend 150 images après le précédent.
 - **Torpilles à tête chercheuse** : aucune au départ. Comme un joueur, il n'en a qu'en ramassant les conteneurs
   qu'un sous-marin coulé laisse, 3 au plus. Ce sont celles des joueurs (`surface_torpedo_p_homing`, verrouillées
@@ -168,6 +169,39 @@ sous-marin peut faire. Toutes les valeurs sont dans `bots_ia.p` :
 | normal | toutes les 10 images | 40 images | 90 unités de la cible | 35 % | non |
 | difficile (par défaut) | toutes les 6 images | 12 images | 55 unités | 80 % | oui |
 | expert | toutes les 3 images | aucune | 35 unités | toujours | oui |
+
+## Dans la mise à jour v5200
+
+*Avancement estimé : 90 % — vérifié dans Azahar (v5200) : dégâts des bots, défaite, replay de la torpille, victoire
+au temps ; la victoire par élimination de tous les bots reste à voir dans l'émulateur.*
+
+Le code des bots est le même, traduit pour les scripts recompilés de la mise à jour
+([mise-a-jour.md](mise-a-jour.md#des-scripts-dune-version-à-lautre)). Essayé dans Azahar, il cassait à
+plusieurs endroits, tous corrigés :
+
+- **La partie ne finissait pas quand le dernier bot coulait.** `@botDown` (`bots_partie.p`) s'arrêtait en route,
+  après avoir baissé le compteur de l'équipe : ni « … a été coulé ! », ni kill, ni vérification de la fin de
+  partie, ni replay. Deux causes : la v5200 n'a plus le texte `sub_sunk` (remplacé par `sub_sunk_01`, « %s a
+  coulé %s ! », et `sub_sunk_02`), et ses scripts n'ont que 8 Ko de tas et de pile, contre 16 Ko dans le jeu.
+  Le message suit maintenant la version (`#if SDSW_VERSION >= 5200`, constante de `tools/pawn2pasm.py`), et le
+  code des mods redonne 16 Ko à chaque script qu'il modifie (`.heapstack`), sauf aux torpilles, chargées
+  une par une.
+- **Le joueur était invincible.** La v5200 ajoute un « tir ami » à `@eventDamageTorp` : pas de dégâts si
+  l'équipe du nœud du tireur est celle du joueur. Le tir d'un sous-marin de l'ordinateur porte le nœud de sa
+  console (le jeu y retrouve la torpille pour le replay) : seul contre les bots, c'est celle du joueur, qui
+  ne prenait donc aucun dégât. Une torpille de bot qui arrive jusqu'au joueur est toujours ennemie (celles des
+  coéquipiers passent au travers) : pour elle, plus de tir ami (accroche dans `mod.toml`).
+- **« CPU a coulé <joueur> ! »** : `reportDeath` de la v5200 nomme le tireur, `name_npc` pour un sous-marin de
+  l'ordinateur. Chaque console retient le bot qui a touché chaque joueur en dernier (`@botAttacks`) :
+  « Dauphin a coulé Ronald ! ».
+- **Le jeu s'arrêtait (« Exception Type: Break »)** au bout de quelques minutes : chaque torpille charge sa
+  copie de son script (environ 70 Ko en v5200) dans les 24 Mo de mémoire principale, qui s'épuisaient avec sept
+  bots qui tirent. Le mod `correctifs` passe la mémoire principale à 26 Mo, pour les deux versions.
+- **Les caractéristiques des sous-marins 24 à 36** : un bot qui en montrait un prenait celles du premier.
+- **La durée** : les batailles contre les bots durent `duration`, comme les autres (`bots_duration` est retirée).
+
+Pour tester : `tools/botsim.py --version v5200` (le pilote dans le bac à sable), puis Azahar avec un serveur de
+test (`bots_format = "1v1"` : le bot doit couler le joueur, la défaite et le replay suivre).
 
 ## Le bac à sable
 

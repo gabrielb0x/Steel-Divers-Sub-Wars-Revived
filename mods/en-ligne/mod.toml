@@ -399,6 +399,44 @@ asm_file = { v0 = "bots_torpille_tc.pasm", v5200 = "bots_torpille_tc-v5200.pasm"
 file = "amx/pscope_player.amx"
 asm_file = { v0 = "bots_joueur.pasm", v5200 = "bots_joueur-v5200.pasm" }
 
+# v5200, reportDeath (game_state) : « <tireur> a coulé <joueur> ! » ; un tir de sous-marin de l'ordinateur y donnait
+# « CPU » (name_npc). Contre les bots du serveur, c'est le nom du bot qui l'a touché en dernier (bots_partie.p).
+[[amx]]
+versions = ["v5200"]
+file = "amx/game_state.amx"
+asm = """
+.hook 0x48e8                        ; reportDeath(victim, shooter, isShooterNpc): if (isShooterNpc) ...
+    load.s.pri 0x14
+    jzer @sdsw_rd_done
+    push.s 0xc
+    push.c 4
+    call @pw_botShooterOf
+    jzer @sdsw_rd_done
+    stor.s.pri 0x10                 ; the bot's node: its name
+    zero.s 0x14
+sdsw_rd_done:
+    .original
+    .return
+"""
+
+# La v5200 ajoute un « tir ami » à @eventDamageTorp (pscope_player) : pas de dégâts si l'équipe du nœud du tireur est
+# celle du joueur. Le nœud d'un tir de sous-marin de l'ordinateur est celui de sa console (le jeu y retrouve la
+# torpille pour le replay) : seul contre les bots, c'est la console du joueur, qui ne prenait donc aucun dégât.
+# Une torpille de bot qui arrive jusqu'au joueur est toujours ennemie (bots_tir.inc laisse passer celles des
+# coéquipiers) : pour elle (isShooterNpc), pas de tir ami.
+[[amx]]
+versions = ["v5200"]
+file = "amx/pscope_player.amx"
+asm = """
+.hook 0x1094c                       ; @eventDamageTorp: if (!friendlyFire && (!window || arg7))
+    load.s.pri 0x2c                 ; isShooterNpc
+    jzer @sdsw_ff_keep
+    zero.s -0xc                     ; friendlyFire = 0
+sdsw_ff_keep:
+    .original
+    .return
+"""
+
 # -- Anti-triche (anti_triche_*.pasm), quand le serveur n'autorise pas la triche (server.anticheat) --------
 # Chaque console surveille son propre sous-marin en bataille : dégâts annulés sans raison du jeu,
 # torpilles qui ne baissent pas, tirs trop rapprochés, vitesse qu'aucun sous-marin n'a. Au premier signe, elle

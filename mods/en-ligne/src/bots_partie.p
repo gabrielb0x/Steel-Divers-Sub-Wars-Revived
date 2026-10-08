@@ -108,15 +108,31 @@ public @botHitBy(owner, sub, node, torpedo, shooter, k, team, homing)
         sysCallPublic(UID_HUD, homing ? "@homingHit" : "@hit");
 }
 
-/* The bot k's torpedo hit a player: "<bot> vous attaque !" for that player (@eventMessageWeaponHitTorp only
- * says it of players). */
+/* The bot k's torpedo hit a player: every console notes it (the update names the bot that sank a player:
+ * botShooterOf), and that player is told "<bot> vous attaque !" (@eventMessageWeaponHitTorp only says it of
+ * players). */
 forward @botAttacks(victim, shooter);
 public @botAttacks(victim, shooter)
 {
-    if (victim != netGetNodeId() || isPlayerNode(shooter) || shooter < BOT_NODE)
+    if (isPlayerNode(shooter) || shooter < BOT_NODE)
         return;
     botAsPlayer(shooter - BOT_NODE, 0);
-    sysCallPublic(UID_MESSAGE_QUEUE, "@pushHitByShooterMessage", shooter);
+    new name[48];
+    strformat(name, sizeof name, false, "bots.lasthit.%x", victim);
+    sysSetGlobal(name, shooter);
+    if (victim == netGetNodeId())
+        sysCallPublic(UID_MESSAGE_QUEUE, "@pushHitByShooterMessage", shooter);
+}
+
+/* The bot that last hit this player (its node), for "<bot> sank <player>!" (reportDeath, v5200); 0: none. */
+forward botShooterOf(victim);
+public botShooterOf(victim)
+{
+    if (!sysGetGlobal("server.bots"))
+        return 0;
+    new name[48];
+    strformat(name, sizeof name, false, "bots.lasthit.%x", victim);
+    return sysGetGlobal(name);
 }
 
 /* The bot k of this team sank (bots_ia.p, its owner's node and its sync id). Every console hears it. */
@@ -132,18 +148,31 @@ public @botDown(team, owner, sub, k)
     // as a player's death (reportDeath): "<bot> a été coulé !" for everyone, and the kill for its shooter
     new bot = botAsPlayer(k, team);
     new name[48];
+    strformat(name, sizeof name, false, "bots.hitby.%x.%d", owner, sub);
+    new shooter = sysGetGlobal(name);
     new format[96];
     new botName[96];
     new text[96];
-    sysGetString(format, "sub_sunk", sizeof format);
     strformat(name, sizeof name, false, "player.%x.name", bot);
     sysGetGlobalArray(name, botName, sizeof botName);
+#if SDSW_VERSION >= 5200
+    // the update has no "sub_sunk": "<shooter> sank <bot>!" (sub_sunk_01) or "<bot> has been sunk!" (_02)
+    new shooterName[96];
+    strformat(name, sizeof name, false, "player.%x.name", shooter);
+    if (shooter > 0 && sysGetGlobalArray(name, shooterName, sizeof shooterName) && shooterName[0]) {
+        sysGetString(format, "sub_sunk_01", sizeof format);
+        strformat(text, sizeof text, false, format, shooterName, botName);
+    } else {
+        sysGetString(format, "sub_sunk_02", sizeof format);
+        strformat(text, sizeof text, false, format, botName);
+    }
+#else
+    sysGetString(format, "sub_sunk", sizeof format);
     strformat(text, sizeof text, false, format, botName);
+#endif
     sndSE(0x100004c, 0, false);
     if (!sysGetGlobal("player.exit"))
         sysCallPublicf(UID_MESSAGE_QUEUE, "@doPush", "scccscccc", text, 0, -1, 120, "LOG_NORMAL", 1, 0, 2, 0);
-    strformat(name, sizeof name, false, "bots.hitby.%x.%d", owner, sub);
-    new shooter = sysGetGlobal(name);
     if (isPlayerNode(shooter) && getPlayerTeam(shooter) != team)
         incrementKills(shooter);
     // the end of the battle in a second, and its replay: the torpedo that sank it

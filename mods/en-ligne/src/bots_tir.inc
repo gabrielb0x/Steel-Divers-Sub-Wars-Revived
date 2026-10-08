@@ -31,6 +31,8 @@ botHit(other, const Float:point[3], Float:toPlayer, Float:toBot, homing)
         return 1;
     if (sysGetGlobal("mode.gameover") || sysGetGlobal("player.timeOver"))
         return 2;
+    // the shooter's node is its console's: the game finds the torpedo by (node, sync id) for the replay; the
+    // player of that console does not take it as friendly fire (anti-ff hook of bots_joueur.pasm)
     new node = netGetNodeId();
     new npc = 0;
     actorGetPropInt("npc", npc, other);

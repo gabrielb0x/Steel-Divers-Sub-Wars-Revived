@@ -10,6 +10,8 @@
 ; 0.038 = 14.2 units per frame (430 per second) for the fastest. Margins: three shots within a second of the
 ; one before, or 20 units per frame (600 per second) three seconds in a row.
 
+.heapstack 0x4000                   ; 16 KB of heap and stack, as the game's scripts (v5200's: 8 KB)
+
 .var $torpedoes                     ; torpedoes before the shot
 .var $lastShot
 .var $quick                         ; shots within a second of the previous one

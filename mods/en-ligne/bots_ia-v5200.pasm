@@ -3,6 +3,7 @@
 ; Target: amx/surface_sub.amx of the update v5200 (addresses of v0 translated by tools/amxport.py; the names g_<hex> of the source are those of v0).
 
 .data_at 0x5f9c
+.heapstack 0x4000                ; room for the stack of the code below (// @heapstack)
 .cells $pawn_data 0x0, 0xa, 0x6, 0x3, 0x0, 0x28, 0xc, 0x0, 0x0, 0x42b40000, 0x42700000, 0x42340000, 0x0, 0x3eb33333, 0x3f4ccccd, 0x3f800000
 .cells $pawn_data1 0x0, 0x0, 0x0, 0x0, 0x3f800000, 0x0, 0x3c, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x3d0f5c29
 .cells $pawn_data2 0x3eb851ec, 0x3ecccccd, 0x1, 0x6, 0x0, 0xb4, 0x55, 0x0, 0x0, 0x42053333, 0x42c80000, 0x0, 0x1, 0x0, 0x0, 0x0
@@ -1528,7 +1529,7 @@ pw_readSubmarine:
     const.alt 0x1
     jsless @bots_ia_l97
     load.s.pri -8
-    const.alt 0x17
+    const.alt 0x27
     jsgrtr @bots_ia_l97
     zero.pri
     jump @bots_ia_l98
@@ -3905,6 +3906,7 @@ bots_ia_l285:
     sysreq.n actorSetPropReal, 3
     dec 0x602c
     load.pri 0x6034
+    add.c 0xf
     push.pri
     load.pri 0x5fdc
     const.alt 0x5fac
@@ -3913,7 +3915,7 @@ bots_ia_l285:
     pop.alt
     add
     stor.pri 0x6038
-    const.pri 0x78
+    const.pri 0x87
     stor.pri 0x6210
     load.pri 0x6098
     stor.pri 0x608c
@@ -5197,6 +5199,7 @@ bots_ia_l348:
 bots_ia_l349:
 bots_ia_l347:
     load.pri 0x6034
+    add.c 0xf
     push.pri
     load.pri 0x5fdc
     const.alt 0x5fac
@@ -5205,7 +5208,7 @@ bots_ia_l347:
     pop.alt
     add
     stor.pri 0x6038
-    const.pri 0x78
+    const.pri 0x87
     stor.pri 0x6210
     load.pri 0x6098
     stor.pri 0x608c

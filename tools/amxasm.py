@@ -29,6 +29,8 @@ Assembly, one instruction per line, with the mnemonics of the disassembly (decom
     .cells $name 1, 2, 3            a new global array with these values
     .string $name "text"            a new string
     .data_at 0x4524                 the new data must start there (code compiled by tools/pawn2pasm.py)
+    .heapstack 0x4000               at least this room for the heap and the stack (the update v5200's
+                                    scripts have 8 KB, the game's 16 KB: deep calls of the mods need more)
 
 Comments start with ';'. Pawn functions: PROC, arguments at frame offsets 12, 16..., RETN;
 `push.c <bytes>` + `call` to call one (see decomp/scripts/asm for the game's own code).
@@ -350,6 +352,8 @@ class Assembler:
                 items.append(_Insn(JUMP, [f"{current_hook[0] + current_hook[1]:#x}"], where))
             elif mnemonic == ".public":
                 pending_public.append(operands[0])
+            elif mnemonic == ".heapstack":
+                img.heapstack = max(img.heapstack, self._number(operands[0], where))
             elif mnemonic == ".data_at":
                 if len(img.data) != self._number(operands[0], where):
                     raise AsmError(f"{where}: the new data would start at {len(img.data):#x}: this code, "

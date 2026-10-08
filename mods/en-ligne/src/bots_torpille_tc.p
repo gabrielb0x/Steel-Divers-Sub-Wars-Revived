@@ -2,6 +2,7 @@
  * Online, the game's homing torpedo of a computer sub hits nothing at all: its @eventCollide only handles
  * them offline. */
 
+// @heapstack 0               a torpedo each: the script's own room (small locals here)
 // @target amx/surface_torpedo_p_homing.amx
 // @game g_1418                a copy of another console's torpedo
 // @game g_141c                exploded
