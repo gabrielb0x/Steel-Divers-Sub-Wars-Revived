@@ -12,6 +12,18 @@ and a mod is shared by sharing its recipe.
 
 *Estimated progress: 100 %.*
 
+The launcher's Game tab does all of this with one button (*Set everything up*). By hand:
+
+```sh
+python3 tools/decrypt.py <file.cia>      # an encrypted game or update -> cia/<title> (decrypted).cia
+python3 tools/azahar.py install-game     # the game into the emulators (their list of games), the save is kept
+python3 tools/azahar.py install-update   # its update
+```
+
+`tools/decrypt.py` runs the decryptor of Batch CIA 3DS Decryptor Redux, downloaded and checked by its SHA-256, directly
+on Windows and with Wine on Linux and macOS (the Wine installed, or a portable one downloaded for it and removed
+afterwards): [../docs/update-v5200.md](../docs/update-v5200.md#an-encrypted-update).
+
 The eShop CIA also holds the electronic manual, which stayed encrypted: Azahar then refuses the whole installation
 ("Blocked unauthorized encrypted CIA installation" in its log). The game itself is not encrypted:
 

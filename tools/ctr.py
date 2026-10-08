@@ -210,11 +210,38 @@ def title_id_of(path) -> int | None:
         return None
 
 
+def program_encrypted(path) -> bool:
+    """Whether the program of a game file is still encrypted: content 0 of a CIA under the title key, or its NCCH
+    (content 0 of a CIA, partition 0 of a .3ds/.cci, a .cxi) without the NoCrypto flag (flags[7] bit 2)."""
+    from pathlib import Path
+    path = Path(path)
+    with path.open("rb") as f:
+        offset = 0
+        if path.suffix.lower() == ".cia":
+            chunk, offset = next(CIA.parse(f).content_offsets())
+            if chunk.encrypted:
+                return True
+        else:
+            f.seek(0x100)
+            if f.read(4) == b"NCSD":
+                f.seek(0x120)
+                offset = struct.unpack("<I", f.read(4))[0] * 0x200
+        f.seek(offset + 0x100)
+        if f.read(4) != b"NCCH":
+            raise ValueError(f"{path.name}: not a game file (no NCCH)")
+        f.seek(offset + 0x18F)
+        return not f.read(1)[0] & 0x04
+
+
 def find_game_cia(folder, title_id: int = GAME_TITLE_ID):
     """The CIA of the game in a folder, chosen by title id: the folder may also hold the add-on content
     (0004008C...), an update or other regions, in any alphabetical order."""
     from pathlib import Path
-    for path in sorted(Path(folder).glob("*.cia")):
-        if title_id_of(path) == title_id:
-            return path
-    return None
+    found = [path for path in sorted(Path(folder).glob("*.cia")) if title_id_of(path) == title_id]
+    for path in found:                  # a decrypted copy first (the encrypted one may still lie next to it)
+        try:
+            if not program_encrypted(path):
+                return path
+        except (OSError, ValueError, struct.error, KeyError, StopIteration):
+            continue
+    return found[0] if found else None

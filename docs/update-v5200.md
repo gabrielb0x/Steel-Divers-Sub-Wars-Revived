@@ -46,7 +46,8 @@ The tools do the same: `make extract` (or the launcher's Game tab) extracts the 
 *Estimated progress: 90 % — the v5200 remains to be played at length in the emulator.*
 
 An update is installed on the console's SD card: in Azahar, *File > Install CIA* with the **decrypted** `.cia` of the
-update, or the launcher's *Install the update* button (Game tab), which writes the same files
+update, or the launcher (Game tab, *Set everything up*, or *Install the update* in its manual steps), which writes the
+same files
 (`sdmc/Nintendo 3DS/.../title/0004000e/000d7e00/content/00000000.tmd` and `00000006.app`). From then on the game
 starts as v5200, whether it is installed or opened from its `.cxi`: Azahar takes the update's code
 (`AppLoader_NCCH::Load`) and provides both RomFS.
@@ -88,10 +89,35 @@ are the v0's).
 
 Like the game, the update must be **decrypted**: Azahar refuses an encrypted CIA, and the project holds no console
 key. An update downloaded as it is (with the eShop's ticket) is encrypted twice: by the title key (CIA layer), then
-by the NCCH keys. GodMode9 on a console, or a CIA decryption tool, turns it into a decrypted CIA. The launcher can
-also do it for you (Game tab: it downloads a public decryption tool and runs it on your file, see
-[README.md](../README.md#install)); `tools/extract_cia.py` and the launcher recognise an update CIA that is still
-encrypted and say so.
+by the NCCH keys. GodMode9 on a console turns it into a decrypted CIA; so does the launcher (Game tab, *Set everything
+up*) or `tools/decrypt.py`, with the decryptor of
+[Batch CIA 3DS Decryptor Redux](https://github.com/xxmichibxx/Batch-CIA-3DS-Decryptor-Redux):
+
+- `bin/decrypt.exe` (by davidmorom) is downloaded from the tag v1.0.6.3 (commit `929471b`), checked by its SHA-256,
+  into `build/decryptor/`, or taken from a copy of the tool already in the player's Downloads. Only this program is
+  needed: the batch file around it runs `ctrtool` to read the CIA (`tools/ctr.py` does) and `makerom` to rebuild it
+  (`decrypt.rebuild_cia` does: same certificates, ticket and meta, the TMD's content types without their "encrypted"
+  bit, the contents' sizes and SHA-256 and the info records' hashes recomputed).
+- `decrypt.exe <file>.cia`, with Enter on its input, writes each content decrypted next to itself:
+  `<file>.<index>.ncch` (NCCH flags with NoCrypto). It runs in a folder whose path is plain ASCII (it is Python 2.7:
+  file names go through the code page), on a copy named `title.cia`.
+- Windows runs it directly. Linux and macOS run it with Wine (it is a 32-bit program): the Wine installed, when
+  `decrypt.exe` alone prints its usage in a new prefix, else a portable Wine (Kron4ek's 11.0 "wow64" build on Linux,
+  Gcenx's wine-stable 11.0 on macOS, with Rosetta 2 on Apple silicon), unpacked into `build/decryptor/wine/` and
+  removed once the files are decrypted. The prefix is temporary (`build/decryptor/wineprefix-*`, 0.5 to 1.3 GB),
+  `WINEDLLOVERRIDES=mscoree,mshtml=;winemenubuilder.exe=d` keeps Wine from asking for Mono or Gecko and from adding
+  menu entries to the desktop.
+- `decrypt.exe` is a PyInstaller program (Python 2.7, PyCryptodome). Under Wine (checked with 9.0 and 11.0) it stops
+  at once on "cannot create temporary directory": its launcher creates its temporary folder with the access list
+  `D:(A;;FA;;;S-1-3-4)` (OWNER RIGHTS only), which Wine turns into the Unix mode 000. `tools/decrypt.py` therefore
+  unpacks the program's libraries itself (the archive's `b` and `x` entries, read from its table of contents) and gives
+  their folder in `_MEIPASS2`, which makes the launcher skip its own unpacking, as it does in its child process.
+
+Checked with the update v5200 (`0004000E000D7E00`, ticket with a generated signature): the result extracts to the
+same `code.bin` and RomFS as a decryption done otherwise; only the first 16 bytes of each NCCH (the start of its
+signature, which `decrypt.exe` rewrites) and the hashes of the TMD differ. `tools/extract_cia.py` and the launcher
+recognise a CIA that is still encrypted and say so. Only the game and its update are decrypted: any other title (the
+add-on content above all) is refused.
 
 ## The mods and the v5200
 

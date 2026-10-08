@@ -22,8 +22,10 @@ load/mods/00040000000D7E00/exefs/code.ips   patch of the code
 `romfs/`, `romfs_ext/`, `exheader.bin`). The Title ID above is the European version's.
 
 **Installing the game into Azahar**: the eShop CIA also holds the electronic manual, which stayed encrypted, and Azahar
-then refuses the whole installation. `tools/azahar.py prepare` makes, on the player's machine, a CIA holding the game
-alone (and a `.cxi` that loads directly).
+then refuses the whole installation. The launcher's *Set everything up* (or `tools/azahar.py install-game`) installs
+the game itself on the emulator's SD card as *Install CIA* does (`title/00040000/000d7e00/content/`: the TMD reduced to
+content 0 and its `.app`), keeping the save next to it (`data/`); `tools/azahar.py prepare` makes, on the player's
+machine, a CIA holding the game alone (and a `.cxi` that loads directly).
 
 **Version targeted**: the launch version (v0, Europe), that of the dump, and its update v5200
 ([update-v5200.md](update-v5200.md)). A code patch depends on the exact executable: recipes can check the original

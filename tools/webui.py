@@ -17,6 +17,7 @@ import importlib
 import io
 import json
 import os
+import platform
 import secrets
 import shutil
 import signal
@@ -35,8 +36,9 @@ from pathlib import Path
 from urllib.parse import parse_qs, urlparse
 
 import azahar
-import extract_cia
 import bcstm
+import decrypt
+import extract_cia
 import mod
 import music
 import save
@@ -61,8 +63,8 @@ class UserError(Exception):
 
 # The tools, in import order. The launcher keeps running while the project is updated (git pull, a new
 # version unpacked over it): their code is reloaded when their files change, between two tasks.
-TOOL_MODULES = ["ctr", "ncch", "armasm", "bxml", "amx", "versions", "azahar", "extract_cia", "save", "subs", "bcstm",
-                "music", "mod"]
+TOOL_MODULES = ["ctr", "ncch", "armasm", "bxml", "amx", "versions", "azahar", "decrypt", "extract_cia", "save", "subs",
+                "bcstm", "music", "mod"]
 TOOLS = Path(__file__).resolve().parent
 
 
@@ -173,7 +175,7 @@ class Tasks:
                 except SystemExit as e:              # the tools exit with a message
                     task.error = str(e.code) if e.code not in (None, 0) else None
                 except (UserError, mod.ModError, save.SaveError, subs.SubsError, extract_cia.ExtractError,
-                        music.MusicError, bcstm.BcstmError, OSError, ValueError, KeyError,
+                        music.MusicError, bcstm.BcstmError, decrypt.DecryptError, OSError, ValueError, KeyError,
                         tomllib.TOMLDecodeError) as e:
                     task.error = str(e)
                 except Exception as e:                # a bug: keep the traceback for the report
@@ -521,7 +523,7 @@ def game_state() -> dict:
             "source": source, "found": str(found) if found else None,
             "prepared": (PREPARED / "SteelDiverSubWars_original.cia").exists(),
             "prepared_dir": str(PREPARED), "title_id": f"{GAME_TITLE_ID:016X}",
-            "versions": versions.extracted_versions(), "update": update_state()}
+            "versions": versions.extracted_versions(), "update": update_state(), "setup": setup_state()}
 
 
 def update_state() -> dict:
@@ -644,8 +646,8 @@ def build_mods(names: list[str], params: dict[str, str], install: bool, log) -> 
     for version in targets:
         if version not in versions.extracted_versions():
             problems.append(f"The game runs as {versions.label(version)} in the emulator, but the files of "
-                            "this version are not prepared: Game tab, with the decrypted update in "
-                            "cia/.")
+                            "this version are not prepared: Game tab, \"Set everything up\" (with "
+                            "the update's .cia).")
         for name in names:
             recipe = mod.load_recipe(name)
             if not mod.supports(recipe, version):
@@ -703,7 +705,8 @@ def drop_stale_mods(version: str) -> list[str]:
 def install_update(log) -> dict:
     update = decrypted_update()
     if update is None:
-        raise UserError("No decrypted CIA of the update in cia/: put yours there (decrypted), or "
+        raise UserError("No decrypted CIA of the update: drop yours on the Game tab and \"Set everything up\" "
+                        "(it decrypts it if needed), or "
                         "install it yourself into Azahar (File > Install CIA).")
     found = azahar.emulator_dirs()
     if not found:
@@ -730,6 +733,244 @@ def uninstall_update(log) -> dict:
         raise UserError("The update is not installed in any emulator.")
     drop_stale_mods(versions.BASE)
     return {"removed": removed}
+
+
+# ---- setting the game up in one go ---------------------------------------------------------------------
+
+GAME_FILE_SUFFIXES = (".cia", ".3ds", ".cci", ".cxi")
+MAX_GAME_UPLOAD = 1 << 30
+WHERE_RANK = {"cia": 0, "emulator": 1, "chosen": 2, "folder": 3}
+
+
+def identify(path: Path, where: str) -> dict | None:
+    """What a file is, from its headers only: the game or its update (a .cia), its version, whether it is still
+    encrypted. None for anything else."""
+    try:
+        if path.suffix.lower() == ".cia":
+            with path.open("rb") as f:
+                cia = CIA.parse(f)
+            title, version = cia.title_id, cia.title_version
+        else:
+            title, version = extract_cia.program_id(path), 0
+        if title != GAME_TITLE_ID and not (title == UPDATE_TITLE_ID and path.suffix.lower() == ".cia"):
+            return None
+        encrypted = decrypt.needs_decrypting(path)
+        size = path.stat().st_size
+    except (OSError, struct.error, KeyError, ValueError, StopIteration, decrypt.DecryptError):
+        return None
+    return {"path": str(path), "name": path.name, "folder": path.parent.name,
+            "what": "update" if title == UPDATE_TITLE_ID else "game", "version": versions.name(version),
+            "encrypted": encrypted, "where": where, "size": size}
+
+
+def scan_game_files(folders: list[Path], depth: int = 1, limit: int = 300) -> list[Path]:
+    """The .cia, .3ds, .cci and .cxi files of folders, and of their folders down to depth."""
+    found: list[Path] = []
+
+    def walk(folder: Path, level: int) -> None:
+        try:
+            entries = sorted(folder.iterdir(), key=lambda p: p.name.lower())
+        except OSError:
+            return
+        for path in entries:
+            if len(found) >= limit or path.name.startswith("."):
+                continue
+            with contextlib.suppress(OSError):
+                if path.is_dir():
+                    if level < depth:
+                        walk(path, level + 1)
+                elif path.suffix.lower() in GAME_FILE_SUFFIXES and path.stat().st_size >= 0x2000:
+                    found.append(path)
+    for folder in folders:
+        walk(folder, 0)
+    return found
+
+
+def game_copies(extra: list[Path] = ()) -> list[dict]:
+    """The copies of the game and of its update on this computer: the project's cia/ folder, the files the
+    player chose, their Downloads, Desktop and Documents (and the folders in them), the emulators."""
+    copies, seen = [], set()
+
+    def add(path: Path, where: str, info: dict | None = None) -> None:
+        with contextlib.suppress(OSError):
+            key = path.resolve()
+            if key not in seen:
+                seen.add(key)
+                info = info or identify(path, where)
+                if info:
+                    copies.append(info)
+    for path in scan_game_files([ROOT / "cia"], depth=0):
+        add(path, "cia")
+    for path in extra:
+        add(Path(path), "chosen")
+    for path in scan_game_files(azahar.user_folders()):
+        add(path, "folder")
+    game = extract_cia.installed_game()
+    if game is not None:
+        add(game, "emulator", {"path": str(game), "name": "the game installed in the emulator", "folder": "",
+                               "what": "game", "version": versions.BASE, "encrypted": False, "where": "emulator",
+                               "size": game.stat().st_size})
+    for base in azahar.azahar_dirs():
+        update = versions.installed_update(base)
+        if update:
+            add(update[1], "emulator", {"path": str(update[1]), "name": "the update installed in the emulator",
+                                        "folder": "", "what": "update", "version": versions.name(update[0]),
+                                        "encrypted": False, "where": "emulator", "size": update[1].stat().st_size})
+    return copies
+
+
+def best_copy(copies: list[dict], what: str) -> dict | None:
+    """The copy to use: the latest version, decrypted rather than encrypted, already in place rather than to
+    copy."""
+    found = [c for c in copies if c["what"] == what]
+    return min(found, key=lambda c: (-int(c["version"][1:]), c["encrypted"], WHERE_RANK[c["where"]])) if found else None
+
+
+def decrypt_plan() -> dict:
+    """What decrypting would download here, for the page to say it before."""
+    key = decrypt.platform_key()
+    wines = decrypt.installed_wines() if key != "windows" else []
+    portable = decrypt.WINE.get(key)
+    return {"windows": key == "windows", "wine": str(wines[0]) if wines else None,
+            "decryptor_ready": (decrypt.TOOLS_DIR / decrypt.DECRYPTOR.name).is_file(),
+            "portable_mb": round(portable.size / 1e6) if portable else None,
+            "rosetta": key == "darwin" and platform.machine() == "arm64"}
+
+
+def setup_state(extra: list[Path] = ()) -> dict:
+    copies = game_copies(extra)
+    game, update = best_copy(copies, "game"), best_copy(copies, "update")
+    found = azahar.emulator_dirs()
+    return {"game": game, "update": update, "emulators": [name for name, _ in found],
+            "game_installed": bool(found) and all(azahar.game_installed(base) for _, base in found),
+            "update_installed": bool(found) and update is not None
+            and all(versions.emulator_version(base) == update["version"] for _, base in found),
+            "extracted": versions.extracted_versions(),
+            "mods_installed": any(azahar.installed_mods(base) is not None for _, base in found),
+            "decrypt": decrypt_plan() if any(c and c["encrypted"] for c in (game, update)) else None}
+
+
+def extracted_from(path: Path, version: str) -> bool:
+    """Whether the files of a version are extracted, from this very file."""
+    if version not in versions.extracted_versions():
+        return False
+    with contextlib.suppress(OSError, ValueError):
+        manifest = json.loads((versions.folder(version) / "manifest.json").read_text())
+        return manifest["source"]["sha256"] == extract_cia.sha256_file(path)
+    return False
+
+
+def into_cia_folder(copy: dict) -> None:
+    """A copy found elsewhere goes into the project's cia/ folder, where the tools look (the original stays)."""
+    src = Path(copy["path"])
+    folder = ROOT / "cia"
+    folder.mkdir(parents=True, exist_ok=True)
+    dest, n = folder / src.name, 2
+    while dest.exists():
+        if dest.stat().st_size == src.stat().st_size and extract_cia.sha256_file(dest) == extract_cia.sha256_file(src):
+            break
+        dest, n = folder / f"{src.stem} ({n}){src.suffix}", n + 1
+    else:
+        print(f"Copying {src.name} into the project's cia/ folder…")
+        shutil.copyfile(src, dest)
+    copy.update(path=str(dest), name=dest.name, folder=folder.name, where="cia")
+
+
+def setup(extra: list[Path], log) -> dict:
+    """Everything the game needs, in one go: find the game and its update, decrypt them if needed, put them in
+    cia/, extract the files the mods need, install both into every emulator found, and the fixes every build
+    holds when no mod is installed yet."""
+    print("Looking for your game and its update (cia/, your Downloads, Desktop and Documents, the emulator)…")
+    copies = game_copies(extra)
+    game, update = best_copy(copies, "game"), best_copy(copies, "update")
+    if game is None:
+        raise UserError("Your game was not found: drop its file (.cia, .3ds or .cxi) on the Game tab, or choose it.")
+    for copy in (game, update):
+        if copy:
+            label = "Game" if copy["what"] == "game" else f"Update {copy['version']}"
+            print(f"{label}: {copy['path']}" + (" (encrypted)" if copy["encrypted"] else ""))
+    if update is None:
+        print("Update: none (optional: its .cia brings v5200, 16 more submarines and 3 more maps).")
+
+    encrypted = [c for c in (game, update) if c and c["encrypted"]]
+    if encrypted:
+        done = decrypt.decrypt_files([Path(c["path"]) for c in encrypted], ROOT / "cia", log=print)
+        for copy, path in zip(encrypted, done):
+            copy.update(path=str(path), name=path.name, folder=path.parent.name, encrypted=False, where="cia")
+    for copy in (game, update):
+        if copy and copy["where"] in ("folder", "chosen"):
+            into_cia_folder(copy)
+
+    for copy in (game, update):
+        if copy is None:
+            continue
+        path = Path(copy["path"])
+        version = versions.BASE if copy["what"] == "game" else copy["version"]
+        if extracted_from(path, version):
+            print(f"Files of {versions.label(version)}: already prepared.")
+        else:
+            print(f"Extracting the files of {versions.label(version)}: the mods need them…")
+            extract_cia.extract(path, log=print)
+    store_state(source=game["path"])
+
+    found = azahar.emulator_dirs()
+    if not found:
+        print("No emulator found: install Azahar (https://azahar-emu.org), start it once, then click again.")
+        return {"emulator": False}
+    game_path = Path(game["path"])
+    for name, base in found:
+        if azahar.game_installed(base):
+            continue
+        if game_path.suffix.lower() == ".cia":
+            print(f"Game installed for {name}: {azahar.install_game(game_path, base)}")
+        else:
+            print(f"{name}: open {game_path.name} with File > Load File (only a .cia installs).")
+    if update and update["where"] == "cia":
+        stale = [(name, base) for name, base in found if versions.emulator_version(base) != update["version"]]
+        for name, base in stale:
+            content = azahar.install_update(Path(update["path"]), base)
+            print(f"Update {update['version']} installed for {name}: {content}")
+        if stale:
+            drop_stale_mods(update["version"])
+    if not any(azahar.installed_mods(base) is not None for _, base in found):
+        print("Installing the fixes every game gets (a crash of Azahar, your console's nickname)…")
+        build_mods([], {}, True, log)
+    print("Ready. Start the game in the emulator: it is in its list of games. Then choose your mods (Mods tab).")
+    return {"emulator": True}
+
+
+def receive_game_file(stream, length: int, name: str) -> Path:
+    """A file the page sends (dropped, or chosen in the browser), stored in cia/: refused unless it is the game or
+    its update."""
+    suffix = Path(name).suffix.lower()
+    if suffix not in GAME_FILE_SUFFIXES:
+        raise UserError(f"{name}: a .cia, .3ds, .cci or .cxi file is expected")
+    if not 0 < length <= MAX_GAME_UPLOAD:
+        raise UserError(f"{name}: empty, or too large for a game file")
+    folder = ROOT / "cia"
+    folder.mkdir(parents=True, exist_ok=True)
+    temp = folder / f".upload-{secrets.token_hex(4)}{suffix}"
+    try:
+        with temp.open("wb") as out:
+            left = length
+            while left:
+                block = stream.read(min(left, 1 << 20))
+                if not block:
+                    raise UserError(f"{name}: the upload was interrupted")
+                out.write(block)
+                left -= len(block)
+        if identify(temp, "cia") is None:
+            raise UserError(f"{name} is neither Steel Diver: Sub Wars (Europe) nor its update")
+        clean = "".join(c for c in Path(name).name if c.isprintable() and c not in '<>:"/\\|?*').strip(" .")
+        dest, n = folder / (clean or "game" + suffix), 2
+        while dest.exists():
+            if dest.stat().st_size == length and extract_cia.sha256_file(dest) == extract_cia.sha256_file(temp):
+                return dest
+            dest, n = folder / f"{Path(clean).stem} ({n}){suffix}", n + 1
+        temp.replace(dest)
+        return dest
+    finally:
+        temp.unlink(missing_ok=True)
 
 
 def save_file(query: dict) -> Path:
@@ -930,6 +1171,16 @@ class Handler(BaseHTTPRequestHandler):
             self._json(403, {"error": "invalid token: reload the page"})
             return
         query = {k: v[-1] for k, v in parse_qs(url.query).items()}
+        if method == "POST" and url.path == "/api/game/upload":       # streamed to the disk: up to 1 GB
+            try:
+                path = receive_game_file(self.rfile, int(self.headers.get("Content-Length") or 0),
+                                         str(query.get("name", "")))
+                self._json(200, identify(path, "cia"))
+            except UserError as e:
+                self._json(400, {"error": str(e)})
+            except OSError as e:
+                self._json(500, {"error": f"could not store the file: {e}"})
+            return
         body = {}
         if method == "POST" and self.headers.get("Content-Type", "").startswith("application/octet-stream"):
             length = int(self.headers.get("Content-Length") or 0)
@@ -954,7 +1205,7 @@ class Handler(BaseHTTPRequestHandler):
         except UserError as e:
             self._json(400, {"error": str(e)})
         except (save.SaveError, subs.SubsError, extract_cia.ExtractError, mod.ModError, music.MusicError,
-                bcstm.BcstmError) as e:
+                bcstm.BcstmError, decrypt.DecryptError) as e:
             self._json(400, {"error": str(e)})
         except Exception as e:
             traceback.print_exc()
@@ -987,6 +1238,16 @@ class LauncherServer(ThreadingHTTPServer):
             return task.json()
         if key == "GET files":
             return list_files(query.get("dir"))
+        if key in ("POST setup", "POST setup/preview"):
+            extra = [Path(str(p)).expanduser() for p in body.get("paths") or []]
+            if key == "POST setup/preview":
+                return setup_state(extra)
+            return self.tasks.start("Set up the game", lambda log: setup(extra, log)).json()
+        if key == "GET game/inspect":
+            info = identify(Path(str(query.get("path", ""))).expanduser(), "chosen")
+            if info is None:
+                raise UserError("This file is neither Steel Diver: Sub Wars (Europe) nor its update.")
+            return info
         if key == "POST game/extract":
             source = Path(body.get("path") or "").expanduser() if body.get("path") else extract_cia.find_game()
             if source is None:

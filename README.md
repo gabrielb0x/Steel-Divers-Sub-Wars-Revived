@@ -44,11 +44,13 @@ its full version can no longer be bought since the eShop closed. This project re
 
 You need:
 
-- **[Python 3.11 or newer](https://www.python.org/downloads/)** — nothing else to install;
+- **[Python 3.11 or newer](https://www.python.org/downloads/)**: nothing else to install (on Windows, tick *Add
+  python.exe to PATH*);
 - **[Azahar](https://azahar-emu.org/)** (or another emulator of the Citra family: Lime3DS, Citra, Borked3DS), started at
   least once;
-- **your own copy** of the European version of the game (`00040000000D7E00`), decrypted: the eShop `.cia`, a `.cxi` or a
-  `.3ds`. Optionally its last **update v5200** (16 more submarines, 3 more maps).
+- **your own copy** of the European version of the game (`00040000000D7E00`): its eShop `.cia`, **encrypted or not**,
+  or a decrypted `.3ds` or `.cxi`. Optionally its last **update v5200** (16 more submarines, 3 more maps), a `.cia`
+  encrypted or not.
 
 Then:
 
@@ -56,18 +58,37 @@ Then:
 2. **Start the launcher**: double-click `launch-windows.bat` (Windows), `launch-macos.command` (macOS; the first time,
    right-click › Open) or `launch-linux.sh` (Linux), or run `python3 subwars.py`. It opens in your web browser and only
    talks to your own computer.
-3. **Game tab** — *Find the game and prepare it*: the launcher looks for your game in the project's `cia/` folder and in
-   the emulator, or lets you choose the file. It prepares the update too if it finds it, and installs it into the
-   emulator.
+3. **Game tab › *Set everything up*.** The launcher finds your game and its update by itself (in your Downloads,
+   Desktop and Documents folders, the project's `cia/` folder, the emulator), or you **drop the files** on the page. It
+   decrypts them if needed, extracts the files the mods need, and installs the game and its update into the emulator:
+   the game shows in Azahar's list, and your save stays.
 4. **Mods tab** — tick what you want (**Premium** to start with), then *Install into the emulator*. Restart the game in
    Azahar: done.
+
+<details>
+<summary>An encrypted game or update: what the launcher downloads to decrypt it</summary>
+
+Azahar needs the game and its update decrypted, and this project holds no console key. When a file is encrypted (an
+update downloaded with its ticket, typically), the launcher says so, then, once you agree:
+
+- downloads the decryptor of [Batch CIA 3DS Decryptor Redux](https://github.com/xxmichibxx/Batch-CIA-3DS-Decryptor-Redux)
+  (`decrypt.exe`, 5.7 MB, version 1.0.6.3, checked by its SHA-256) into `build/decryptor/`, or takes it from a copy
+  of that tool already in your Downloads;
+- runs it on a copy of your file: directly on **Windows**; with **Wine** on **Linux** and **macOS**, yours if it runs
+  it, else a portable Wine downloaded for it (73 MB on Linux, 185 MB on macOS; no installation, no password, removed
+  afterwards). On a Mac with Apple silicon, Wine needs Rosetta 2: macOS asks for your password to install it;
+- puts the decrypted `.cia` in the project's `cia/` folder. Only Steel Diver: Sub Wars and its update are decrypted.
+
+The same on the command line: `python3 tools/decrypt.py <file.cia>`.
+
+</details>
 
 <details>
 <summary>What the launcher's tabs do</summary>
 
 | Tab | |
 |---|---|
-| **Game** | finds and prepares your game and its update, makes a copy Azahar accepts (the eShop CIA's manual is encrypted), installs the update into the emulator |
+| **Game** | finds your game and its update (or takes the files you drop), decrypts them if needed, installs them into the emulator and extracts the files the mods need |
 | **Mods** | builds the mods you tick for the version of the game your emulator runs (v0 or v5200) and installs them into every emulator found |
 | **Save** | unlock everything, gold medals, clear the premium flag of an old save, edit any value |
 | **Submarines** | your own characteristics of each submarine (the *Characteristics* mod applies them) |
@@ -77,8 +98,8 @@ Then:
 
 </details>
 
-The same tools exist on the command line (`tools/mod.py`, `tools/save.py`, `tools/subs.py`, `tools/music.py`): see
-[mods/README.md](mods/README.md). They run on Windows, macOS and Linux with Python alone.
+The same tools exist on the command line (`tools/mod.py`, `tools/save.py`, `tools/subs.py`, `tools/music.py`,
+`tools/decrypt.py`): see [mods/README.md](mods/README.md). They run on Windows, macOS and Linux with Python alone.
 
 ## Play online with friends
 
@@ -157,7 +178,7 @@ Tests: `python3 -m unittest discover -s tools/tests` (the players' tools, no gam
 <summary>Repository layout</summary>
 
 ```
-cia/               your dump (.cia), ignored by git
+cia/               your game files (the launcher copies or decrypts them there), ignored by git
 extracted/         extraction output: code.bin, nsub.elf, exefs/, romfs/; v5200/: the update (ignored)
 tools/             Python tools: CIA extraction, Pawn (amx*.py), BXML, BCSTM, Azahar, mods, launcher
 mods/              mod recipes (no game data: they apply to the player's dump)
@@ -173,7 +194,8 @@ docs/              reverse-engineering notes
 ## Legal
 
 This project contains no part of the game: no code, no assets, no keys. Every tool works on the copy you own, on your
-computer. Steel Diver: Sub Wars, its data and its code remain the property of Nintendo; this project is not affiliated
+computer. To decrypt that copy, the launcher can download a third-party tool (Batch CIA 3DS Decryptor Redux's
+decryptor), which runs on your computer and is not part of this repository. Steel Diver: Sub Wars, its data and its code remain the property of Nintendo; this project is not affiliated
 with or endorsed by Nintendo or Vitei.
 
 The code of this repository (tools, scripts, port, server, documentation) is under the [MIT](LICENSE) licence. GPL/AGPL

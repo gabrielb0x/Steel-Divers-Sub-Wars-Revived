@@ -171,6 +171,43 @@ tr.sel td:first-child { border-radius: 10px 0 0 10px; } tr.sel td:last-child { b
   border-radius: 50%; animation: spin .8s linear infinite; vertical-align: -2px; flex: none; }
 @keyframes spin { to { transform: rotate(360deg); } }
 details summary { cursor: pointer; color: var(--muted); margin: 10px 0; font-weight: 750; }
+
+/* setting the game up */
+.setup-head { display: flex; align-items: center; gap: 10px; justify-content: space-between; flex-wrap: wrap; }
+.setup-head h2 { margin: 0; }
+.checklist { list-style: none; margin: 16px 0; padding: 0; display: grid; gap: 8px; }
+.checklist li { display: flex; gap: 13px; align-items: center; padding: 11px 14px; border: 1px solid var(--line);
+  border-radius: var(--r); background: var(--panel2); }
+.checklist .mark { width: 30px; height: 30px; border-radius: 10px; display: grid; place-items: center; flex: none;
+  background: var(--chip); color: var(--muted); font-weight: 850; font-size: 13.5px; }
+.checklist li.ok .mark { background: var(--ok-soft); color: var(--ok); }
+.checklist li.todo { border-color: var(--accent-soft); }
+.checklist li.todo .mark { background: var(--accent-soft); color: var(--accent); }
+.checklist li.warn { border-color: var(--warn-soft); }
+.checklist li.warn .mark { background: var(--warn-soft); color: var(--warn); }
+.checklist li.off { opacity: .75; }
+.checklist .what { min-width: 0; }
+.checklist .what b { display: block; font-size: 14.5px; }
+.checklist .detail { font-size: 13px; color: var(--muted); font-weight: 600; overflow-wrap: anywhere; }
+.drop { margin: 0 0 16px; border: 2px dashed var(--line2); border-radius: var(--r-lg); padding: 18px 20px; display: flex;
+  gap: 14px; align-items: center; cursor: pointer; transition: border-color .15s, background .15s; }
+.drop:hover, .drop:focus-visible { border-color: var(--accent); outline: none; }
+.drop.over { border-color: var(--accent); background: var(--accent-soft); }
+.drop .drop-icon { width: 46px; height: 46px; border-radius: 14px; display: grid; place-items: center; flex: none;
+  background: var(--accent-soft); color: var(--accent); }
+.drop .drop-icon svg.i { width: 22px; height: 22px; }
+.drop b { display: block; font-size: 15px; }
+.drop .progress { height: 6px; border-radius: 99px; background: var(--line); margin-top: 8px; overflow: hidden; display: none; }
+.drop .progress i { display: block; height: 100%; width: 0; background: var(--accent); transition: width .2s; }
+.drop.busy .progress { display: block; }
+.btn.big { padding: 12px 22px; font-size: 15.5px; border-radius: 14px; }
+.ready { display: flex; gap: 14px; align-items: center; flex-wrap: wrap; border-color: var(--ok-soft);
+  background: linear-gradient(90deg, var(--ok-soft), var(--panel) 75%); }
+.ready .mark { width: 46px; height: 46px; border-radius: 14px; display: grid; place-items: center; background: var(--ok);
+  color: #fff; flex: none; }
+.ready .mark svg.i { width: 24px; height: 24px; stroke-width: 2.6; }
+.ready div.text { flex: 1; min-width: 220px; }
+.ready b { display: block; font-size: 16px; }
 ol.steps { margin: 6px 0 0; padding-left: 20px; } ol.steps li { margin-bottom: 6px; }
 
 /* music */
@@ -264,44 +301,71 @@ ol.steps { margin: 6px 0 0; padding-left: 20px; } ol.steps li { margin-bottom: 6
 <main>
 
 <section class="tab active" id="tab-game">
+  <div class="card ready" id="setup-ready" style="display:none">
+    <div class="mark"><svg class="i"><use href="#i-check"/></svg></div>
+    <div class="text"><b>Everything is ready</b>
+      <span class="small muted">Start the emulator: the game is in its list. Then choose your mods, Premium to start
+        with.</span></div>
+    <button class="btn primary" data-goto="mods" data-icon="mods">Choose your mods</button>
+  </div>
   <div class="card">
-    <h2><span class="badge"><svg class="i"><use href="#i-game"/></svg></span>1. The game's files</h2>
-    <div class="status" id="game-status"></div>
-    <div class="status" id="update-status" style="margin-top:4px"></div>
-    <p class="small muted">You need <b>your own</b> copy of Steel Diver: Sub Wars, European version
-      (<code>00040000000D7E00</code>), decrypted: the eShop <code>.cia</code>, a <code>.cxi</code> or a
-      <code>.3ds</code>. The launcher looks for it in the project's <code>cia/</code> folder and in the emulator. Nothing
-      is sent anywhere. Its <b>update v5200</b> (<code>0004000E000D7E00</code>, optional: 16 more submarines and 3 more
-      maps) is prepared at the same time if its decrypted <code>.cia</code> is in <code>cia/</code>.</p>
+    <div class="setup-head">
+      <h2><span class="badge"><svg class="i"><use href="#i-game"/></svg></span>Set up the game</h2>
+      <span class="pill" id="setup-pill"></span>
+    </div>
+    <p class="small muted">Bring <b>your own</b> copy of Steel Diver: Sub Wars (Europe) and, if you have it, its last
+      update v5200 (16 more submarines, 3 more maps): a <code>.cia</code>, encrypted or not, or a decrypted
+      <code>.3ds</code> or <code>.cxi</code>. The launcher finds them (the project's <code>cia/</code> folder, your Downloads, Desktop and
+      Documents, the emulator), decrypts them if needed, and installs everything into the emulator. Nothing is sent
+      anywhere.</p>
+    <ol class="checklist" id="setup-list"></ol>
+    <div class="drop" id="drop" tabindex="0" role="button" aria-label="Choose or drop your game file">
+      <div class="drop-icon"><svg class="i"><use href="#i-upload"/></svg></div>
+      <div style="flex:1;min-width:0"><b id="drop-title">Drop your game or update file here</b>
+        <span class="small muted" id="drop-detail">or click to choose it: .cia, .3ds or .cxi</span>
+        <div class="progress"><i id="drop-bar"></i></div></div>
+      <input type="file" id="drop-input" accept=".cia,.3ds,.cci,.cxi" multiple hidden>
+    </div>
     <div class="row">
-      <button class="btn primary" id="btn-extract-auto" data-icon="search">Find the game and prepare it</button>
-      <button class="btn" id="btn-extract-pick" data-icon="folder">Choose the file…</button>
+      <button class="btn primary big" id="btn-setup" data-icon="play">Set everything up</button>
+      <button class="btn ghost" id="btn-setup-refresh" data-icon="refresh">Look again</button>
     </div>
   </div>
   <div class="card">
-    <h2><span class="badge"><svg class="i"><use href="#i-chip"/></svg></span>2. The emulator</h2>
-    <div class="status" id="emu-status"></div>
-    <p class="small muted">Azahar refuses the whole eShop <code>.cia</code> (its manual stayed encrypted): the launcher
-      makes a copy of the game alone, to install (File &gt; Install CIA), or a <code>.cxi</code> to open directly
-      (File &gt; Load File). Not needed with a <code>.cxi</code> or a <code>.3ds</code>. The mods go into every
-      emulator found: Azahar, and those of the same family (Lime3DS, Citra, Borked3DS).</p>
-    <div class="row">
-      <button class="btn" id="btn-prepare" data-icon="box">Prepare the game for Azahar</button>
-      <button class="btn" id="btn-open-prepared" data-icon="folder">Open the folder</button>
-    </div>
-    <h3>The update in the emulator</h3>
-    <p class="small muted">Once installed, it replaces the game's code, whether the game is installed or opened from its
-      <code>.cxi</code>: the mods are then built for it. The mods already installed for the other version are removed
-      (they would keep the game from starting): install them again afterwards.</p>
-    <div class="row">
-      <button class="btn" id="btn-update-install" data-icon="download">Install the update</button>
-      <button class="btn danger" id="btn-update-uninstall" data-icon="trash">Remove the update</button>
-    </div>
-  </div>
-  <div class="card">
-    <h2><span class="badge"><svg class="i"><use href="#i-mods"/></svg></span>3. The mods</h2>
+    <h2><span class="badge"><svg class="i"><use href="#i-mods"/></svg></span>Then</h2>
     <p class="small">Premium without the eShop, cheats, submarine characteristics, online play, your music:
       <a href="#" data-goto="mods">Mods tab</a>. Your save: <a href="#" data-goto="save">Save tab</a>.</p>
+  </div>
+  <div class="card">
+    <details>
+      <summary>Details and manual steps</summary>
+      <div class="status" id="game-status"></div>
+      <div class="status" id="update-status" style="margin-top:4px"></div>
+      <div class="status" id="emu-status" style="margin-top:4px"></div>
+      <h3>The game's files</h3>
+      <p class="small muted">Extracts the files the mods need from a copy you choose on this computer (the setup does
+        it from the best copy found).</p>
+      <div class="row">
+        <button class="btn" id="btn-extract-auto" data-icon="search">Extract again</button>
+        <button class="btn" id="btn-extract-pick" data-icon="folder">Browse this computer…</button>
+      </div>
+      <h3>A copy for the emulator</h3>
+      <p class="small muted">The eShop <code>.cia</code> holds the manual still encrypted, which Azahar refuses: the
+        launcher makes a copy of the game alone (File &gt; Install CIA) and a <code>.cxi</code> (File &gt; Load File),
+        in <code>build/azahar/</code>. The setup installs the game without them.</p>
+      <div class="row">
+        <button class="btn" id="btn-prepare" data-icon="box">Prepare the game for Azahar</button>
+        <button class="btn" id="btn-open-prepared" data-icon="folder">Open the folder</button>
+      </div>
+      <h3>The update in the emulator</h3>
+      <p class="small muted">Once installed, it replaces the game's code, whether the game is installed or opened from
+        its <code>.cxi</code>: the mods are then built for it. The mods installed for the other version are removed
+        (they would keep the game from starting): install them again afterwards.</p>
+      <div class="row">
+        <button class="btn" id="btn-update-install" data-icon="download">Install the update</button>
+        <button class="btn danger" id="btn-update-uninstall" data-icon="trash">Remove the update</button>
+      </div>
+    </details>
   </div>
 </section>
 
@@ -421,9 +485,9 @@ ol.steps { margin: 6px 0 0; padding-left: 20px; } ol.steps li { margin-bottom: 6
   <div class="card">
     <h2><span class="badge"><svg class="i"><use href="#i-help"/></svg></span>In short</h2>
     <ol class="steps">
-      <li><b>Game</b>: the launcher finds your copy of the game and extracts the files the mods need.</li>
-      <li><b>The emulator</b> (Azahar, or Lime3DS, Citra, Borked3DS): install the prepared <code>.cia</code>, or open
-        the <code>.cxi</code>.</li>
+      <li><b>Game</b>: "Set everything up" finds your copy of the game and its update (or drop them there), decrypts
+        them if needed, extracts the files the mods need and installs both into the emulator (Azahar, or Lime3DS,
+        Citra, Borked3DS).</li>
       <li><b>Mods</b>: tick <i>Premium</i> (the full version and every submarine), and if you like <i>Cheats</i>,
         your <i>Characteristics</i>, <i>Online play</i>, <i>Music</i>. Install, restart the game.</li>
       <li><b>Save</b>: unlock everything, gold medals, clear the premium flag of an old save.</li>
@@ -434,10 +498,14 @@ ol.steps { margin: 6px 0 0; padding-left: 20px; } ol.steps li { margin-bottom: 6
     <p class="small"><b>Premium without the eShop?</b> All the premium content is already in the free game; the
       purchase only added a right. The mod gives it, and gives the five historical submarines a prow of the game in
       place of theirs, which was in the paid content.</p>
-    <p class="small"><b>The update v5200?</b> The game's last update (16 submarines, 3 maps, revised rules). With its
-      decrypted <code>.cia</code> in <code>cia/</code>, the launcher prepares it and installs it into the emulator
-      (Game tab). The mods are built for the version the emulator runs; each mod says which versions it works with
+    <p class="small"><b>The update v5200?</b> The game's last update (16 submarines, 3 maps, revised rules). Drop its
+      <code>.cia</code> on the Game tab, even encrypted: the launcher decrypts it, prepares it and installs it into the
+      emulator. The mods are built for the version the emulator runs; each mod says which versions it works with
       (Mods tab).</p>
+    <p class="small"><b>An encrypted file?</b> Azahar needs the game and its update decrypted. The launcher decrypts
+      them on your computer with the decryptor of <i>Batch CIA 3DS Decryptor Redux</i> (downloaded from GitHub, checked
+      by its SHA-256), run directly on Windows and with Wine on Linux and macOS: yours, or a portable one downloaded
+      for it and removed afterwards. Only Steel Diver: Sub Wars and its update are decrypted.</p>
     <p class="small"><b>Remove the mods?</b> Mods tab, "Remove the mods from the emulator". The unlocks stay in the
       save.</p>
     <p class="small"><b>The game shows error 098-0101 at start-up?</b> The save was flagged "premium": Save tab, "Clear
@@ -567,11 +635,11 @@ async function refresh() {
       g.ready || !g.found ? "" : el("code", {}, g.found)));
   $("#update-status").replaceChildren(
     el("span", {class: "dot " + (!up.found ? "" : up.encrypted ? "warn" : up.extracted.includes(up.version) ? "ok" : "warn")}),
-    el("span", {}, !up.found ? "Update: none (optional; put its decrypted .cia in cia/ for v5200)."
+    el("span", {}, !up.found ? "Update: none (optional: drop its .cia above for v5200)."
       : up.encrypted ? el("span", {}, `Update ${up.version} found, but encrypted (`, el("code", {}, up.name),
-          "): decrypt it (GodMode9, or a CIA decryption tool), then put it back in cia/.")
+          "): \"Set everything up\" decrypts it.")
       : up.extracted.includes(up.version) ? el("span", {}, `Update ${up.version} ready (`, el("code", {}, up.name), ").")
-      : el("span", {}, `Update ${up.version} found (`, el("code", {}, up.name), "): \"Find the game and prepare it\" prepares it too.")));
+      : el("span", {}, `Update ${up.version} found (`, el("code", {}, up.name), "): \"Set everything up\" prepares it too.")));
   $("#emu-status").replaceChildren(el("span", {class: "dot " + (emu.dirs.length ? "ok" : "warn")}),
     el("span", {}, emu.dirs.length ? emu.emulators.map(e => el("div", {}, e.name + ": ", el("code", {}, e.dir),
         el("span", {class: "muted"}, " — game: " + e.label)))
@@ -584,6 +652,7 @@ async function refresh() {
   $("#btn-update-install").replaceChildren(icon("download"), up.version ? `Install the update ${up.version}` : "Install the update");
   $("#btn-update-uninstall").disabled = !installedSomewhere;
   $("#restart").style.display = state.restart ? "block" : "none";
+  renderSetup();
   renderMods();
   if (state.task && !state.task.done) followTask(state.task);
 }
@@ -617,6 +686,124 @@ async function runTask(path, body) {
 }
 
 // ---- game ------------------------------------------------------------------------------------------
+const WHERE = {cia: "in the project's cia/ folder", emulator: "installed in the emulator", chosen: "chosen by you"};
+function copyDetail(c) {
+  const where = WHERE[c.where] || `in ${c.folder || "a folder"}`;
+  const elsewhere = c.where === "folder" || c.where === "chosen";
+  return `${c.name} — ${where}` + (c.encrypted ? ": encrypted, it will be decrypted into cia/"
+    : elsewhere ? ": it will be copied into cia/" : "");
+}
+function renderSetup() {
+  const s = state.game.setup, list = $("#setup-list");
+  const need = [s.game && "v0", s.update && s.update.version].filter(Boolean);
+  const steps = [
+    !s.game ? ["warn", "Your game", "Not found yet: drop its file in the box below, or click the box to choose it."]
+      : [s.game.encrypted || s.game.where === "folder" || s.game.where === "chosen" ? "todo" : "ok",
+         "Your game", copyDetail(s.game)],
+    !s.update ? ["off", "Its update (optional)", "None: drop its .cia below for v5200 — 16 more submarines, 3 more maps."]
+      : [s.update.encrypted || s.update.where === "folder" || s.update.where === "chosen" ? "todo" : "ok",
+         `Its update ${s.update.version}`, copyDetail(s.update)],
+    !s.emulators.length ? ["warn", "The emulator", el("span", {}, "Not found: install ",
+        el("a", {href: "https://azahar-emu.org/", target: "_blank", rel: "noopener"}, "Azahar"), " and start it once.")]
+      : ["ok", "The emulator", [...new Set(s.emulators.map(n => n.replace(/ \(.*\)$/, "")))].join(", ") + " found"],
+    !s.emulators.length ? ["off", "In the emulator", "Once it is installed."]
+      : s.game_installed && (!s.update || s.update_installed)
+        ? ["ok", "In the emulator", "The game" + (s.update ? ` and its update ${s.update.version}` : "") + " installed"]
+        : ["todo", "In the emulator", [!s.game_installed && "the game", s.update && !s.update_installed
+            && `its update ${s.update.version}`].filter(Boolean).join(" and ").replace(/^./, c => c.toUpperCase())
+            + " will be installed" + (s.game_installed ? "." : ": it then shows in the emulator's list of games, your save stays.")],
+    need.length && need.every(v => s.extracted.includes(v))
+      ? ["ok", "The files for the mods", "Prepared: " + need.join(", ")]
+      : ["todo", "The files for the mods", "Extracted from your copy (about a minute)."],
+  ];
+  list.replaceChildren(...steps.map(([kind, title, detail], i) => el("li", {class: kind},
+    el("span", {class: "mark"}, kind === "ok" ? icon("check") : kind === "warn" ? "!" : String(i + 1)),
+    el("div", {class: "what"}, el("b", {}, title), el("div", {class: "detail"}, detail)))));
+  const ready = steps.every(([kind]) => kind === "ok" || kind === "off") && !!s.game;
+  $("#setup-ready").style.display = ready ? "flex" : "none";
+  const pill = $("#setup-pill");
+  pill.className = "pill " + (ready ? "ok" : s.game ? "accent" : "warn");
+  pill.textContent = ready ? "Ready" : s.game ? "To set up" : "Game missing";
+  const btn = $("#btn-setup");
+  btn.disabled = !s.game;
+  btn.className = "btn big " + (ready ? "" : "primary");
+  btn.replaceChildren(icon(ready ? "refresh" : "play"), ready ? "Check and set up again" : "Set everything up");
+}
+function decryptNotice(d, files) {
+  const what = files.map(f => f.what === "update" ? `the update ${f.version}` : "the game").join(" and ");
+  let text = `Your copy of ${what} is encrypted. The launcher decrypts it on this computer with the decryptor of `
+    + "Batch CIA 3DS Decryptor Redux (decrypt.exe, "
+    + (d.decryptor_ready ? "already downloaded)" : "5.7 MB, downloaded from GitHub)");
+  if (!d.windows) text += d.wine
+    ? `, run by your Wine; if it cannot, a portable Wine is downloaded for it (${d.portable_mb} MB, removed afterwards).`
+    : `, run by a portable Wine downloaded for it (${d.portable_mb} MB, nothing to install, removed afterwards).`;
+  else text += ".";
+  if (d.rosetta) text += " On this Mac, macOS may ask for your password to install Rosetta 2, which Wine needs.";
+  return text + "\n\nContinue?";
+}
+async function startSetup(paths = []) {
+  await guarded(async () => {
+    const plan = paths.length ? await api("setup/preview", {body: {paths}}) : state.game.setup;
+    const encrypted = [plan.game, plan.update].filter(c => c && c.encrypted);
+    if (encrypted.length && !confirm(decryptNotice(plan.decrypt, encrypted))) return;
+    await runTask("setup", {paths});
+  });
+}
+$("#btn-setup").addEventListener("click", () => startSetup());
+$("#btn-setup-refresh").addEventListener("click", () => guarded(refresh));
+
+function uploadGameFile(file, progress) {
+  return new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    xhr.open("POST", "/api/game/upload?name=" + encodeURIComponent(file.name));
+    xhr.setRequestHeader("X-Token", TOKEN);
+    xhr.setRequestHeader("Content-Type", "application/octet-stream");
+    xhr.upload.onprogress = e => { if (e.lengthComputable) progress(e.loaded / e.total); };
+    xhr.onload = () => {
+      let data = {};
+      try { data = JSON.parse(xhr.responseText); } catch (e) { /* an empty answer */ }
+      if (xhr.status === 200) resolve(data); else reject(new Error(data.error || xhr.statusText || "refused"));
+    };
+    xhr.onerror = () => reject(new Error("the copy was interrupted"));
+    xhr.send(file);
+  });
+}
+async function addGameFiles(files) {
+  const drop = $("#drop"), added = [];
+  for (const file of files) {
+    if (!/\.(cia|3ds|cci|cxi)$/i.test(file.name)) { toast(`${file.name}: a .cia, .3ds or .cxi file is expected.`, true); continue; }
+    drop.classList.add("busy");
+    $("#drop-title").textContent = "Copying " + file.name + "…";
+    $("#drop-detail").textContent = `${(file.size / 1048576).toFixed(0)} MB, into the project's cia/ folder`;
+    try {
+      added.push(await uploadGameFile(file, f => $("#drop-bar").style.width = (f * 100).toFixed(1) + "%"));
+    } catch (e) { toast(`${file.name}: ${e.message}`, true); }
+  }
+  drop.classList.remove("busy");
+  $("#drop-bar").style.width = "0";
+  $("#drop-title").textContent = "Drop your game or update file here";
+  $("#drop-detail").textContent = "or click to choose it: .cia, .3ds or .cxi";
+  if (!added.length) return;
+  toast(added.map(a => a.what === "update" ? `Update ${a.version}` : "Game").join(" and ") + " added.");
+  await guarded(refresh);
+  await startSetup(added.map(a => a.path));
+}
+const drop = $("#drop");
+drop.addEventListener("click", () => $("#drop-input").click());
+drop.addEventListener("keydown", e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); $("#drop-input").click(); } });
+$("#drop-input").addEventListener("change", e => { const files = [...e.target.files]; e.target.value = ""; addGameFiles(files); });
+let dragDepth = 0;
+$("#tab-game").addEventListener("dragenter", e => { e.preventDefault(); dragDepth++; drop.classList.add("over"); });
+$("#tab-game").addEventListener("dragleave", () => { if (--dragDepth <= 0) { dragDepth = 0; drop.classList.remove("over"); } });
+$("#tab-game").addEventListener("drop", e => {
+  e.preventDefault(); dragDepth = 0; drop.classList.remove("over");
+  const files = [...(e.dataTransfer && e.dataTransfer.files || [])];
+  if (files.length) addGameFiles(files);
+});
+// a file dropped elsewhere must not replace the page
+window.addEventListener("dragover", e => e.preventDefault());
+window.addEventListener("drop", e => e.preventDefault());
+
 $("#btn-extract-auto").addEventListener("click", () => runTask("game/extract"));
 $("#btn-prepare").addEventListener("click", () => runTask("game/prepare"));
 $("#btn-open-prepared").addEventListener("click", () => guarded(() => api("open", {body: {path: state.game.prepared_dir}})));
@@ -646,7 +833,10 @@ async function browse(dir) {
     for (const e of data.entries) {
       if (e.type === "dir") list.append(el("div", {onclick: () => browse(e.path), icon: "folder"}, e.name));
       else list.append(el("div", {class: e.type === "game" ? "" : "other",
-        onclick: () => { $("#files-overlay").classList.remove("show"); runTask("game/extract", {path: e.path}); }},
+        onclick: () => guarded(async () => {
+          $("#files-overlay").classList.remove("show");
+          await startSetup([(await api("game/inspect?path=" + encodeURIComponent(e.path))).path]);
+        })},
         (e.type === "game" ? "★ " : "· ") + e.name, el("span", {class: "muted small"}, ` ${(e.size / 1048576).toFixed(1)} MB`)));
     }
     if (!data.entries.length) list.append(el("div", {class: "other"}, "(no folder or game file here)"));

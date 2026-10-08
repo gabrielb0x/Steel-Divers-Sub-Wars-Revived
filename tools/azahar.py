@@ -12,8 +12,9 @@
               SteelDiverSubWars_<mod>.cxi, to keep the original game and the modded one side by side
   install     copies a mod built by tools/mod.py into Azahar's load/mods/<title id>/
   uninstall   removes the mod files of the game from Azahar
-  install-update    installs the update (its decrypted CIA) on the emulators' SD card, as Azahar's
-                    File > Install CIA does: the game then runs as v5200 (tools/versions.py)
+  install-game      installs the game (its decrypted CIA) on the emulators' SD card, as Azahar's
+                    File > Install CIA does: it shows in the emulator's list of games; the save is kept
+  install-update    the same for the update: the game then runs as v5200 (tools/versions.py)
   uninstall-update  removes it: the game runs as v0 again
   where       prints the Azahar folders found, the version of the game they run and the mods installed
 
@@ -32,7 +33,7 @@ import sys
 from pathlib import Path
 
 import versions
-from ctr import CIA, UPDATE_TITLE_ID, _SIG_SIZES, find_game_cia
+from ctr import CIA, GAME_TITLE_ID, UPDATE_TITLE_ID, _SIG_SIZES, find_game_cia
 
 ROOT = Path(__file__).resolve().parent.parent
 TITLE_ID = "00040000000D7E00"   # Steel Diver: Sub Wars, Europe
@@ -57,7 +58,7 @@ def emulator_dirs() -> list[tuple[str, Path]]:
     candidates: list[tuple[str, Path]] = []
     for variable in ("AZAHAR_DIR", "SUBWARS_EMULATOR_DIR"):
         if os.environ.get(variable):
-            candidates.append(("Émulateur (" + variable + ")", Path(os.environ[variable])))
+            candidates.append((f"Emulator ({variable})", Path(os.environ[variable])))
     home = Path.home()
     data = Path(os.environ.get("XDG_DATA_HOME") or home / ".local/share")
     appdata = Path(os.environ["APPDATA"]) if os.environ.get("APPDATA") else None
@@ -112,6 +113,28 @@ def settings_file(name: str, *old_names: str) -> Path:
                     return previous
                 break
     return path
+
+
+def user_folders() -> list[Path]:
+    """The player's Downloads, Desktop and Documents folders, where a game file usually lands: their localised
+    names on Linux (XDG user dirs: Téléchargements, Bureau...), OneDrive's on Windows."""
+    home = Path.home()
+    candidates = []
+    config = Path(os.environ.get("XDG_CONFIG_HOME") or home / ".config") / "user-dirs.dirs"
+    try:
+        for line in config.read_text(encoding="utf-8").splitlines():
+            key, _, value = line.partition("=")
+            if key.strip() in ("XDG_DOWNLOAD_DIR", "XDG_DESKTOP_DIR", "XDG_DOCUMENTS_DIR"):
+                candidates.append(Path(value.strip().strip('"').replace("$HOME", str(home))))
+    except OSError:
+        pass
+    for name in ("Downloads", "Desktop", "Documents", "Téléchargements", "Bureau"):
+        candidates += [home / name, home / "OneDrive" / name]
+    found = []
+    for path in candidates:
+        if path.is_dir() and path != home and path not in found:
+            found.append(path)
+    return found
 
 
 def save_files(bases: list[Path] | None = None) -> list[Path]:
@@ -179,35 +202,53 @@ def sd_title_root(base: Path) -> Path:
     return found[0] if found else base / "sdmc" / "Nintendo 3DS" / ("0" * 32) / ("0" * 32) / "title"
 
 
-def install_update(cia_path: Path, base: Path) -> Path:
-    """Installs the update on an emulator's SD card as Azahar's Install CIA does (AM CIAFile): the TMD as
-    content/00000000.tmd and each content as content/<id>.app. Only content 0, the program, is kept (the
-    manual of an eShop CIA may still be encrypted, which Azahar refuses)."""
+def install_title(cia_path: Path, base: Path, title_id: int) -> Path:
+    """Installs the game or its update on an emulator's SD card as Azahar's Install CIA does (AM CIAFile): the
+    TMD as content/00000000.tmd and each content as content/<id>.app. Only content 0, the program, is kept (the
+    manual of an eShop CIA may still be encrypted, which Azahar refuses). Only content/ is replaced: the game's
+    save, in data/ next to it, stays."""
+    what = "the update" if title_id == UPDATE_TITLE_ID else "the game"
     with cia_path.open("rb") as f:
         cia = CIA.parse(f)
-        if cia.title_id != UPDATE_TITLE_ID:
-            raise ValueError(f"{cia_path.name} is not the update ({UPDATE_TITLE_ID:016X})")
+        if cia.title_id != title_id:
+            raise ValueError(f"{cia_path.name} is not {what} ({title_id:016X})")
         chunk, offset = next(cia.content_offsets())
         if chunk.encrypted:
-            raise ValueError(f"{cia_path.name}: the update is encrypted, decrypt it first")
+            raise ValueError(f"{cia_path.name}: {what} is encrypted, decrypt it first")
         f.seek(offset + 0x100)
         if f.read(4) != b"NCCH":
             raise ValueError(f"{cia_path.name}: content 0 is not a NCCH")
         f.seek(offset + 0x18F)
         if not f.read(1)[0] & 0x04:
-            raise ValueError(f"{cia_path.name}: the update is encrypted (NCCH), decrypt it first")
+            raise ValueError(f"{cia_path.name}: {what} is encrypted (NCCH), decrypt it first")
         f.seek(cia.tmd_offset)
         tmd = one_content_tmd(bytearray(f.read(cia.tmd_size)), len(cia.contents))
-        high, low = f"{UPDATE_TITLE_ID:016x}"[:8], f"{UPDATE_TITLE_ID:016x}"[8:]
+        high, low = f"{title_id:016x}"[:8], f"{title_id:016x}"[8:]
         content = sd_title_root(base) / high / low / "content"
-        if content.parent.exists():
-            shutil.rmtree(content.parent)
+        if content.exists():
+            shutil.rmtree(content)
         content.mkdir(parents=True)
         (content / "00000000.tmd").write_bytes(tmd)
         f.seek(offset)
         with (content / f"{chunk.id:08x}.app").open("wb") as out:
             copy_range(f, out, chunk.size)
     return content
+
+
+def install_update(cia_path: Path, base: Path) -> Path:
+    return install_title(cia_path, base, UPDATE_TITLE_ID)
+
+
+def install_game(cia_path: Path, base: Path) -> Path:
+    """The game in the emulator's list of installed titles, as with File > Install CIA."""
+    return install_title(cia_path, base, GAME_TITLE_ID)
+
+
+def game_installed(base: Path) -> bool:
+    """Whether the game is installed on an emulator's SD card (its TMD and a content)."""
+    high, low = TITLE_ID[:8].lower(), TITLE_ID[8:].lower()
+    return any(any(folder.glob("*.app")) and any(folder.glob("*.tmd"))
+               for folder in (base / "sdmc" / "Nintendo 3DS").glob(f"*/*/title/{high}/{low}/content"))
 
 
 def uninstall_update(base: Path) -> list[Path]:
@@ -424,6 +465,8 @@ def main() -> None:
     p = sub.add_parser("install", help="install a mod built by tools/mod.py")
     p.add_argument("mod", type=Path, help="build/mods/<name> (or its <title id> folder)")
     sub.add_parser("uninstall", help="remove the game's mod files from Azahar")
+    p = sub.add_parser("install-game", help="install the game on the emulators' SD card")
+    p.add_argument("cia", nargs="?", type=Path, help="its decrypted CIA (default: found in cia/)")
     p = sub.add_parser("install-update", help="install the update on the emulators' SD card")
     p.add_argument("cia", nargs="?", type=Path, help="its decrypted CIA (default: found in cia/)")
     sub.add_parser("uninstall-update", help="remove the update from the emulators' SD card")
@@ -452,6 +495,15 @@ def main() -> None:
             if dest.exists():
                 shutil.rmtree(dest)
                 print(f"[+] removed {dest}")
+    elif args.command == "install-game":
+        src = args.cia or find_game_cia(ROOT / "cia")
+        if src is None:
+            sys.exit(f"No CIA of the game ({TITLE_ID}) in cia/: pass its path.")
+        for base in [args.azahar_dir] if args.azahar_dir else azahar_dirs():
+            try:
+                print(f"[+] installed into {install_game(src, base)}")
+            except ValueError as e:
+                sys.exit(f"[!] {e}")
     elif args.command == "install-update":
         import extract_cia
         src = args.cia or extract_cia.find_update()

@@ -3,11 +3,15 @@
     python3 -m unittest discover -s tools/tests
 """
 
+import hashlib
+import io
 import json
+import os
 import socket
 import struct
 import subprocess
 import sys
+import tarfile
 import tempfile
 import tomllib
 import unittest
@@ -23,6 +27,8 @@ sys.path.insert(0, str(TOOLS))
 import array                                  # noqa: E402
 import azahar                                  # noqa: E402
 import bcstm                                   # noqa: E402
+import ctr                                     # noqa: E402
+import decrypt                                 # noqa: E402
 import mod                                     # noqa: E402
 import music                                   # noqa: E402
 import shbin                                   # noqa: E402
@@ -799,6 +805,305 @@ class Launcher(unittest.TestCase):
                 server.stop_others()
             server.stop_others(strict=False)
         self.assertIsNone(process.poll())
+
+
+def make_cia(title: int = 0x0004000E000D7E00, version: int = 5200, encrypted: bool = False,
+             contents: int = 1) -> bytes:
+    """A CIA of the game or of its update with NCCH contents (their header only, a few bytes of data after), its
+    TMD with info record 0 covering them. encrypted: "under the title key" (type bit 0) and no NoCrypto flag,
+    which is how the eShop's servers give a title (the tests only look at those bits)."""
+    def signed(body: bytes) -> bytes:
+        return struct.pack(">I", 0x10004) + bytes(0x100 + 0x3C) + body
+    def align(blob: bytes) -> bytes:
+        return blob + bytes(-len(blob) % 64)
+    datas = []
+    for index in range(contents):
+        ncch = bytearray(0x400)
+        ncch[:16] = bytes([index + 1]) * 16                       # the signature's start, KeyY when encrypted
+        ncch[0x100:0x104] = b"NCCH"
+        struct.pack_into("<Q", ncch, 0x108, title)
+        struct.pack_into("<Q", ncch, 0x118, title if index == 0 else 0x000400000FF3FF00)
+        ncch[0x18F] = 0 if encrypted else 0x04
+        ncch[0x200:0x210] = (b"content %d data" % index).ljust(16, b".")
+        datas.append(bytes(ncch))
+    tmd_body = bytearray(0xC4 + 64 * 0x24 + 0x30 * contents)
+    struct.pack_into(">QH", tmd_body, 0x4C, title, 0)
+    struct.pack_into(">HH", tmd_body, 0x9C, version, contents)
+    struct.pack_into(">HH", tmd_body, 0xC4, 0, contents)
+    for index, data in enumerate(datas):
+        struct.pack_into(">IHHQ", tmd_body, 0xC4 + 64 * 0x24 + 0x30 * index, 6 - 2 * index, index, int(encrypted),
+                         len(data))
+        tmd_body[0xC4 + 64 * 0x24 + 0x30 * index + 0x10:0xC4 + 64 * 0x24 + 0x30 * (index + 1)] = \
+            hashlib.sha256(data).digest()
+    tmd = signed(bytes(tmd_body))
+    ticket, certs = signed(bytes(0x164)), bytes(0x40)
+    header = bytearray(0x2020)
+    struct.pack_into("<IHHIIIIQ", header, 0, 0x2020, 0, 0, len(certs), len(ticket), len(tmd), 0,
+                     sum(len(d) for d in datas))
+    header[0x20] = (0xFF00 >> contents) & 0xFF
+    return align(bytes(header)) + align(certs) + align(ticket) + align(tmd) + b"".join(datas)
+
+
+def fake_pyinstaller(entries: dict[str, bytes]) -> bytes:
+    """A PyInstaller program: its archive (zlib entries, table of contents, cookie) after a stub."""
+    stub, data, toc = b"MZ" + bytes(62), b"", b""
+    for name, blob in entries.items():
+        packed = zlib.compress(blob)
+        encoded = name.encode() + b"\0"
+        encoded += bytes(-(18 + len(encoded)) % 16)
+        toc += struct.pack("!iiiiBc", 18 + len(encoded), len(data), len(packed), len(blob), 1, b"b") + encoded
+        data += packed
+    length = len(data) + len(toc) + 88
+    cookie = decrypt.PYI_MAGIC + struct.pack("!iiii", length, len(data), len(toc), 27) + b"python27.dll".ljust(64, b"\0")
+    return stub + data + toc + cookie
+
+
+# A Wine standing in for the real one in the tests: "decrypt.exe" alone prints its usage; with a CIA, it writes
+# each content with the NoCrypto flag set, as the real decryptor does, and records what Wine was given.
+FAKE_WINE = """#!/usr/bin/env python3
+import os, struct, sys
+sys.path.insert(0, %r)
+from ctr import CIA
+with open("wine-calls.txt", "a") as log:
+    log.write(" ".join(sys.argv[1:]) + "|" + os.environ.get("_MEIPASS2", "") + "|" + os.environ["WINEDLLOVERRIDES"] + "\\n")
+if len(sys.argv) < 3:
+    print("usage: decrypt.py *file*")
+    sys.exit(0)
+with open(sys.argv[2], "rb") as f:
+    cia = CIA.parse(f)
+    for chunk, offset in cia.content_offsets():
+        f.seek(offset)
+        data = bytearray(f.read(chunk.size))
+        data[0x18F] |= 0x04
+        data[:16] = b"decrypted-header"
+        with open(sys.argv[2][:-4] + ".%%d.ncch" %% chunk.index, "wb") as out:
+            out.write(data)
+print("Done!")
+"""
+
+
+class Decryption(unittest.TestCase):
+    def setUp(self):
+        folder = tempfile.TemporaryDirectory()
+        self.addCleanup(folder.cleanup)
+        self.dir = Path(folder.name)
+        patcher = mock.patch.object(decrypt, "TOOLS_DIR", self.dir / "tools")
+        patcher.start()
+        self.addCleanup(patcher.stop)
+
+    def write(self, name: str, data: bytes) -> Path:
+        path = self.dir / name
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_bytes(data)
+        return path
+
+    def test_rebuild_cia(self):
+        """The decrypted contents go back into the CIA: same certificates and ticket, TMD types and hashes updated,
+        the info records' hashes too; the update then installs into an emulator."""
+        src = self.write("update.cia", make_cia(encrypted=True, contents=2))
+        self.assertTrue(ctr.program_encrypted(src))
+        with src.open("rb") as f:
+            cia = ctr.CIA.parse(f)
+            contents = {}
+            for chunk, offset in cia.content_offsets():
+                f.seek(offset)
+                data = bytearray(f.read(chunk.size))
+                data[0x18F] |= 0x04
+                contents[chunk.index] = self.write(f"title.{chunk.index}.ncch", bytes(data))
+        dest = self.dir / "out" / "decrypted.cia"
+        decrypt.rebuild_cia(src, contents, dest)
+        self.assertFalse(ctr.program_encrypted(dest))
+        raw = dest.read_bytes()
+        with dest.open("rb") as f:
+            out = ctr.CIA.parse(f)
+            self.assertEqual((out.title_id, out.title_version), (0x0004000E000D7E00, 5200))
+            for chunk, offset in out.content_offsets():
+                f.seek(offset)
+                data = f.read(chunk.size)
+                self.assertEqual(data, contents[chunk.index].read_bytes())
+                self.assertEqual(chunk.sha256, hashlib.sha256(data).digest())
+                self.assertFalse(chunk.encrypted)
+            f.seek(out.tmd_offset)
+            tmd = f.read(out.tmd_size)
+        body = 4 + 0x100 + 0x3C
+        info, chunks = body + 0xC4, body + 0xC4 + 64 * 0x24
+        self.assertEqual(tmd[info + 4:info + 0x24], hashlib.sha256(tmd[chunks:chunks + 2 * 0x30]).digest())
+        self.assertEqual(tmd[body + 0xA4:body + 0xC4], hashlib.sha256(tmd[info:chunks]).digest())
+        self.assertEqual(raw[:out.tmd_offset], src.read_bytes()[:out.tmd_offset])      # header, certificates, ticket
+        self.assertEqual(len(raw), src.stat().st_size)
+        content = azahar.install_update(dest, self.dir / "user")
+        self.assertEqual(versions.installed_update(self.dir / "user")[0], 5200)
+        self.assertEqual(sorted(p.name for p in content.iterdir()), ["00000000.tmd", "00000006.app"])
+
+    def test_only_the_game_and_its_update(self):
+        dlc = self.write("dlc.cia", make_cia(title=0x0004008C000D7E00, version=64, encrypted=True))
+        other = self.write("other.cia", make_cia(title=0x0004000000123400, encrypted=True))
+        with mock.patch.object(decrypt, "decryptor", side_effect=AssertionError("nothing to download")):
+            for path in (dlc, other):
+                with self.assertRaises(decrypt.DecryptError) as e:
+                    decrypt.decrypt_files([path], self.dir / "out")
+                self.assertIn("only Steel Diver: Sub Wars", str(e.exception))
+            plain = self.write("game.cia", make_cia(title=0x00040000000D7E00, version=0))
+            self.assertEqual(decrypt.decrypt_files([plain], self.dir / "out"), [plain])     # nothing to do
+        self.assertEqual(decrypt.decrypted_name(0x0004000E000D7E00, 5200),
+                         "Steel Diver Sub Wars update v5200 (decrypted).cia")
+
+    def test_pyinstaller_files(self):
+        exe = self.write("decrypt.exe", fake_pyinstaller({"python27.dll": b"dll", "Crypto\\Cipher\\_raw_aes.pyd": b"aes"}))
+        self.assertEqual(decrypt.pyinstaller_files(exe, self.dir / "lib"), 2)
+        self.assertEqual((self.dir / "lib" / "Crypto" / "Cipher" / "_raw_aes.pyd").read_bytes(), b"aes")
+        self.assertEqual((self.dir / "lib" / "python27.dll").read_bytes(), b"dll")
+        evil = self.write("evil.exe", fake_pyinstaller({"..\\..\\evil.dll": b"x"}))
+        with self.assertRaises(decrypt.DecryptError):
+            decrypt.pyinstaller_files(evil, self.dir / "lib2")
+        self.assertFalse((self.dir / "evil.dll").exists())
+
+    def test_downloads_are_checked(self):
+        src = self.write("served/tool.bin", b"the tool")
+        good = decrypt.Download("tool.bin", src.as_uri(), 8, hashlib.sha256(b"the tool").hexdigest())
+        self.assertEqual(decrypt.download(good, self.dir / "got" / "tool.bin", log=lambda *a: None).read_bytes(),
+                         b"the tool")
+        bad = decrypt.Download("tool.bin", src.as_uri(), 8, "0" * 64)
+        with self.assertRaises(decrypt.DecryptError):
+            decrypt.download(bad, self.dir / "got2" / "tool.bin", log=lambda *a: None)
+        self.assertEqual(list((self.dir / "got2").iterdir()), [])                   # nothing left behind
+
+    def test_unpack(self):
+        archive = self.dir / "wine.tar.xz"
+        with tarfile.open(archive, "w:xz") as tar:
+            for name in ("w/bin/wine", "w/include/wine/windef.h", "w/lib/wine/libx.a", "w/lib/wine/ntdll.so"):
+                data = name.encode()
+                info = tarfile.TarInfo(name)
+                info.size, info.mode = len(data), 0o755
+                tar.addfile(info, io.BytesIO(data))
+        decrypt.unpack(archive, self.dir / "wine", ("/include/", ".a"))
+        found = sorted(p.relative_to(self.dir / "wine").as_posix() for p in (self.dir / "wine").rglob("*") if p.is_file())
+        self.assertEqual(found, ["w/bin/wine", "w/lib/wine/ntdll.so"])
+        evil = self.dir / "evil.tar"
+        with tarfile.open(evil, "w") as tar:
+            info = tarfile.TarInfo("../escaped")
+            info.size = 1
+            tar.addfile(info, io.BytesIO(b"x"))
+        with self.assertRaises((decrypt.DecryptError, tarfile.TarError)):
+            decrypt.unpack(evil, self.dir / "out")
+        self.assertFalse((self.dir / "escaped").exists())
+
+    @unittest.skipIf(os.name == "nt", "Wine is for Linux and macOS")
+    def test_decrypt_with_wine(self):
+        """The whole decryption with a stand-in for Wine and decrypt.exe: the libraries of the PyInstaller program
+        in _MEIPASS2, a prefix of its own, no menu entries, the CIA rebuilt, everything temporary removed."""
+        wine = self.write("bin/wine", (FAKE_WINE % str(TOOLS)).encode())
+        wine.chmod(0o755)
+        exe = self.write("decrypt.exe", fake_pyinstaller({"python27.dll": b"dll"}))
+        update = self.write("dl/update.cia", make_cia(encrypted=True, contents=2))
+        with mock.patch.object(decrypt, "decryptor", return_value=exe), \
+                mock.patch.object(decrypt, "installed_wines", return_value=[wine]), \
+                mock.patch.object(decrypt, "portable_wine", side_effect=AssertionError("Wine was found")), \
+                mock.patch.object(decrypt, "ascii_folder", return_value=self.dir / "work"), \
+                mock.patch.object(decrypt, "platform_key", return_value="linux"):
+            (self.dir / "work").mkdir()
+            out = decrypt.decrypt_files([update], self.dir / "cia", log=lambda *a: None)
+        self.assertEqual([p.name for p in out], ["Steel Diver Sub Wars update v5200 (decrypted).cia"])
+        self.assertFalse(ctr.program_encrypted(out[0]))
+        with out[0].open("rb") as f:
+            cia = ctr.CIA.parse(f)
+            chunk, offset = next(cia.content_offsets())
+            f.seek(offset)
+            self.assertEqual(f.read(16), b"decrypted-header")
+        self.assertEqual(list((self.dir / "work").iterdir()), [])                  # the work folder is gone
+        self.assertEqual([p.name for p in (self.dir / "tools").iterdir()], [])     # and the Wine prefix
+
+    def test_runner_environment(self):
+        if os.name == "nt":
+            self.skipTest("Wine is for Linux and macOS")
+        wine = self.write("bin/wine", (FAKE_WINE % str(TOOLS)).encode())
+        wine.chmod(0o755)
+        work = self.dir / "work"
+        work.mkdir()
+        runner = decrypt.Runner(wine, self.dir / "libraries")
+        try:
+            self.assertTrue(runner.works(work))
+            call = (work / "wine-calls.txt").read_text().splitlines()[-1].split("|")
+            self.assertEqual(call[0], "decrypt.exe")
+            self.assertTrue(call[1].startswith("Z:") and "\\" in call[1] and "/" not in call[1])
+            self.assertIn("winemenubuilder.exe=d", call[2])
+            self.assertTrue(runner.prefix.is_dir())
+        finally:
+            prefix = runner.prefix
+            runner.close()
+        self.assertFalse(prefix.exists())
+
+
+class GameSetup(unittest.TestCase):
+    """The launcher finds the copies of the game, installs it without touching the save, stores dropped files."""
+
+    def setUp(self):
+        folder = tempfile.TemporaryDirectory()
+        self.addCleanup(folder.cleanup)
+        self.dir = Path(folder.name)
+        for target, value in ((webui, "ROOT"), ):
+            patcher = mock.patch.object(target, value, self.dir / "project")
+            patcher.start()
+            self.addCleanup(patcher.stop)
+        (self.dir / "project").mkdir()
+        for name, value in (("user_folders", [self.dir / "Downloads"]), ("azahar_dirs", []), ("emulator_dirs", [])):
+            patcher = mock.patch.object(azahar, name, return_value=value)
+            patcher.start()
+            self.addCleanup(patcher.stop)
+        patcher = mock.patch.object(webui.extract_cia, "installed_game", return_value=None)
+        patcher.start()
+        self.addCleanup(patcher.stop)
+
+    def write(self, name: str, data: bytes) -> Path:
+        path = self.dir / name
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_bytes(data)
+        return path
+
+    def test_best_copies(self):
+        self.write("project/cia/update ENC.cia", make_cia(encrypted=True))
+        self.write("Downloads/Sub Wars/game.cia", make_cia(title=0x00040000000D7E00, version=0))
+        self.write("Downloads/dlc.cia", make_cia(title=0x0004008C000D7E00, version=64))
+        self.write("Downloads/notes.txt", b"not a game")
+        state = webui.setup_state()
+        self.assertEqual((state["game"]["name"], state["game"]["where"]), ("game.cia", "folder"))
+        self.assertEqual((state["update"]["version"], state["update"]["encrypted"]), ("v5200", True))
+        self.assertIsNotNone(state["decrypt"])
+        self.write("project/cia/update.cia", make_cia())                  # a decrypted copy: it wins
+        state = webui.setup_state()
+        self.assertEqual((state["update"]["name"], state["update"]["encrypted"]), ("update.cia", False))
+        self.assertIsNone(state["decrypt"])
+        self.assertEqual(state["emulators"], [])
+
+    def test_received_files(self):
+        data = make_cia(title=0x00040000000D7E00, version=0)
+        path = webui.receive_game_file(io.BytesIO(data), len(data), "../My game: v0?.cia")
+        self.assertEqual(path, self.dir / "project" / "cia" / "My game v0.cia")
+        self.assertEqual(path.read_bytes(), data)
+        self.assertEqual(webui.receive_game_file(io.BytesIO(data), len(data), "My game v0.cia"), path)   # the same
+        dlc = make_cia(title=0x0004008C000D7E00, version=64)
+        with self.assertRaises(webui.UserError):
+            webui.receive_game_file(io.BytesIO(dlc), len(dlc), "dlc.cia")
+        with self.assertRaises(webui.UserError):
+            webui.receive_game_file(io.BytesIO(b"x" * 10), 20, "short.cia")          # interrupted
+        with self.assertRaises(webui.UserError):
+            webui.receive_game_file(io.BytesIO(b"x"), 1, "notes.txt")
+        self.assertEqual(sorted(p.name for p in (self.dir / "project" / "cia").iterdir()), ["My game v0.cia"])
+
+    def test_install_game_keeps_the_save(self):
+        cia = self.write("game.cia", make_cia(title=0x00040000000D7E00, version=0))
+        base = self.dir / "user"
+        save = base / "sdmc/Nintendo 3DS" / ("0" * 32) / ("0" * 32) / "title/00040000/000d7e00/data/00000001/save"
+        save.parent.mkdir(parents=True)
+        save.write_bytes(b"my save")
+        self.assertFalse(azahar.game_installed(base))
+        content = azahar.install_game(cia, base)
+        self.assertEqual(sorted(p.name for p in content.iterdir()), ["00000000.tmd", "00000006.app"])
+        self.assertTrue(azahar.game_installed(base))
+        azahar.install_game(cia, base)                                          # again: content/ only replaced
+        self.assertEqual(save.read_bytes(), b"my save")
+        with self.assertRaises(ValueError):
+            azahar.install_game(self.write("update.cia", make_cia()), base)
 
 
 class AmxPort(unittest.TestCase):

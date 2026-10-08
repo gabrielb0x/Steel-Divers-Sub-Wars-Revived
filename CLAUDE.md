@@ -31,7 +31,9 @@ make data       tools/bxml.py -> extracted/xml/ (BXML: levels, stats, texts; nam
 make azahar     tools/azahar.py prepare -> build/azahar/ (CIA without the encrypted manual, which Azahar rejects; CXI)
 tools/mod.py build <name>... [--install] [--cxi] [--version v5200]   mods/<name>/mod.toml -> build/mods/<a+b>[-v5200]/
                     -> Azahar load/mods/00040000000D7E00/ (for the version each emulator runs; sdsw.json marker)
-tools/azahar.py install-update | uninstall-update | where    the update on the emulators' SD card
+tools/azahar.py install-game | install-update | uninstall-update | where    the game, the update on the emulators' SD card
+tools/decrypt.py <file.cia>                         an encrypted game/update -> cia/ (Batch CIA 3DS Decryptor Redux's
+                                                    decrypt.exe, pinned by SHA-256; Wine on Linux/macOS)
 tools/save.py, tools/subs.py                        save editor (Azahar save), submarine characteristics (mod "specs")
 tools/music.py, tools/bcstm.py                      your music in place of the game's BCSTM streams (mod "music")
 tools/shbin.py <file.shbin> [--check]               PICA200 shader disassembler; --check: loops Azahar's JIT runs wrong
@@ -43,7 +45,7 @@ python3 -m unittest discover -s tools/tests         tests of the players' tools 
 cd server && python3 -m sdsw_server        online server (realms "emulator" and "pc", server.toml); tests: python3 -m unittest discover -s tests -t .
 ```
 
-Players' tools (subwars.py, mod.py, save.py, subs.py, music.py, bcstm.py, extract_cia.py) must run with Python 3.11 alone on
+Players' tools (subwars.py, mod.py, save.py, subs.py, music.py, bcstm.py, extract_cia.py, decrypt.py) must run with Python 3.11 alone on
 Windows/macOS/Linux: no pip package (tools/ncch.py reads NCCH/RomFS, tools/armasm.py assembles the recipes' ARM;
 its encodings are checked against keystone in tools/tests). Only the RE pipeline uses the venv (capstone).
 
@@ -82,7 +84,8 @@ Ghidra scripts are Java (`ghidra/scripts/`), compiled by Ghidra 12.1.4; check th
   49152-65534) by UPnP: without it, Linux NATs lose the hole-punching race (netns simulation, docs/online.md §7).
   `public_address = "auto"` (UPnP, then STUN), `upnp = true`. The launcher stops any `sdsw_server` holding the
   ports before starting its own, and starts it with `--exit-with-stdin`. Never `pkill -f` a pattern that also
-  matches the shell running the command.
+  matches the shell running the command, nor match one with `ps | awk` in a command that
+  contains that pattern: kill a process started for a test by the PID saved when starting it.
 - Online bots (docs/bots.md): our pilot replaces surface_sub's (which sets its position without reading its
   collisions, and whose "enemy" torpedoes skip every computer sub and only damage the local player). Pawn source
   in mods/online/src (`// @game g_X`, `// @call 0xADDR f()`, hooks in `/* asm */`); the generated .pasm are
@@ -97,6 +100,13 @@ Ghidra scripts are Java (`ghidra/scripts/`), compiled by Ghidra 12.1.4; check th
   (`flatpak run --cwd=<p>`), shown in Xephyr. The machine has 7 GB of RAM: OpenGL under Xephyr can reach 5 GB per
   instance (two got OOM-killed) and the software renderer runs at 3 %: one instance at a time.
 
+- Decryption (docs/update-v5200.md#an-encrypted-update): the launcher's "Set everything up" finds the game and update
+  (cia/, Downloads/Desktop/Documents, the emulator, dropped files), decrypts with decrypt.exe downloaded at runtime
+  into build/decryptor/ (never committed; only titles 00040000000D7E00 and 0004000E000D7E00 accepted), runs it under
+  Wine with `_MEIPASS2` pointing at its pre-unpacked libraries (its PyInstaller temp dir gets mode 000 under Wine 9
+  and 11), and rebuilds the CIA in Python. Portable Wine (Kron4ek 11.0 wow64 / Gcenx 11.0) is downloaded only when
+  the installed Wine cannot run it, then removed. Then it installs game and update into Azahar's SD card
+  (content/ only: the save in data/ stays).
 - Update v5200 (docs/update-v5200.md): new executable (all addresses move, no romfs:/map: names come from matching
   v0 functions), 16 more subs, 3 maps, recompiled scripts. Its RomFS only holds changed/added files: the game
   opens "rom2:/" (update RomFS, SelfNCCH path type 5) then "rom:/" (v5200 0x00257ACC); tools/versions.py layers

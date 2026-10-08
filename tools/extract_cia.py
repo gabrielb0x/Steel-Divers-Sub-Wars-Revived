@@ -60,11 +60,9 @@ def ncch_offset(fp, path: Path) -> tuple[int, CIA | None]:
                                f"(Europe, {GAME_TITLE_ID:016X}) or its update ({UPDATE_TITLE_ID:016X})")
         chunk, offset = next(cia.content_offsets())
         if chunk.encrypted:
-            if cia.title_id == UPDATE_TITLE_ID:
-                raise ExtractError(f"{path.name}: the update is encrypted in this CIA. Decrypt it "
-                                   "first (GodMode9 on the console, or a CIA decryption tool), then put the "
-                                   "decrypted CIA in cia/ or install it into Azahar.")
-            raise ExtractError("the game is encrypted in this CIA (title key): use a decrypted dump")
+            what = "the update" if cia.title_id == UPDATE_TITLE_ID else "the game"
+            raise ExtractError(f"{path.name}: {what} is encrypted in this CIA. The launcher decrypts it (Game tab, "
+                               "\"Set everything up\"), or: python3 tools/decrypt.py <file>")
         return offset, cia
     fp.seek(0x100)
     magic = fp.read(4)
@@ -175,7 +173,8 @@ def extract(source: Path, out: Path | None = None, skip_romfs: bool = False, log
             raise ExtractError(f"{source.name} is the title {ncch.program_id:016X}, not Steel Diver: Sub Wars "
                                f"(Europe, {GAME_TITLE_ID:016X}) or its update ({UPDATE_TITLE_ID:016X})")
         if ncch.encrypted:
-            raise ExtractError("the game NCCH is encrypted; decrypt it first (Azahar needs it decrypted too)")
+            raise ExtractError(f"{source.name}: its NCCH is encrypted; decrypt it first (Azahar needs it decrypted "
+                               "too): python3 tools/decrypt.py <file>, or the launcher's Game tab")
         update = ncch.program_id == UPDATE_TITLE_ID
         version = versions.name(update_version(source, cia)) if update else versions.BASE
         if out is None:
