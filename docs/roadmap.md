@@ -2,7 +2,7 @@
 
 ## Volet 1 — Pseudo-code source (`decomp/`)
 
-*Avancement estimé : 20 % — tout est exporté et les scripts décompilés, mais 8 % seulement du code du jeu est réécrit proprement.*
+*Avancement estimé : 20 % — tout est exporté et les scripts décompilés, mais 9 % seulement du code du jeu est réécrit proprement.*
 
 But : un code C++ lisible qui montre comment le jeu était écrit.
 
@@ -119,8 +119,10 @@ Le plan détaillé est dans [mods.md](mods.md) : on publie des recettes (`mods/`
 
 *Avancement estimé : 100 %.*
 
-- **Version du jeu** : la version de lancement (v0, Europe), celle du dump. Pas de mise à jour disponible (pas de
-  3DS pour la dumper) : tout vise cette version.
+- **Versions du jeu** : la version de lancement (v0, Europe), celle du dump, et sa dernière mise à jour, v5200
+  ([mise-a-jour.md](mise-a-jour.md)). La rétro-ingénierie (Ghidra, `decomp/`) travaille sur la v0 ; les mods et
+  le jeu en ligne marchent avec les deux (adresses de la v5200 retrouvées par correspondance : `tools/amxport.py`
+  pour les scripts), et le serveur ne mélange jamais les joueurs des deux versions.
 - **Cibles** : mods pour Azahar d'abord, portage PC ensuite (recompilation statique + HLE). La 3DS n'est pas une
   cible.
 - **Licence du dépôt : MIT**. Le code GPL/AGPL (serveur Pretendo, Azahar/Citra) ne peut pas être intégré tel quel : il

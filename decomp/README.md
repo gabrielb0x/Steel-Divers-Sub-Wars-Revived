@@ -49,7 +49,7 @@ fonction (par ex. un `printf` de debug vidé qui apparaît comme `Renderer::getA
 
 ## `src/` — code nettoyé (versionné)
 
-*Avancement estimé : 8 % — 152 fonctions du jeu réécrites sur 2 126 (environ 10 % du code du jeu, hors bibliothèques Nintendo).*
+*Avancement estimé : 9 % — 185 fonctions du jeu réécrites sur 2 126 (environ 11 % du code du jeu, hors bibliothèques Nintendo).*
 
 Le C++ réécrit à la main à partir du pseudo-code, avec la même arborescence que `raw/source/` :
 
@@ -60,6 +60,7 @@ Le C++ réécrit à la main à partir du pseudo-code, avec la même arborescence
 | `game/world.cpp` | monde : pool de 256 acteurs, chargement des niveaux, tampon de replay de 7 s |
 | `game/actor.cpp` | cycle de vie d'un acteur : propriétés, script et ses fonctions publiques, mort |
 | `sys/system.cpp` | démarrage, tas mémoire, temps, boutons HOME et marche/arrêt |
+| `net/connectionInternet.cpp` | jeu en ligne : réseau de la console, connexion au serveur, recherche de partie (critères, attributs, somme de version), session créée ou rejointe, liste de blocage, notifications |
 
 Conventions :
 
