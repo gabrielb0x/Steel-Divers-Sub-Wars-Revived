@@ -62,7 +62,8 @@ REALM_OPTIONS = (
            "la mise à jour v5200, aléatoire pour les joueurs du jeu d'origine)",
            choices=("aleatoire", "1", "2", "4", "5", "6", "7", "8", "9", "10", "11", "12", "13")),
     Option("bots_level", "choice", "difficile", "Niveau des bots",
-           "ils jouent comme des joueurs ; le niveau règle réflexes et précision ; pour tous les bots en ligne",
+           "ils jouent comme des joueurs ; le niveau règle réflexes et précision (entre joueurs, les sous-marins "
+           "que le jeu ajoute restent les siens)",
            choices=("normal", "difficile", "expert")),
     Option("bots_countdown", "int", 10, "Compte à rebours", "secondes avant la bataille contre les bots",
            low=6, high=120),

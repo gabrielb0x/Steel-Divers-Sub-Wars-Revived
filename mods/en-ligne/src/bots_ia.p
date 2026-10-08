@@ -1,7 +1,7 @@
 /* surface_sub: the computer subs of the online battles fly and fight like players.
  *
- * Every computer sub of an online battle (the bots of the battles against the server's bots, and those the
- * game adds to fill the teams) gets this pilot instead of the game's own bot, which patrols around its spawn
+ * The computer subs of the online battles against the server's bots (server.bots) get this pilot instead of
+ * the game's own bot (in a battle between players, those the game adds to fill the teams stay the game's), which patrols around its spawn
  * point, fires straight ahead every 250 frames whatever it faces, goes through walls and subs (it sets its
  * position without ever looking at its collisions) and only ever aims at players. The level
  * (server.bots.level: 1 normal, 2 difficile, 3 expert; difficile when the server does not say) sets how fast
@@ -225,13 +225,15 @@ forward Float:missNow(&frames);
 
 /* ---- what the hooks call (asm at the end) ----------------------------------------------------- */
 
-/* main, after func_e098 (the sub's properties): is it one of ours? */
+/* main, after func_e098 (the sub's properties): is it one of ours? Only in the battles against the server's
+ * bots: in a battle between players, the computer subs the game adds to fill the teams stay the game's own,
+ * as the players know them (the pilot would upset the balance of such a battle). */
 forward botInit();
 public botInit()
 {
     new npc = 0;
     lvl = 0;
-    if (!g_1f28)
+    if (!g_1f28 || !sysGetGlobal("server.bots"))
         return 0;
     actorGetPropInt("npc", npc, 0);
     if (!npc)

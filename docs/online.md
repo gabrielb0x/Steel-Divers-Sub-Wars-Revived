@@ -280,13 +280,19 @@ Différences relevées pour le mod `en-ligne` :
   propriétaire (notification 4xxx) va en `+0x1C` de sa structure (`0x003B5668`), contre `+0x18` en v0 ;
 - la somme de version de la recherche de partie (attribut 3, `sysGetVersionChecksum`) vaut **868960903** en v5200
   (0xB95D7F2B en v0). Les joueurs des deux versions ne se retrouvent jamais dans la même partie, et c'est voulu
-  (cartes, sous-marins et scripts diffèrent) : le serveur compare les attributs 0 à 3 comme critères, et en plus
-  chaque partie retient la somme de version du jeu qui l'a créée (`Session.version`) ; une partie d'une autre
-  version n'est jamais proposée, quels que soient les critères envoyés. Le journal du serveur dit la version de
+  (cartes, sous-marins et scripts diffèrent) : chaque partie retient la somme de version du jeu qui l'a créée
+  (`Session.version`) ; une partie d'une autre version n'est jamais proposée, quels que soient les critères
+  envoyés. Le continent (attribut 0) et le niveau (attribut 2) ne sont pas comparés : ils séparaient deux amis
+  dont l'émulateur n'est pas réglé sur le même pays, ou dont l'un cherche une bataille aléatoire et l'autre un
+  salon par niveau. Deux joueurs se retrouvent dès qu'ils ont la même version, trichent ou non tous les deux, et
+  que la partie attend (pas en bataille) et a de la place ; seuls les salons de discussion en morse (type 2)
+  restent à part. Une partie sans bots passe avant une partie dont les bots sont annoncés. Quand le serveur crée
+  une partie, son journal dit pourquoi chacune des autres n'a pas été proposée (« not proposed: cheats differ »,
+  « battle under way »…). Le journal du serveur dit la version de
   chaque partie créée ;
 - la v5200 ajoute les **parties entre amis** (troisième bouton du menu Internet, version complète) : la même
-  recherche automatique, avec le continent (attribut 0) à −1 ; seules les consoles de ce mode se retrouvent, sans
-  rien de plus côté serveur. Les autres natives réseau qu'elle ajoute restent sur la console : `netIsFriend` (sa
+  recherche automatique, avec le continent (attribut 0) à −1 ; le serveur ne compare pas le continent : ces
+  consoles retrouvent aussi celles des batailles aléatoires. Les autres natives réseau qu'elle ajoute restent sur la console : `netIsFriend` (sa
   liste d'amis), `netIsOwner`, `netDisallowParticipation` (un drapeau local, `0x0030AAEC`) ;
 - les bots du serveur en v5200 montrent un des 36 sous-marins de la mise à jour (23 en v0), et `bots_map` accepte
   ses trois cartes (11 à 13 : Pôle Nord, Usine sous-marine, Anneaux en mer ; aléatoire pour un joueur v0) ;

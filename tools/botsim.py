@@ -1084,6 +1084,7 @@ def contacts(world: World, bots: list[Bot], sim: Sim) -> None:
 def scenario(name: str, level: int, seed: int, verbose: bool, pitch_sign: float = 1.0, frames: int = 1800):
     world = World(seed, pitch_sign)
     world.globals["server.bots.level"] = level
+    world.globals["server.bots"] = 1                     # the pilot only flies the server's bots
     map_actor = Actor(world, "map", [0, 0, 0])
     map_actor.id = 1
     world.actors[1] = map_actor

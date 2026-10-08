@@ -16,7 +16,7 @@ from pathlib import Path
 
 from sdsw_server import matchmaking, testclient
 from sdsw_server.crypto import RC4, derive_user_key, kerberos_decrypt, kerberos_encrypt, KerberosError
-from sdsw_server.ddl import MatchmakeSession, criterion_matches
+from sdsw_server.ddl import MatchmakeSession, SearchCriteria, criterion_matches
 from sdsw_server.matchmaking import BotSettings
 from sdsw_server.natcheck import NatCheckService
 from sdsw_server.prudp import CONNECT, DATA, FLAG_NEED_ACK, FLAG_RELIABLE, Packet, Signer, decode_datagram, encode_packet
@@ -139,6 +139,37 @@ async def console(port: int, pid: int, flags: str = "", checksum: int = testclie
         params = StreamOut(); params.u32(session.id)
         await secure.call(109, 2, params)                         # OpenParticipation, as the lobby does
     return secure, session
+
+
+class FriendsMeet(unittest.TestCase):
+    """Players meet whenever they play the same version, cheat or not alike, and the session waits with room."""
+
+    def search(self, matchmaker, pid, continent, lobby, level, pool="", checksum=0xB95D7F2B):
+        def attributes(c, l, n):
+            return [c, l, n, checksum]
+        criteria = SearchCriteria(attributes=[str(continent), str(lobby), f"{max(level - 1, 0)},{level + 1}", str(checksum)],
+                                  game_mode="1000")
+        proposal = MatchmakeSession(game_mode=1000, attributes=attributes(continent, lobby, level), max_participants=8)
+        return matchmaker.auto_matchmake(pid, [criteria], proposal, "", pool=pool).id
+
+    def test_friends_with_other_settings_meet(self):
+        matchmaker = matchmaking.Matchmaker(lambda *a: None)
+        first = self.search(matchmaker, 1, continent=3, lobby=1, level=8)
+        # another country, a random battle, the update's battles between friends (continent -1): the same match
+        self.assertEqual(self.search(matchmaker, 2, continent=7, lobby=0, level=0), first)
+        self.assertEqual(self.search(matchmaker, 3, continent=-1 & 0xFFFFFFFF, lobby=1, level=2), first)
+        # never with another version, a cheater, or the Morse chat room
+        self.assertNotEqual(self.search(matchmaker, 4, continent=3, lobby=1, level=8, checksum=868960903), first)
+        self.assertNotEqual(self.search(matchmaker, 5, continent=3, lobby=1, level=8, pool="triche"), first)
+        self.assertNotEqual(self.search(matchmaker, 6, continent=3, lobby=2, level=0), first)
+
+    def test_full_or_started_sessions_are_not_proposed(self):
+        matchmaker = matchmaking.Matchmaker(lambda *a: None, max_players=2)
+        first = self.search(matchmaker, 1, continent=3, lobby=0, level=0)
+        self.assertEqual(self.search(matchmaker, 2, continent=3, lobby=0, level=0), first)
+        self.assertNotEqual(self.search(matchmaker, 3, continent=3, lobby=0, level=0), first)        # full
+        matchmaker.set_open(3, matchmaker.by_pid[3], False)                                          # its battle
+        self.assertNotEqual(self.search(matchmaker, 4, continent=3, lobby=0, level=0), matchmaker.by_pid[3])
 
 
 class Clock:

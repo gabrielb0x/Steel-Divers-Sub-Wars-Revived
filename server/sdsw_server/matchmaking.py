@@ -234,31 +234,38 @@ class Matchmaker:
 
     # -- search ----------------------------------------------------------------------------------
 
-    def _matches(self, session: Session, c: SearchCriteria, pid: int, pool: str, version: int) -> bool:
+    def _refusal(self, session: Session, c: SearchCriteria, pid: int, pool: str, version: int) -> str:
+        """Why this session is not for this player ("" when it is). Players meet whenever they play the same
+        version and the same way (cheats or not), the session is open and has room: the game's own criteria
+        on the continent (attribute 0: the console's country, -1 for the update's battles between friends)
+        and the level (attribute 2, "matched skills" lobbies) would keep two friends apart, so they are not
+        compared. Only the Morse chat rooms stay apart from the battles."""
         info = session.info
-        if session.pool != pool or not info.open_participation or session.full() or pid in session.participants:
-            return False
+        if pid in session.participants:
+            return "already in it"
+        if session.pool != pool:
+            return "cheats differ"
         if session.version != version:
-            return False
+            return f"version {session.version_name}"
+        if not info.open_participation or session.closed:
+            return "battle under way"
+        if session.full():
+            return "full"
         if c.vacant_only and len(session.participants) + max(c.vacant_participants, 1) > info.max_participants:
-            return False
+            return "no room"
         if not criterion_matches(c.game_mode, info.game_mode):
-            return False
-        if not criterion_matches(c.matchmake_system_type, info.matchmake_system_type):
-            return False
-        if not criterion_matches(c.min_participants, info.min_participants):
-            return False
-        if not criterion_matches(c.max_participants, info.max_participants):
-            return False
-        for n, text in enumerate(c.attributes[:4]):     # 4 and 5: reports of the online mod, not criteria
-            value = info.attributes[n] if n < len(info.attributes) else 0
-            if not criterion_matches(text, value):
-                return False
+            return "other game mode"
+        wants_chat = len(c.attributes) > LOBBY_ATTRIBUTE and c.attributes[LOBBY_ATTRIBUTE].strip() == str(CHAT_LOBBY)
+        if wants_chat != session.chat_room:
+            return "chat room" if session.chat_room else "not a chat room"
         mine = self.blocklists.get(pid, set())
         for other in session.participants:
             if other in mine or pid in self.blocklists.get(other, set()):
-                return False
-        return True
+                return "blocked"
+        return ""
+
+    def _matches(self, session: Session, c: SearchCriteria, pid: int, pool: str, version: int) -> bool:
+        return not self._refusal(session, c, pid, pool, version)
 
     def auto_matchmake(self, pid: int, criteria: list[SearchCriteria], proposal: MatchmakeSession,
                        message: str, pool: str = "") -> MatchmakeSession:
@@ -267,11 +274,16 @@ class Matchmaker:
         for c in criteria:
             found = [s for s in self.sessions.values() if self._matches(s, c, pid, pool, version)]
             if found:
-                session = max(found, key=lambda s: (len(s.participants), -s.created))
+                # a session still waiting for its first battle without bots, then the fullest, then the oldest
+                session = max(found, key=lambda s: (not s.bots, len(s.participants), -s.created))
                 self._join(session, pid, message)
                 log.info("pid %d joins session %d (%d/%d)", pid, session.gid, len(session.participants),
                          session.info.max_participants)
                 return session.info
+        for other in self.sessions.values():
+            why = self._refusal(other, criteria[0], pid, pool, version) if criteria else "no criteria"
+            log.info("pid %d: session %d (%s) not proposed: %s", pid, other.gid,
+                     "+".join(str(p) for p in other.participants), why)
         info = proposal
         info.id = next(self._gids)
         info.owner_pid = info.host_pid = pid

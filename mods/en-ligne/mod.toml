@@ -416,8 +416,8 @@ asm_file = { v0 = "bots_bataille.pasm", v5200 = "bots_bataille-v5200.pasm" }
 file = "amx/game_state.amx"
 asm_file = { v0 = "bots_partie.pasm", v5200 = "bots_partie-v5200.pasm" }
 
-# Les sous-marins pilotés par l'ordinateur des parties en ligne (bots du serveur, et ceux que le jeu ajoute pour
-# compléter les équipes) jouent comme des joueurs : physique et caractéristiques d'un sous-marin de joueur,
+# Les bots des parties contre les bots du serveur jouent comme des joueurs (dans une partie entre joueurs, les
+# sous-marins que le jeu ajoute pour compléter les équipes restent ceux du jeu) : physique et caractéristiques d'un sous-marin de joueur,
 # collisions avec la carte et les autres sous-marins, combat contre tout ennemi (joueurs et bots), visée
 # là où sera la cible, torpilles à tête chercheuse, esquive, masqueur et repli quand la coque est basse.
 # Écrits en Pawn (src/*.p), compilés en assembleur par tools/pawn2pasm.py ; les .pasm sont générés.
@@ -461,13 +461,17 @@ sdsw_rd_done:
 # celle du joueur. Le nœud d'un tir de sous-marin de l'ordinateur est celui de sa console (le jeu y retrouve la
 # torpille pour le replay) : seul contre les bots, c'est la console du joueur, qui ne prenait donc aucun dégât.
 # Une torpille de bot qui arrive jusqu'au joueur est toujours ennemie (bots_tir.inc laisse passer celles des
-# coéquipiers) : pour elle (isShooterNpc), pas de tir ami.
+# coéquipiers) : pour elle (isShooterNpc), pas de tir ami. Seulement contre les bots du serveur : dans une
+# partie entre joueurs, les sous-marins de l'ordinateur restent ceux du jeu.
 [[amx]]
 versions = ["v5200"]
 file = "amx/pscope_player.amx"
 asm = """
 .hook 0x1094c                       ; @eventDamageTorp: if (!friendlyFire && (!window || arg7))
     load.s.pri 0x2c                 ; isShooterNpc
+    jzer @sdsw_ff_keep
+    push.c "server.bots"            ; only against the server's bots: elsewhere the game's computer subs
+    sysreq.n sysGetGlobal, 1
     jzer @sdsw_ff_keep
     zero.s -0xc                     ; friendlyFire = 0
 sdsw_ff_keep:

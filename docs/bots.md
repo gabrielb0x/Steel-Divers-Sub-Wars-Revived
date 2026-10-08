@@ -1,7 +1,9 @@
 # Des bots qui jouent comme des joueurs
 
-En ligne, les sous-marins pilotés par l'ordinateur ne sont plus les bots du jeu. Il s'agit des bots du serveur
-pour un joueur seul et de ceux que le jeu ajoute pour compléter les équipes. Le mod
+Dans les batailles contre les bots du serveur (un joueur resté seul, `server.bots`), les sous-marins pilotés
+par l'ordinateur ne sont plus les bots du jeu. Dans une bataille entre joueurs, ceux que le jeu ajoute pour
+compléter les équipes restent les siens, tels que les joueurs les connaissent : le pilote déséquilibrerait la
+partie (`botInit` ne le prend que si `server.bots` vaut 1). Le mod
 [`en-ligne`](../mods/en-ligne/mod.toml) leur donne un pilote écrit en Pawn
 ([`mods/en-ligne/src/bots_ia.p`](../mods/en-ligne/src/bots_ia.p)), compilé par `tools/pawn2pasm.py` et essayé dans
 un bac à sable (`tools/botsim.py`). Hors ligne (missions), le jeu garde ses propres bots.

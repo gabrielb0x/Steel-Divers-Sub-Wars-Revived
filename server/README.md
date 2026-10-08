@@ -65,8 +65,8 @@ Chaque royaume a ses options de partie dans `serveur.toml` (le lanceur les affic
   * `bots_level` : `"normal"`, `"difficile"` ou `"expert"` ; les bots pilotent comme des joueurs (physique et
     caractéristiques de leur sous-marin, collisions, visée là où sera la cible, esquive, torpilles à tête
     chercheuse, masqueur et repli quand leur coque est basse : `mods/en-ligne/src/bots_ia.p`), le niveau
-    règle leurs réflexes et leur précision (expert : visée parfaite) ; vaut pour tous les bots des parties
-    en ligne ;
+    règle leurs réflexes et leur précision (expert : visée parfaite) ; dans une bataille entre joueurs, les
+    sous-marins que le jeu ajoute pour compléter les équipes restent ceux du jeu ;
   * `bots_crew` : `true` (par défaut), chaque bot prend un équipage comme un joueur (jusqu'à 5 membres, autant
     que son sous-marin en accepte), qui change ses notes et lui donne ses capacités (portée de verrouillage,
     sonar large, masqueur moins cher ou plus long, réparation…) ; au niveau expert, des membres qui

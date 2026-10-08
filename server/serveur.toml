@@ -36,8 +36,8 @@ status_port = 0                 # page d'état (joueurs en ligne, parties) en HT
 #                   (aléatoire pour les joueurs du jeu d'origine) ; le lanceur affiche leurs noms
 #   bots_level      "normal", "difficile" ou "expert" : des bots qui pilotent comme des joueurs (visée
 #                   là où sera la cible, esquive, masqueur…) ; le niveau règle leurs réflexes et leur
-#                   précision ; vaut pour tous les bots des parties en ligne, pas seulement ceux des
-#                   parties à un joueur
+#                   précision ; dans une bataille entre joueurs, les sous-marins que le jeu ajoute
+#                   pour compléter les équipes restent ceux du jeu
 #   bots_countdown  secondes de compte à rebours avant la bataille contre les bots (10)
 #   bots_crew       true : chaque bot prend un équipage, comme un joueur (notes et capacités ; au niveau
 #                   expert, des membres qui n'ont que des bonus) ; false : sans équipage (true)
