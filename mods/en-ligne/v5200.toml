@@ -1,0 +1,21 @@
+# The online mod's Pawn code in the update v5200: the addresses tools/amxport.py cannot pair by itself (an
+# instruction that changed, a global the update split in two), one section per source (.pasm or src/*.p).
+# Everything else is translated from the v0 addresses, instruction by instruction:
+#   tools/amxport.py mode_lobby --pasm mods/en-ligne/bots_salon.pasm mods/en-ligne/bots_salon-v5200.pasm \
+#       --overrides mods/en-ligne/v5200.toml
+#   tools/pawn2pasm.py --version v5200 mods/en-ligne/src/bots_ia.p
+# (make bots does both.)
+
+[bots_salon]                    # mode_lobby
+0xebf8 = 0x140d4                # checkCountdownStart: const.alt 120000 (v5200: 60000), the countdown's length
+0x1623c = 0x1a09c               # the lobby's frame: v5200 moved the main loop's body into doUpdate()
+
+[bots_bataille]                 # mode_periscope
+g_b094 = "g_10aa0"              # gIsInternet; v5200 adds g_10aa8: an Internet battle not between friends
+
+[anti_triche_tir]               # periscope_move
+0x1ab34 = 0x1e9c4               # the end of a frame: v5200 moved the main loop's body into a function
+g_3d48 = "g_69ec"               # network.online
+
+[bots_ia]                       # surface_sub
+0xdcd0 = 0x100f4                # after the sinking: v5200 no longer calls func_cb2c there

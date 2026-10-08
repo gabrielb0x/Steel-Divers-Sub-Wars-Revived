@@ -204,7 +204,7 @@ restent écrits à la main, dans des commentaires `/* asm … */` de la source. 
 | `version` | toutes | toujours inclus : la version de Sub Wars Open Sourced à la fin de la ligne sous le titre (« … v0.1.34 », même police que la ligne du dessus) |
 | `premium` | v0, v5200 | version complète, tous les sous-marins (23, 39 avec la mise à jour), motifs et équipage débloqués, sans l'eShop ([détails](../docs/premium.md)) |
 | `missions` | v0, v5200 | les 21 missions du mode solo jouables tout de suite, sans toucher à la sauvegarde |
-| `en-ligne` | v0, v5200 (sans bots ni anti-triche) | jeu en ligne sur un serveur [Sub Wars Open Sourced](../server/README.md), avec ses bots pour un joueur seul et des bots qui jouent comme des joueurs ([bots.md](../docs/bots.md)), son anti-triche, la durée des batailles réglée par le serveur et un dialogue qui dit quel serveur est utilisé |
+| `en-ligne` | v0, v5200 | jeu en ligne sur un serveur [Sub Wars Open Sourced](../server/README.md), avec ses bots pour un joueur seul et des bots qui jouent comme des joueurs ([bots.md](../docs/bots.md)), son anti-triche, la durée des batailles réglée par le serveur et un dialogue qui dit quel serveur est utilisé |
 | `specs` | v0, v5200 | vos propres caractéristiques de sous-marins (`tools/subs.py`) ; en ligne, comptées comme triche |
 | `mention-titre` | toutes | « © 2026 Nintendo Lawyers » et « Open Sourced by gabrielb0x. » sous le titre (options `ligne1`, `ligne2`) |
 | `triche` | v0, v5200 | invincible, torpilles et air infinis, tir sans délai, rechargement rapide, masqueur gratuit, moteur gonflé |
@@ -284,7 +284,8 @@ image). En ligne, le serveur le compte comme de la triche.
 
 La version complète (« premium ») et les cinq sous-marins historiques se vendaient sur l'eShop, fermé depuis
 2023. Tout leur contenu est dans le jeu de base, sauf la proue des sous-marins historiques : sans le DLC, leur
-pilote voit leur coque à la place (les autres joueurs ne voyaient de toute façon que la coque). Options :
+pilote voit la proue d'un sous-marin du jeu de même taille (les autres joueurs ne voyaient de toute façon que la
+coque). Options :
 `debloquer` (`oui` : tous les sous-marins, motifs et membres d'équipage sont débloqués dans la sauvegarde) et
 `dlc` (`oui` seulement si votre propre DLC est installé dans Azahar : vrais modèles des sous-marins
 historiques). Le bouton Boutique recharge le menu. Retirer le mod ne bloque pas la sauvegarde ; une sauvegarde

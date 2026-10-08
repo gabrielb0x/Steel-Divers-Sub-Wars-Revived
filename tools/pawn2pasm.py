@@ -22,6 +22,11 @@ address of the compiled code has to be translated.
 
 Functions of the game: a stub of that name is compiled and its calls become `call <address>`.
 
+Addresses are those of the game's scripts as sold (v0). With --version v5200, the same source is compiled for
+the update's recompiled script: tools/amxport.py translates the globals, the functions and the hooks' addresses
+(<stem>-v5200.pasm), and the ones it cannot pair are written by hand in the section <stem> of v5200.toml next
+to the mod's recipe.
+
 Assembly that stays hand-written (the hooks into the game's code) goes in comments `/* asm ... */` of the
 source, copied as they are after the compiled code; it calls the Pawn functions by their names (`call @name`;
 `call @name` of a Pawn function pushes its arguments and their size in bytes first, as Pawn does).
@@ -41,10 +46,11 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
+import amxport  # noqa: E402
+import versions  # noqa: E402
 from amxasm import AmxImage  # noqa: E402
 
 PAWNCC = Path(os.environ.get("PAWNCC", ROOT / "build" / "pawncc"))
-ROMFS = ROOT / "extracted" / "romfs"
 INCLUDES = [ROOT / "decomp" / "pawn"]
 
 _GAME = re.compile(r"^\s*//\s*@game\s+(?:(\w+):)?(g_([0-9a-fA-F]+))(?:\[(\w+)\])?(?:\s.*)?$")
@@ -77,14 +83,17 @@ def _params(prototype: str) -> list[str]:
     return names
 
 
-def prelude(source: str, data_size: int) -> tuple[str, dict[str, int], int]:
+def prelude(source: str, data_size: int, tr=None) -> tuple[str, dict[str, int], int]:
     """Pawn declarations of the script's data segment, the game functions' stubs (name -> address), and the
-    number of lines of the declarations (for the line numbers of the compiler's messages)."""
+    number of lines of the declarations (for the line numbers of the compiler's messages). tr: an
+    amxport.Translator, for another version of the script (the names stay those of v0)."""
     globals_: list[tuple[int, str, int, str]] = []
     for line in source.splitlines():
         m = _GAME.match(line)
         if m:
             address, size = int(m[3], 16), _cells(m[4]) if m[4] else 1
+            if tr is not None:
+                address = tr.global_(address)
             if address % 4:
                 raise Pawn2PasmError(f"{m[2]}: unaligned")
             globals_.append((address, m[2], size, m[1] or ""))
@@ -113,7 +122,7 @@ def prelude(source: str, data_size: int) -> tuple[str, dict[str, int], int]:
     for line in source.splitlines():
         m = _CALL.match(line)
         if m:
-            calls[m[3]] = int(m[1], 16)
+            calls[m[3]] = tr.code(int(m[1], 16), function=True) if tr is not None else int(m[1], 16)
             unused = _params(m[4])
             body = (f"#pragma unused {', '.join(unused)}\n" if unused else "")
             lines.append(f"stock {m[2]} {{\n{body}    return 0;\n}}")
@@ -243,17 +252,23 @@ def s32(value: int) -> int:
     return struct.unpack("<i", struct.pack("<I", value & 0xFFFFFFFF))[0]
 
 
-def build(path: Path, out: Path | None = None) -> Path:
+def build(path: Path, out: Path | None = None, version: str = versions.BASE) -> Path:
     source = path.read_text(encoding="utf-8")
     m = next((m for m in map(_TARGET.match, source.splitlines()) if m), None)
     if m is None:
         raise Pawn2PasmError(f"{path}: no // @target line")
     target = m[1]
-    game = AmxImage.parse((ROMFS / target).read_bytes())
+    game = AmxImage.parse(versions.game_files(version).path(target).read_bytes())
     data_size = len(game.data)
-    head, calls, head_lines = prelude(source, data_size)
+    tr = None
+    if version != versions.BASE:
+        script = Path(target).stem
+        port = amxport.Port(amxport.load(script, versions.BASE), amxport.load(script, version))
+        tr = amxport.Translator(port, amxport.overrides_of(path.parent.parent / f"{version}.toml", path.stem))
+    head, calls, head_lines = prelude(source, data_size, tr)
     module = re.sub(r"\W", "_", path.stem)
-    pasm = out or path.parent.parent / f"{path.stem}.pasm"
+    suffix = "" if version == versions.BASE else f"-{version}"
+    pasm = out or path.parent.parent / f"{path.stem}{suffix}.pasm"
     if not PAWNCC.exists():
         raise Pawn2PasmError(f"no Pawn compiler at {PAWNCC} (make pawncc)")
     with tempfile.TemporaryDirectory() as tmp:
@@ -275,9 +290,17 @@ def build(path: Path, out: Path | None = None) -> Path:
         listing = (Path(tmp) / f"{module}.asm").read_text(encoding="latin-1")
     code, cells = convert(listing, natives, publics, calls, data_size, module)
     hooks = [block.strip("\n") for block in _ASM.findall(source)]
+    if tr is not None:
+        hooks = [tr.asm(block) for block in hooks]
+        try:
+            tr.check(f"{path} ({version})")
+        except amxport.PortError as e:
+            raise Pawn2PasmError(str(e)) from None
+    option = f"--version {version} " if suffix else ""
     lines = [f"; Generated by tools/pawn2pasm.py from src/{path.name}: edit the source, then run",
-             f";   tools/pawn2pasm.py mods/{path.parent.parent.name}/src/{path.name}",
-             f"; Target: {target}.", "",
+             f";   tools/pawn2pasm.py {option}mods/{path.parent.parent.name}/src/{path.name}",
+             f"; Target: {target}" + (f" of the update {version} (addresses of v0 translated by tools/amxport.py; "
+                                     f"the names g_<hex> of the source are those of v0)" if suffix else "") + ".", "",
              f".data_at {data_size:#x}"]
     if cells:
         for k in range(0, len(cells), 16):
@@ -292,10 +315,11 @@ def build(path: Path, out: Path | None = None) -> Path:
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
     parser.add_argument("sources", nargs="+", type=Path)
+    parser.add_argument("--version", default=versions.BASE, help="the game's version: v0 (default) or v5200")
     args = parser.parse_args()
     for path in args.sources:
         try:
-            print(build(path))
+            print(build(path, version=args.version))
         except Pawn2PasmError as e:
             print(f"{path}: {e}", file=sys.stderr)
             return 1

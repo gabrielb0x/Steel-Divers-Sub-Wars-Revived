@@ -35,6 +35,7 @@ BXML = ROOT / "extracted" / "xml" / "bxml"
 PASM = ROOT / "mods" / "en-ligne"
 
 MASK = 0xFFFFFFFF
+VERSION = "v0"                                   # --version
 
 
 def s32(v: int) -> int:
@@ -807,13 +808,21 @@ class Sim:
 
 # ---- scenarios ---------------------------------------------------------------------------------------
 
-def build_image() -> AmxImage:
-    img = AmxImage.parse((ROMFS / "amx" / "surface_sub.amx").read_bytes())
-    img.assemble((PASM / "bots_ia.pasm").read_text(encoding="utf-8"))
+def build_image(version: str = "v0") -> AmxImage:
+    """surface_sub with the pilot (bots_ia.pasm; v5200: the update's script and bots_ia-v5200.pasm)."""
+    import versions
+    img = AmxImage.parse(versions.game_files(version).path("amx/surface_sub.amx").read_bytes())
+    suffix = "" if version == versions.BASE else f"-{version}"
+    img.assemble((PASM / f"bots_ia{suffix}.pasm").read_text(encoding="utf-8"))
+    if version != versions.BASE:                      # the script's globals at the update's addresses
+        import amxport
+        port = amxport.Port(amxport.load("surface_sub", versions.BASE), amxport.load("surface_sub", version))
+        G.update({key: port.globals[address] for key, address in G_V0.items()})
     return img
 
 
-G = {"life": 0x1c68, "afloat": 0x1c90, "pos": 0x1ca0, "yaw": 0x1cc8, "online": 0x1f28, "roll_speed": 0x1c74}
+G_V0 = {"life": 0x1c68, "afloat": 0x1c90, "pos": 0x1ca0, "yaw": 0x1cc8, "online": 0x1f28, "roll_speed": 0x1c74}
+G = dict(G_V0)                                   # globals of surface_sub used here (build_image: other versions)
 
 
 class Bot:
@@ -1009,7 +1018,7 @@ def scenario(name: str, level: int, seed: int, verbose: bool, pitch_sign: float 
     map_actor.id = 1
     world.actors[1] = map_actor
     map_actor.type = 1
-    image = build_image()
+    image = build_image(VERSION)
     sim = Sim(world, image)
     bots: list[Bot] = []
     players: list[Player] = []
@@ -1135,7 +1144,10 @@ def main() -> int:
     parser.add_argument("--frames", type=int, default=1800)
     parser.add_argument("--pitch-sign", type=float, default=1.0, help="-1: the other convention for pitch")
     parser.add_argument("-v", "--verbose", action="store_true")
+    parser.add_argument("--version", default="v0", help="the game's script and the pilot built for it: v0, v5200")
     args = parser.parse_args()
+    global VERSION
+    VERSION = args.version
     for name in args.scenarios:
         for level in args.level or [1, 2, 3]:
             world, bots, players = scenario(name, level, args.seed, args.verbose, args.pitch_sign, args.frames)

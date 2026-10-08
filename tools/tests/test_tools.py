@@ -12,6 +12,7 @@ import tempfile
 import tomllib
 import unittest
 import zlib
+from collections import Counter
 from pathlib import Path
 import xml.etree.ElementTree as ET
 from unittest import mock
@@ -26,6 +27,7 @@ import versions                                # noqa: E402
 from amx import disassemble                    # noqa: E402
 from amxasm import AmxImage, AsmError as AmxAsmError   # noqa: E402
 import webui                                   # noqa: E402
+import amxport                                 # noqa: E402
 from armasm import AsmError, assemble          # noqa: E402
 from save import SaveData, SaveError, parse_value   # noqa: E402
 
@@ -668,6 +670,37 @@ class Launcher(unittest.TestCase):
                 server.stop_others()
             server.stop_others(strict=False)
         self.assertIsNone(process.poll())
+
+
+class AmxPort(unittest.TestCase):
+    """tools/amxport.py: a .pasm written for v0, translated for v5200 (a port made by hand, no game file)."""
+
+    def port(self):
+        port = amxport.Port.__new__(amxport.Port)
+        port.code = {0xB51C: 0xE55C, 0x12F8C: 0x18AA8, 0x9000: 0x9100}
+        port.functions = {0x12F8C: 0x18AA8}
+        port.global_votes = {0x5030: Counter({0x898C: 3}), 0xB094: Counter({0x10AA0: 7, 0x10AA8: 8})}
+        port.globals = {0x5030: 0x898C, 0xB094: 0x10AA8}
+        port.describe = lambda text: text
+        return port
+
+    def test_translate(self):
+        tr = amxport.Translator(self.port(), {"0xebf8": "0x140d4", "g_b094": "g_10aa0"})
+        source = (".hook 0xb51c\n    load.pri g_5030          ; gCountingDown (g_5030)\n    call 0x12f8c\n"
+                  "    jnz 0x9000\n    push.adr -0x1ac\n    jzer @done\n.hook 0xebf8\n    load.pri g_b094\n")
+        out = tr.asm(source)
+        tr.check("test")
+        self.assertEqual(out, ".hook 0xe55c\n    load.pri g_898c          ; gCountingDown (g_5030)\n"
+                              "    call 0x18aa8\n    jnz 0x9100\n    push.adr -0x1ac\n    jzer @done\n"
+                              ".hook 0x140d4\n    load.pri g_10aa0\n")
+
+    def test_unknown_or_ambiguous_is_an_error(self):
+        tr = amxport.Translator(self.port(), {})
+        with mock.patch.object(amxport, "listing", lambda port, addr, context=12: ""):     # no scripts to show
+            tr.asm(".hook 0x1234\n    load.pri g_b094\n")
+        with self.assertRaises(amxport.PortError) as e:
+            tr.check("test")
+        self.assertIn("2 address(es)", str(e.exception))
 
 
 if __name__ == "__main__":

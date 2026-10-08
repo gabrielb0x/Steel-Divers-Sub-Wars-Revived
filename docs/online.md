@@ -265,8 +265,8 @@ attributs 4 et 5 ne servent pas à apparier les joueurs.
 
 ## 9. La mise à jour v5200
 
-*Avancement estimé : 70 % — connexion, recherche de partie et salon vérifiés avec la v5200 dans Azahar ; restent les
-bots et l'anti-triche du mod pour elle.*
+*Avancement estimé : 85 % — connexion, recherche de partie et salon vérifiés avec la v5200 dans Azahar ; bots et
+anti-triche portés (bac à sable des bots : `tools/botsim.py --version v5200`), à voir dans l'émulateur.*
 
 La mise à jour ([mise-a-jour.md](mise-a-jour.md)) garde le même identifiant de serveur NEX (`0x000D7C00`), la même
 clé d'accès (`fb9537fe`) et les mêmes bibliothèques NEX et Pia, à de nouvelles adresses : le même serveur la sert.
@@ -279,8 +279,24 @@ Différences relevées pour le mod `en-ligne` :
 - `MyNotificationEventHandler::ProcessNotificationEvent` (`0x0018A7B8`) est la même, sauf que le nouveau
   propriétaire (notification 4xxx) va en `+0x1C` de sa structure (`0x003B5668`), contre `+0x18` en v0 ;
 - la somme de version de la recherche de partie (attribut 3, `sysGetVersionChecksum`) vaut **868960903** en v5200
-  (0xB95D7F2B en v0) : le serveur compare les attributs 0 à 3, donc les joueurs des deux versions ne se retrouvent
-  pas dans la même partie, et c'est voulu (cartes, sous-marins et scripts diffèrent) ;
+  (0xB95D7F2B en v0). Les joueurs des deux versions ne se retrouvent jamais dans la même partie, et c'est voulu
+  (cartes, sous-marins et scripts diffèrent) : le serveur compare les attributs 0 à 3 comme critères, et en plus
+  chaque partie retient la somme de version du jeu qui l'a créée (`Session.version`) ; une partie d'une autre
+  version n'est jamais proposée, quels que soient les critères envoyés. Le journal du serveur dit la version de
+  chaque partie créée ;
+- les bots du serveur en v5200 montrent un des 36 sous-marins de la mise à jour (23 en v0), et `bots_map` accepte
+  ses trois cartes (11 à 13 : Pôle Nord, Usine sous-marine, Anneaux en mer ; aléatoire pour un joueur v0) ;
 - le menu multijoueur de la v5200 n'a plus l'état inutilisé où le mod ouvrait le dialogue du serveur : il s'ouvre
-  dans l'état Dialog du jeu, et sa fermeture mène au menu Internet (accroches `0xA4B4` et `0x603C`).
+  dans l'état Dialog du jeu, et sa fermeture mène au menu Internet (accroches `0xA4B4` et `0x603C`) ;
+- **les bots et l'anti-triche** (le code Pawn du mod, [bots.md](bots.md)) : les scripts de la v5200 sont recompilés,
+  toutes les adresses de code et de globales bougent. `tools/amxport.py` aligne chaque script des deux versions
+  instruction par instruction (jetons sans adresses : cibles de saut et globales masquées, natives par nom,
+  chaînes par leur texte ; fonctions appariées par leur code, leurs noms de journal et leurs appels) et en déduit
+  les adresses de la v5200 ; les sources Pawn se compilent pour elle (`tools/pawn2pasm.py --version v5200`), les
+  `.pasm` écrits à la main se traduisent (`tools/amxport.py <script> --pasm`), d'où les `*-v5200.pasm` (`make bots`).
+  Ce que l'outil ne sait pas apparier est écrit à la main dans `mods/en-ligne/v5200.toml` : la boucle principale
+  de `mode_lobby` et celle de `periscope_move` sont devenues des fonctions appelées à chaque image (`doUpdate`),
+  le compte à rebours du salon passe de 120 à 60 secondes, `surface_sub` n'appelle plus `func_cb2c` après le
+  naufrage, et `mode_periscope` dédouble « partie Internet » (`gIsInternet` `g_10aa0`, et `g_10aa8` : une partie
+  Internet qui n'est pas entre amis, `network.continent` = −1).
 

@@ -143,17 +143,17 @@ netplay_dummy_sub:0x34f4 attachedParticlePlay(particle[])
 netplay_dummy:0x2830 delayFrames(frames)                                       # true while waiting (or replaying)
 netplay_dummy:0x1af0 registerInViews(node, bool:camera, bool:label)            # player_label, camera, world_map
 
-# ---- dialog_common.inc / rest.inc: the confirmation window of the menus ----
+# ---- dialog.inc: the confirmation window of the menus (names from the update v5200's log strings) ----
 mode_battle_record:0x76e0 dialogInit()
 mode_battle_record:0x7960 dialogSetVisible(bool:visible)
-mode_battle_record:0x79a4 dialogOpenSelect(selection)                          # OK / Back
-mode_battle_record:0x7a60 dialogCloseSelect()
-mode_battle_record:0x7ac4 dialogOpenConfirm()                                  # OK only
-mode_battle_record:0x7b50 dialogCloseConfirm()
-mode_battle_record:0x7b9c dialogUpdateButtons()
-mode_battle_record:0x7d00 dialogSelectKeys()
-mode_battle_record:0x8128 dialogSelectTouch(x, y)
-mode_battle_record:0x8304 dialogConfirmKeys()
+mode_battle_record:0x79a4 dialogSelectWindowIn(selection)  [dialog.inc]                        # OK / Back
+mode_battle_record:0x7a60 dialogSelectWindowOut()  [dialog.inc]
+mode_battle_record:0x7ac4 dialogConfirmWindowIn()  [dialog.inc]                                # OK only
+mode_battle_record:0x7b50 dialogConfirmWindowOut()  [dialog.inc]
+mode_battle_record:0x7b9c dialogWindowUpdate()  [dialog.inc]
+mode_battle_record:0x7d00 dialogSelectKeyCommand()  [dialog.inc]
+mode_battle_record:0x8128 dialogSelectScreenTouch(x, y)  [dialog.inc]
+mode_battle_record:0x8304 dialogConfirmKeyCommand()  [dialog.inc]
 mode_battle_record:0x8428 dialogConfirmTouch(x, y)
 mode_battle_record:0x84cc dialogSetMessage(const textId[])
 mode_battle_record:0x850c dialogSetOkText(const textId[])

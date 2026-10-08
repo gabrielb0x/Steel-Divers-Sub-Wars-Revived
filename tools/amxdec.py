@@ -18,14 +18,16 @@ from __future__ import annotations
 import argparse
 import dataclasses
 import json
+import os
 import re
 import struct
 import sys
 from dataclasses import dataclass, field
 from pathlib import Path
 
+import versions
 from amx import BRANCHES, CONSTANTS, OP, AmxFile, Instruction
-from amxsym import NATIVES, Parameter, Program, ScriptSymbols, read_natives
+from amxsym import NATIVES, SYMBOLS, Parameter, Program, ScriptSymbols, read_natives
 
 ROOT = Path(__file__).resolve().parent.parent
 
@@ -1768,8 +1770,9 @@ class ScriptDecompiler:
         return "\n".join(out + bodies) + "\n"
 
 
-def load_scripts(paths: list[Path]) -> tuple[dict[str, ScriptDecompiler], list[str]]:
-    """Every script analysed together, so that names and parameter kinds are shared."""
+def load_scripts(paths: list[Path], symbols: Path | None = SYMBOLS) -> tuple[dict[str, ScriptDecompiler], list[str]]:
+    """Every script analysed together, so that names and parameter kinds are shared. symbols: the names
+    written by hand (decomp/pawn/symbols.txt, addresses of the v0 scripts); None for none."""
     path = ROOT / "extracted" / "native_types.json"
     native_types = json.loads(path.read_text()) if path.exists() else {}
     natives, enums = read_natives(NATIVES)
@@ -1784,9 +1787,9 @@ def load_scripts(paths: list[Path]) -> tuple[dict[str, ScriptDecompiler], list[s
     # which refines the matching of the functions across scripts.
     for _ in range(2):
         program = Program(decompilers)
-        symbols, warnings = program.resolve()
+        resolved, warnings = program.resolve(symbols) if symbols else program.resolve(Path(os.devnull))
         for name, dec in decompilers.items():
-            dec.symbols = symbols[name]
+            dec.symbols = resolved[name]
         # What one copy of a function shows about its parameters holds for every copy.
         for f in program.functions.values():
             members = program.members(f)
@@ -1803,21 +1806,62 @@ def load_scripts(paths: list[Path]) -> tuple[dict[str, ScriptDecompiler], list[s
     return decompilers, warnings
 
 
+def translate_symbols(source: Path, dest: Path, version: str) -> list[str]:
+    """decomp/pawn/symbols.txt (addresses of v0's scripts) with the addresses of another version's
+    (tools/amxport.py); returns the entries whose function or global was not found."""
+    import amxport
+    ports: dict[str, amxport.Port] = {}
+    lines, lost = [], []
+    entry = re.compile(r"^(\w+):(g_)?(0x)?([0-9a-fA-F]+)(\s.*)$")
+    for line in source.read_text(encoding="utf-8").splitlines():
+        m = entry.match(line)
+        if not m:
+            lines.append(line)
+            continue
+        script, is_global, value, rest = m[1], m[2], int(m[4], 16), m[5]
+        if script not in ports:
+            ports[script] = amxport.Port(amxport.load(script, versions.BASE), amxport.load(script, version))
+        port = ports[script]
+        if is_global:
+            votes = port.global_votes.get(value)
+            if votes and len(votes) == 1:
+                lines.append(f"{script}:g_{port.globals[value]:04x}{rest}")
+                continue
+        elif value in port.functions and port.similarity[value] >= 0.8:     # not a mere look-alike
+            lines.append(f"{script}:{port.functions[value]:#06x}{rest}")
+            continue
+        lost.append(line.split("#")[0].rstrip())
+    dest.write_text("\n".join(lines) + "\n", encoding="utf-8")
+    return lost
+
+
 def main() -> None:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("files", nargs="*", type=Path, help=".amx files (default: every romfs:/amx script)")
-    ap.add_argument("-o", "--out", type=Path, default=ROOT / "decomp" / "scripts")
+    ap.add_argument("-o", "--out", type=Path, help="default: decomp/scripts (v0), else build/scripts-<version>")
+    ap.add_argument("--version", default=versions.BASE, help="version of the game: v0 (default) or v5200; the "
+                    "names of decomp/pawn/symbols.txt are those of v0's scripts and only apply to it")
     args = ap.parse_args()
 
-    every = sorted((ROOT / "extracted" / "romfs" / "amx").glob("*.amx"))
+    files = versions.game_files(args.version)
+    every = [files.path(f) for f in files.glob("amx/*.amx")]
+    out = args.out or (ROOT / "decomp" / "scripts" if args.version == versions.BASE
+                       else ROOT / "build" / f"scripts-{args.version}")
     wanted = {p.stem for p in args.files} if args.files else {p.stem for p in every}
-    decompilers, warnings = load_scripts(every)
+    symbols = SYMBOLS
+    if args.version != versions.BASE:
+        symbols = out / "symbols.txt"
+        out.mkdir(parents=True, exist_ok=True)
+        lost = translate_symbols(SYMBOLS, symbols, args.version)
+        for line in lost:
+            print(f"[!] not in {args.version}: {line}", file=sys.stderr)
+    decompilers, warnings = load_scripts(every, symbols)
     for w in warnings:
         print(f"[!] {w}", file=sys.stderr)
-    args.out.mkdir(parents=True, exist_ok=True)
+    out.mkdir(parents=True, exist_ok=True)
     for name in sorted(wanted):
-        (args.out / f"{name}.p").write_text(decompilers[name].decompile())
-    print(f"[+] {len(wanted)} scripts decompiled into {args.out}")
+        (out / f"{name}.p").write_text(decompilers[name].decompile())
+    print(f"[+] {len(wanted)} scripts decompiled into {out}")
 
 
 if __name__ == "__main__":

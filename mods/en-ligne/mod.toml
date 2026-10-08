@@ -308,7 +308,7 @@ asm.v0 = """
     push.c 4
     call 0x4aac                     ; dialogSetMessage
     push.c 0
-    call 0x40a4                     ; dialogOpenConfirm
+    call 0x40a4                     ; dialogConfirmWindowIn
     const.pri 3
     stor.pri g_0000                 ; state 3: OK -> sysSetMode("mode_internet_menu")
     jump 0x96cc
@@ -364,23 +364,19 @@ select = "collshape"
 copy = { file = "bxml/pscope_ply01.bxml", select = "collshape" }
 
 [[amx]]
-versions = ["v0"]                       # v5200 : à porter (adresses des scripts)
 file = "amx/hud.amx"
-asm_file = "bots_hud.pasm"
+asm_file = { v0 = "bots_hud.pasm", v5200 = "bots_hud-v5200.pasm" }
 [[amx]]
-versions = ["v0"]                       # v5200 : à porter (adresses des scripts)
 file = "amx/mode_lobby.amx"
-asm_file = "bots_salon.pasm"
+asm_file = { v0 = "bots_salon.pasm", v5200 = "bots_salon-v5200.pasm" }
 
 [[amx]]
-versions = ["v0"]                       # v5200 : à porter (adresses des scripts)
 file = "amx/mode_periscope.amx"
-asm_file = "bots_bataille.pasm"
+asm_file = { v0 = "bots_bataille.pasm", v5200 = "bots_bataille-v5200.pasm" }
 
 [[amx]]
-versions = ["v0"]                       # v5200 : à porter (adresses des scripts)
 file = "amx/game_state.amx"
-asm_file = "bots_partie.pasm"
+asm_file = { v0 = "bots_partie.pasm", v5200 = "bots_partie-v5200.pasm" }
 
 # Les sous-marins pilotés par l'ordinateur des parties en ligne (bots du serveur, et ceux que le jeu ajoute pour
 # compléter les équipes) jouent comme des joueurs : physique et caractéristiques d'un sous-marin de joueur,
@@ -388,24 +384,20 @@ asm_file = "bots_partie.pasm"
 # là où sera la cible, torpilles à tête chercheuse, esquive, masqueur et repli quand la coque est basse.
 # Écrits en Pawn (src/*.p), compilés en assembleur par tools/pawn2pasm.py ; les .pasm sont générés.
 [[amx]]
-versions = ["v0"]                       # v5200 : à porter (adresses des scripts)
 file = "amx/surface_sub.amx"
-asm_file = "bots_ia.pasm"
+asm_file = { v0 = "bots_ia.pasm", v5200 = "bots_ia-v5200.pasm" }
 
 [[amx]]
-versions = ["v0"]                       # v5200 : à porter (adresses des scripts)
 file = "amx/surface_torpedo.amx"
-asm_file = "bots_torpille.pasm"
+asm_file = { v0 = "bots_torpille.pasm", v5200 = "bots_torpille-v5200.pasm" }
 
 [[amx]]
-versions = ["v0"]                       # v5200 : à porter (adresses des scripts)
 file = "amx/surface_torpedo_p_homing.amx"
-asm_file = "bots_torpille_tc.pasm"
+asm_file = { v0 = "bots_torpille_tc.pasm", v5200 = "bots_torpille_tc-v5200.pasm" }
 
 [[amx]]
-versions = ["v0"]                       # v5200 : à porter (adresses des scripts)
 file = "amx/pscope_player.amx"
-asm_file = "bots_joueur.pasm"
+asm_file = { v0 = "bots_joueur.pasm", v5200 = "bots_joueur-v5200.pasm" }
 
 # -- Anti-triche (anti_triche_*.pasm), quand le serveur n'autorise pas la triche (server.anticheat) --------
 # Chaque console surveille son propre sous-marin en bataille : dégâts annulés sans raison du jeu,
@@ -416,17 +408,14 @@ asm_file = "bots_joueur.pasm"
 # l'écart pendant anticheat_ban minutes (serveur.toml). Un jeu dont on a retiré ce mod échappe à la
 # surveillance : c'est la limite de tout anti-triche dans un jeu en P2P.
 [[amx]]
-versions = ["v0"]                       # v5200 : à porter (adresses des scripts)
 file = "amx/pscope_player.amx"
-asm_file = "anti_triche_joueur.pasm"
+asm_file = { v0 = "anti_triche_joueur.pasm", v5200 = "anti_triche_joueur-v5200.pasm" }
 
 [[amx]]
-versions = ["v0"]                       # v5200 : à porter (adresses des scripts)
 file = "amx/periscope_move.amx"
-asm_file = "anti_triche_tir.pasm"
+asm_file = { v0 = "anti_triche_tir.pasm", v5200 = "anti_triche_tir-v5200.pasm" }
 
 [[amx]]
-versions = ["v0"]                       # v5200 : à porter (adresses des scripts)
 file = "amx/mode_internet_menu.amx"     # joinSession, après inetSetAttribute(3, somme de version)
 asm = """
 .hook ${join_hook_internet}
@@ -459,7 +448,6 @@ acReport:
 """
 
 [[amx]]
-versions = ["v0"]                       # v5200 : à porter (adresses des scripts)
 file = "amx/mode_peri_result.amx"       # joinSession (« continuer en ligne »), au même endroit
 asm = """
 .hook ${join_hook_result}

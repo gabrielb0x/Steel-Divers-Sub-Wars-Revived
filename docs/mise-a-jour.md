@@ -1,7 +1,7 @@
 # La mise à jour v5200
 
-*Avancement estimé : 85 % — la mise à jour s'extrait, s'installe dans Azahar et tous les mods sauf le jeu en ligne
-marchent avec elle (tableau plus bas).*
+*Avancement estimé : 90 % — la mise à jour s'extrait, s'installe dans Azahar et tous les mods marchent avec elle ;
+les bots et l'anti-triche du jeu en ligne restent à voir dans l'émulateur (tableau plus bas).*
 
 Steel Diver: Sub Wars a reçu des mises à jour tant que l'eShop était ouvert. La dernière, en Europe, est le titre
 `0004000E000D7E00` en **version 5200** (5.5.0), construite à la révision 33269 du dépôt des développeurs (le jeu
@@ -63,6 +63,27 @@ pour la v0 empêcherait donc la v5200 de démarrer (son patch de code tomberait 
 - chaque recette dit avec quelles versions elle marche (`versions = ["v0", "v5200"]`, voir
   [mods/README.md](../mods/README.md#versions-du-jeu)), et le lanceur l'affiche sur chaque mod.
 
+## Des scripts d'une version à l'autre
+
+*Avancement estimé : 90 % — `tools/amxport.py` apparie 97 % des instructions des 123 scripts (de 70 % pour `hud_pause`
+à 100 %) ; les fonctions modifiées restent à lire à la main.*
+
+`tools/amxport.py` dit où est, dans la v5200, une adresse d'un script de la v0 (et inversement, `--reverse`) :
+
+```sh
+python3 tools/amxport.py surface_sub 0xcf80 g_1ca0      # 0xcf80 -> 0xf3b8, g_1ca0 -> g_3730
+python3 tools/amxport.py --show mode_lobby 0xebf8      # le code autour, les deux versions alignées
+python3 tools/amxport.py --stats                       # la part de chaque script appariée
+```
+
+Chaque instruction devient un jeton qui ne dépend pas des adresses (cibles de saut et globales masquées, natives par
+leur nom, chaînes par leur texte) ; les fonctions sont appariées par leur code identique, leur nom de journal
+(`[fichier.inc::fonction]`), les fonctions qu'elles appellent, puis par ressemblance (une mise à jour peut déplacer
+un fichier `.inc` entier : celui de `connect.inc` a changé de place dans `mode_internet_menu`) ; deux fonctions
+appariées sont alignées instruction par instruction, et chaque globale d'une instruction alignée vote pour son
+adresse dans l'autre version. Le pseudo-Pawn de la v5200 s'obtient avec `tools/amxdec.py --version v5200`
+(dans `build/scripts-v5200/`, sans les noms de `decomp/pawn/symbols.txt`, qui sont ceux de la v0).
+
 ## Une mise à jour chiffrée
 
 *Avancement estimé : 100 %.*
@@ -75,8 +96,8 @@ et le disent.
 
 ## Les mods et la v5200
 
-*Avancement estimé : 90 % — tous les mods marchent avec la v5200, vérifiés dans Azahar, sauf les bots et l'anti-triche
-du jeu en ligne.*
+*Avancement estimé : 95 % — tous les mods sont portés à la v5200 ; les bots et l'anti-triche du jeu en ligne, portés
+par `tools/amxport.py`, restent à voir dans Azahar.*
 
 Les adresses viennent de la correspondance des fonctions (code ARM) et des scripts Pawn entre les deux versions :
 même code aux adresses près, ou, pour les fonctions modifiées, alignement instruction par instruction de la
@@ -87,9 +108,9 @@ fonction la plus proche.
 | `correctifs` | ✓ | ✓ | le shader corrigé (`shaders/metaball.shbin`) n'a pas changé |
 | `pseudo` | ✓ | ✓ | les mêmes fonctions `FaceSystem`, à leurs adresses de la v5200 |
 | `version`, `mention-titre`, `texte-titre` | ✓ | ✓ | textes et mise en page, pris dans les fichiers de la v5200 |
-| `premium` | ✓ | ✓ | plus `sysDLCCheckOwned`, les sous-marins 27 à 36 et huit tableaux de déblocage ([premium.md](premium.md#dans-la-mise-à-jour-v5200)) ; vérifié : les 40 membres d'équipage et les sous-marins de la mise à jour débloqués |
+| `premium` | ✓ | ✓ | plus `sysDLCCheckOwned`, les sous-marins 27 à 36 et huit tableaux de déblocage ([premium.md](premium.md#dans-la-mise-à-jour-v5200)) ; vérifié : les 40 membres d'équipage et les sous-marins de la mise à jour débloqués ; les couleurs des motifs ne sont plus perdues à chaque démarrage, et sans le DLC le pilote voit une proue du jeu (la coque de la classe Z cachait la vue) |
 | `missions` | ✓ | ✓ | vérifié : toutes les missions et tous leurs niveaux ouverts, le total indique 21 |
 | `triche` | ✓ | ✓ | l'invincibilité couvre aussi la mine flottante ; vérifié : tir sans délai, torpilles infinies |
 | `vitesse` | ✓ | ✓ | les tables d'accélération n'ont pas changé |
 | `specs` | ✓ | ✓ | les 39 sous-marins, dans un fichier à part (`sous-marins-v5200.toml`) : leurs valeurs diffèrent |
-| `en-ligne` | ✓ | en partie | connexion au serveur, recherche de partie et dialogue du serveur vérifiés ([online.md](online.md#9-la-mise-à-jour-v5200)) ; les bots du serveur et l'anti-triche restent à porter |
+| `en-ligne` | ✓ | ✓ | connexion au serveur, recherche de partie et dialogue du serveur vérifiés ([online.md](online.md#9-la-mise-à-jour-v5200)) ; bots du serveur et anti-triche portés par `tools/amxport.py` (`*-v5200.pasm`), à voir dans Azahar ; jamais de partie commune entre v0 et v5200 |
