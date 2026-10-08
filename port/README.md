@@ -1,10 +1,10 @@
-# Portage PC
+# PC port
 
-*Avancement estimé : 0 % — pas commencé ; la stratégie est choisie (feuille de route, volet 2).*
+*Estimated progress: 0 % — not started; the strategy is chosen (roadmap, part 2).*
 
-Pas encore commencé. Stratégie retenue en attendant validation : voir le volet 2 de
-[../docs/roadmap.md](../docs/roadmap.md) (recompilation statique ARM11 → C, HLE des services 3DS, rendu PICA200 sur
-OpenGL/Vulkan, puis remplacement progressif par le code de `decomp/src/`).
+Not started yet. Strategy chosen until it is validated: see part 2 of [../docs/roadmap.md](../docs/roadmap.md) (static
+ARM11 → C recompilation, HLE of the 3DS services, PICA200 rendering on OpenGL/Vulkan, then progressive replacement by
+the code of `decomp/src/`).
 
-Le portage lira les données directement depuis le dump de l'utilisateur (`extracted/`) : aucun asset du jeu ne sera
-distribué avec l'exécutable.
+The port will read the data directly from the user's dump (`extracted/`): no asset of the game will be distributed with
+the executable.

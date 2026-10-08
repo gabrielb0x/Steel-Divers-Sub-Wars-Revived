@@ -54,7 +54,7 @@ botHit(other, const Float:point[3], Float:toPlayer, Float:toBot, homing)
     netCallPublic(UID_PLAYER, "@eventMessageWeaponHitTorp", torpedo, victim, _:toPlayer, node,
                   _:point[0], _:point[1], _:point[2], 0, 0, 1);
     if (sysGetGlobal("server.bots"))
-        netCallPublic(UID_GAME_STATE, "@botAttacks", victim, shooterNode());    // "<bot> vous attaque !"
+        netCallPublic(UID_GAME_STATE, "@botAttacks", victim, shooterNode());    // "<bot> is attacking you!"
     return (type & COLL_PLAYER) ? 3 : 2;
 }
 

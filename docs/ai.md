@@ -1,108 +1,103 @@
-# Une IA entraînée aussi forte qu'un joueur : combien de parties ?
+# A trained AI as strong as a player: how many matches?
 
-Les bots actuels du serveur (`mods/online/bots_*.pasm`) sont **écrits à la main** : ils visent l'ennemi le plus
-proche là où il sera et tirent dès qu'ils sont alignés. Cette page estime ce qu'il faudrait pour une IA
-**apprise** (apprentissage par renforcement), aussi forte qu'un joueur humain, en local et en ligne. Ce sont des
-ordres de grandeur, pas des promesses.
+The server's current bots (`mods/online/bots_*.pasm`) are **written by hand**: they aim at the nearest enemy where
+it will be and fire as soon as they are lined up. This page estimates what an AI **learnt** by reinforcement
+learning, as strong as a human player, offline and online, would take. These are orders of magnitude, not promises.
 
-## En bref
+## In short
 
-*Avancement estimé : 0 % — aucune IA n'est entraînée ; cette page n'est qu'une estimation.*
+*Estimated progress: 0 % — no AI is trained; this page is only an estimate.*
 
-Parties de 10 minutes en 4 contre 4, l'IA pilotant les 8 sous-marins (elle joue contre elle-même) :
+10-minute 4-against-4 battles, the AI flying the 8 submarines (it plays against itself):
 
-| Joueur à égaler | Parties d'entraînement | Temps de jeu équivalent (une partie à la fois) |
+| Player to match | Training matches | Equivalent playing time (one match at a time) |
 |---|---|---|
-| **Joueur en local**, occasionnel (entre amis, quelques dizaines de parties) | **3 000 à 10 000** | 3 semaines à 2 mois et demi |
-| **Joueur en ligne moyen** (milieu du classement de l'époque) | **15 000 à 40 000** | 3 mois et demi à 9 mois |
-| **Bon joueur en ligne** (haut du classement : visée de loin, esquives, sonar et masqueur au bon moment, jeu d'équipe) | **40 000 à 150 000** | 9 mois à 3 ans |
+| **Local player**, casual (among friends, a few dozen matches) | **3,000 to 10,000** | 3 weeks to 2.5 months |
+| **Average online player** (middle of the ranking of the time) | **15,000 to 40,000** | 3.5 to 9 months |
+| **Good online player** (top of the ranking: long-range aiming, dodges, sonar and masker at the right time, team play) | **40,000 to 150,000** | 9 months to 3 years |
 
-Les règles sont les mêmes en local et en ligne (mêmes sous-marins, mêmes cartes) : seule change la force des
-humains à égaler. En local, on joue surtout entre amis peu entraînés ; en ligne, les joueurs réguliers avaient
-des centaines de parties derrière eux. Le temps de calcul réel est bien plus court que le temps de jeu, parce
-que l'IA joue plusieurs parties à la fois et plus vite que le temps réel (voir plus bas).
+The rules are the same offline and online (same submarines, same maps): only the strength of the humans to match
+changes. Offline, people mostly play among friends with little training; online, the regulars had hundreds of
+matches behind them. The real computing time is much shorter than the playing time, because the AI plays several
+matches at once and faster than real time (see below).
 
-## Ce que l'IA doit apprendre
+## What the AI has to learn
 
-*Avancement estimé : 10 % — on sait où lire l'état du jeu (variables des scripts, acteurs) et quelles commandes
-envoyer ; rien n'est branché.*
+*Estimated progress: 10 % — we know where to read the game's state (script variables, actors) and which commands to
+send; nothing is wired.*
 
-- **Observer** : sa position, son cap, sa profondeur, sa vitesse ; ce que montrent le sonar et le périscope
-  (ennemis visibles, torpilles en approche) ; l'état de son équipe, son air et ses torpilles. On lit cet état dans
-  le jeu (variables des scripts, acteurs) plutôt que dans l'image : c'est 10 à 100 fois moins coûteux à apprendre
-  que des pixels.
-- **Agir** 7 à 8 fois par seconde (une décision toutes les 4 images) : moteur (avant/arrière), barre, plongée,
-  direction du périscope, tir, torpille guidée, sonar, masqueur.
-- **Gagner** : couler, ne pas être coulé, rester en vie avec l'équipe jusqu'à la fin du temps.
+- **Observe**: its position, heading, depth, speed; what the sonar and the periscope show (visible enemies,
+  incoming torpedoes); the state of its team, its air and its torpedoes. This state is read in the game (script
+  variables, actors) rather than in the image: that is 10 to 100 times cheaper to learn than pixels.
+- **Act** 7 to 8 times a second (one decision every 4 frames): engine (ahead/astern), helm, dive, periscope
+  direction, fire, homing torpedo, sonar, masker.
+- **Win**: sink, not be sunk, stay alive with the team until time runs out.
 
-## D'où viennent ces nombres
+## Where these numbers come from
 
-*Avancement estimé : 100 % pour l'estimation (hypothèses et comparaisons ci-dessous) ; à vérifier par un premier
-entraînement.*
+*Estimated progress: 100 % for the estimate (assumptions and comparisons below); to be checked by a first
+training.*
 
-- **Une partie, c'est beaucoup d'expérience** : 10 minutes à 30 images par seconde, 18 000 images ; à une décision
-  toutes les 4 images, 4 500 décisions par sous-marin, 36 000 pour les 8. Le niveau « bon joueur en ligne »
-  représente 1,5 à 5 milliards de décisions, l'ordre de grandeur des entraînements réussis sur des jeux d'action
-  de cette taille.
-- **Comparaisons publiées** : les agents de *Capture the Flag* de DeepMind (Quake III, équipes de 2, vision en
-  pixels) ont dépassé de bons joueurs humains au bout d'environ 450 000 parties de 5 minutes ; OpenAI Five
-  (Dota 2, bien plus complexe) a joué l'équivalent de dizaines de milliers d'années. Sub Wars est plus lent, a
-  moins d'actions et des cartes plus simples, et l'IA y lirait l'état du jeu au lieu de pixels : il lui faut 3 à
-  10 fois moins de parties que dans *Capture the Flag* pour le haut niveau.
-- **Comparaison avec un humain** : un débutant devient un joueur correct en quelques dizaines de parties et un bon
-  joueur en ligne en quelques centaines à deux mille ; une IA partie de zéro a besoin de 10 à 100 fois plus
-  d'expérience qu'un humain, qui arrive avec son sens de l'espace et des jeux déjà appris.
+- **A match is a lot of experience**: 10 minutes at 30 frames per second, 18,000 frames; at one decision every 4
+  frames, 4,500 decisions per submarine, 36,000 for the 8. The "good online player" level stands for 1.5 to 5
+  billion decisions, the order of magnitude of the successful trainings on action games of this size.
+- **Published comparisons**: DeepMind's *Capture the Flag* agents (Quake III, teams of 2, pixel vision) beat good
+  human players after about 450,000 five-minute matches; OpenAI Five (Dota 2, far more complex) played the
+  equivalent of tens of thousands of years. Sub Wars is slower, has fewer actions and simpler maps, and the AI would
+  read the game's state instead of pixels: it needs 3 to 10 times fewer matches than in *Capture the Flag* for the
+  top level.
+- **Comparison with a human**: a beginner becomes a decent player in a few dozen matches and a good online player in
+  a few hundred to two thousand; an AI starting from scratch needs 10 to 100 times more experience than a human, who
+  arrives with a sense of space and of games already learnt.
 
-## Combien de temps de calcul
+## How much computing time
 
-*Avancement estimé : 0 % — ni passerelle vers le jeu ni simulateur.*
+*Estimated progress: 0 % — neither a bridge to the game nor a simulator.*
 
-Tout dépend de la vitesse à laquelle on peut faire jouer le jeu.
+Everything depends on how fast the game can be made to play.
 
-**Dans le vrai jeu (Azahar)** : un émulateur tourne à 1 à 3 fois le temps réel sur un bon PC, et chaque console
-ne pilote qu'un sous-marin ; une partie à 8 IA demande 8 émulateurs (environ 1,2 Go de mémoire chacun). Sur un
-PC de 16 cœurs et 32 Go : 15 à 25 parties par heure.
+**In the real game (Azahar)**: an emulator runs at 1 to 3 times real time on a good PC, and each console only flies
+one submarine; a match of 8 AIs needs 8 emulators (about 1.2 GB of memory each). On a PC with 16 cores and 32 GB:
+15 to 25 matches per hour.
 
-| Joueur à égaler | Calcul sans arrêt dans Azahar |
+| Player to match | Non-stop computing in Azahar |
 |---|---|
-| Joueur en local | 5 jours à 4 semaines |
-| Joueur en ligne moyen | 3 semaines et demie à 4 mois |
-| Bon joueur en ligne | 2 à 14 mois |
+| Local player | 5 days to 4 weeks |
+| Average online player | 3.5 weeks to 4 months |
+| Good online player | 2 to 14 months |
 
-**Dans un simulateur à nous** : recoder la physique du jeu (déplacement des sous-marins, torpilles, dégâts,
-collisions avec les cartes, sonar) d'après les scripts décompilés (`decomp/scripts/pscope_player.p`,
-`periscope_move.p`, `surface_torpedo.p` ; formats des cartes dans [formats.md](formats.md)), sans affichage et
-vectorisé sur carte graphique. Il tourne des milliers de fois plus vite que le temps réel :
+**In a simulator of our own**: write the game's physics again (movement of the submarines, torpedoes, damage,
+collisions with the maps, sonar) from the decompiled scripts (`decomp/scripts/pscope_player.p`,
+`periscope_move.p`, `surface_torpedo.p`; map formats in [formats.md](formats.md)), without display and vectorised on
+a graphics card. It runs thousands of times faster than real time:
 
-| Étape | Durée estimée |
+| Step | Estimated time |
 |---|---|
-| Simulateur fidèle au jeu, vérifié contre le jeu (mêmes trajectoires, mêmes touches) | 1 à 3 mois de développement |
-| Entraînement jusqu'au joueur en local | quelques heures sur une carte graphique récente |
-| Entraînement jusqu'au bon joueur en ligne (auto-apprentissage, ligues d'adversaires) | 2 à 7 jours (ou 30 à 150 € de location de GPU) |
-| Passerelle vers le vrai jeu : l'IA lit l'état et envoie les commandes d'une console émulée | 2 à 4 semaines |
-| Ajustement dans le vrai jeu (écarts entre simulateur et jeu) | 1 000 à 5 000 parties, 1 à 2 semaines de calcul |
+| A simulator true to the game, checked against the game (same paths, same hits) | 1 to 3 months of development |
+| Training up to the local player | a few hours on a recent graphics card |
+| Training up to the good online player (self-play, leagues of opponents) | 2 to 7 days (or 30 to 150 € of GPU rental) |
+| Bridge to the real game: the AI reads the state and sends the commands of an emulated console | 2 to 4 weeks |
+| Tuning in the real game (gaps between simulator and game) | 1,000 to 5,000 matches, 1 to 2 weeks of computing |
 
-Soit **3 à 5 mois** en tout pour une personne, dont l'essentiel en développement. Le PC de développement
-actuel (7 Go de mémoire, sans carte graphique dédiée) ne suffit pas pour l'entraînement : il faudrait un PC
-avec une carte graphique ou un serveur loué quelques jours.
+That is **3 to 5 months** in all for one person, mostly development. A modest development PC (a few GB of memory,
+no dedicated graphics card) is not enough for the training: it would take a PC with a graphics card, or a server
+rented for a few days.
 
-## Plus vite : imiter de vrais joueurs
+## Faster: imitate real players
 
-*Avancement estimé : 5 % — le serveur et le mod en ligne existent ; aucun enregistrement de partie.*
+*Estimated progress: 5 % — the server and the online mod exist; no recording of matches.*
 
-Notre serveur fait de nouveau jouer des humains en ligne : avec leur accord, le mod pourrait enregistrer leurs
-commandes et l'état du jeu. Quelques centaines de parties de bons joueurs suffisent pour apprendre d'abord à
-les imiter, puis l'auto-apprentissage améliore l'IA : on atteint le niveau d'un joueur en local en **quelques
-centaines de parties** d'entraînement, et celui d'un bon joueur en ligne en **5 000 à 20 000** au lieu de
-40 000 à 150 000. Il n'existe aucun enregistrement de l'époque des serveurs de Nintendo.
+Our server has humans playing online again: with their consent, the mod could record their commands and the game's
+state. A few hundred matches of good players are enough to first learn to imitate them, then self-play improves the
+AI: the level of a local player is reached in **a few hundred** training matches, and that of a good online player in
+**5,000 to 20,000** instead of 40,000 to 150,000. No recording exists from the time of Nintendo's servers.
 
-## Et pour des bots comme de vrais joueurs
+## And for bots like real players
 
-*Avancement estimé : 80 % — les bots écrits à la main pilotent maintenant comme des joueurs ([bots.md](bots.md)) ;
-une IA apprise reste à faire.*
+*Estimated progress: 80 % — the hand-written bots now fly like players ([bots.md](bots.md)); a learnt AI remains to
+do.*
 
-Les bots en ligne ont désormais la physique, les collisions et les armes d'un joueur, et un pilote écrit à la
-main ([bots.md](bots.md)) : visée là où sera la cible, esquive, repli sous le masqueur. Une IA apprise irait plus
-loin (tactique d'équipe, sonar, ruses), avec les mêmes commandes. La suite logique : la faire tourner sur le
-serveur, branchée à des consoles émulées sans écran qui rejoignent les parties comme des joueurs, ou directement
-dans le portage PC.
+The online bots now have a player's physics, collisions and weapons, and a hand-written pilot ([bots.md](bots.md)):
+aiming where the target will be, dodging, retreating under the masker, varied maneuvers, learning how each player
+dodges. A learnt AI would go further (team tactics, sonar, tricks), with the same commands. The logical next step:
+run it on the server, wired to headless emulated consoles that join matches as players, or directly in the PC port.

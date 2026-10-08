@@ -94,7 +94,7 @@ def count(version: str = versions.BASE) -> int:
 def read_game_stats(n: int, version: str = versions.BASE) -> dict[str, str]:
     path = versions.game_files(version).path(stats_file(n))
     if not path.exists():
-        raise SubsError(f"{stats_file(n)} introuvable : il faut d'abord extraire le jeu (make extract)")
+        raise SubsError(f"{stats_file(n)} not found: extract the game first (make extract)")
     from bxml import Bxml
     return dict(ET.fromstring(Bxml(path.read_bytes()).to_xml()).attrib)
 

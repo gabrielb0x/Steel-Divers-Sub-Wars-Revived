@@ -34,7 +34,7 @@ static u32 hashName(const char *name)
 // only read the script's string and array and call them, without locking anything: the scripts and the
 // engine use them from the main thread, and the save thread takes amxSysGetMutex(0).
 
-// ---- the save (format: docs/formats.md#sauvegarde) ----
+// ---- the save (format: docs/formats.md#save) ----
 
 // 0x00329FD8: sysSaveDataSave(prefix, version). The scripts call sysSaveDataSave("save", 27) (save.inc,
 // @saveAll): every global whose name starts with the prefix is written. Built in a 0x22000-byte memory

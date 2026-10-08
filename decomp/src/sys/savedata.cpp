@@ -2,7 +2,7 @@
 //
 // Reconstructed by hand from decomp/raw/source/sys/{savedata,flashmemory}.cpp and the disassembly. Not
 // compilable on its own. The format of the only save file, "save", is written by the scripts' natives
-// (decomp/src/amx/amxsys.cpp, docs/formats.md#sauvegarde); this layer adds a CRC-32 in front of it and
+// (decomp/src/amx/amxsys.cpp, docs/formats.md#save); this layer adds a CRC-32 in front of it and
 // writes it from a thread, so that the game keeps running while the card is written.
 // Left out: Screenshot (the 3D photos of the album, imgdb) and the AMX events (amxEvent*), which call the
 // current mode's script to show the error dialogs.

@@ -1,144 +1,180 @@
+<div align="center">
+
 # Steel Diver: Sub Wars — Open Sourced
 
-Projet de rétro-ingénierie de **Steel Diver: Sub Wars** (Nintendo / Vitei, 3DS, 2014) avec trois objectifs :
+**Nintendo's free-to-play submarine shooter for the 3DS, brought back to life:**
+**online battles on community servers, mods, and a decompilation of how the game was made.**
 
-1. **Pseudo-code source** : décompiler le jeu pour comprendre comment il était codé à l'époque (`decomp/`).
-2. **Portage PC** : faire tourner le même jeu, avec les mêmes graphismes, nativement sur PC (`port/`).
-3. **Serveur online** : refaire un serveur pour rejouer en ligne depuis la fermeture du Nintendo Network en avril 2024 (`server/`).
+[![License: MIT](https://img.shields.io/badge/license-MIT-0a7c9c)](LICENSE)
+[![Python 3.11+](https://img.shields.io/badge/python-3.11%2B-0a7c9c)](https://www.python.org/downloads/)
+![Windows · macOS · Linux](https://img.shields.io/badge/runs%20on-Windows%20%C2%B7%20macOS%20%C2%B7%20Linux-0a7c9c)
+[![Emulator: Azahar](https://img.shields.io/badge/emulator-Azahar-0a7c9c)](https://azahar-emu.org/)
 
-> **Aucune donnée du jeu n'est versionnée** (ni CIA, ni code, ni assets, ni sortie brute du décompilateur).
-> Chacun fournit son propre dump ; le `.gitignore` bloque `cia/`, `extracted/`, `decomp/raw/` et `ghidra/project/`.
+[Install](#install) · [Features](#features) · [Play online](#play-online-with-friends) · [Mods](mods/README.md) ·
+[How it works](#how-it-works) · [Docs](#documentation)
 
-## Pour les joueurs : le lanceur
+</div>
 
-*Avancement estimé : 85 % — vérifié sous Linux ; reste à l'essayer sur de vraies machines Windows et macOS.*
+---
 
-Il faut [Python 3.11 ou plus récent](https://www.python.org/downloads/) (rien d'autre), un émulateur
-3DS de la famille de Citra — [Azahar](https://azahar-emu.org/) de préférence, ou Lime3DS, Citra, Borked3DS — et
-**votre** copie du jeu européen, déchiffrée (`.cia`, `.cxi` ou `.3ds`). Windows, macOS et Linux.
+Steel Diver: Sub Wars (Nintendo / Vitei, 2014) lost its online mode when the Nintendo Network closed in April 2024, and
+its full version can no longer be bought since the eShop closed. This project reverse engineers the game to:
 
-1. Téléchargez ce projet (bouton *Code > Download ZIP* sur GitHub) et décompressez-le.
-2. Double-cliquez sur le lanceur de votre système : `launch-windows.bat` (Windows), `launch-macos.command`
-   (macOS ; la première fois, clic droit > Ouvrir), `launch-linux.sh` (Linux), ou dans un terminal
-   `python3 subwars.py`. Le lanceur s'ouvre dans votre navigateur ; il ne parle qu'à votre ordinateur.
-3. Onglet **Jeu** : il trouve votre jeu (dans le dossier `cia/` du projet ou dans Azahar, sinon choisissez le
-   fichier) et le prépare. Avec le `.cia` déchiffré de la **mise à jour v5200** dans `cia/` (facultatif : 16
-   sous-marins et 3 cartes de plus), il la prépare aussi et peut l'installer dans l'émulateur
-   ([docs/update-v5200.md](docs/update-v5200.md)).
-4. Onglet **Mods** : cochez **Premium** (version complète et tous les sous-marins), et si vous voulez **Toutes
-   les missions**, la **Triche** (dont le tir sans délai), la **Vitesse du sous-marin** (×2 à ×15), vos
-   **Caractéristiques** de sous-marins ou le **Jeu en ligne**, puis *Installer dans l'émulateur* (dans chaque
-   émulateur trouvé). Toujours inclus : les **Correctifs** (sans eux, Azahar plante quand une torpille touche un
-   sous-marin sous l'eau) et le **Pseudo** (votre nom en ligne et en local est le pseudo réglé dans
-   l'émulateur, plus « Citra » pour tout le monde) et la **Version** (à la fin de la ligne sous le titre,
-   « v0.1.34 » : la version du projet et son nombre de commits, pour savoir quelle construction on joue). Les
-   mods sont construits pour la version du jeu que fait tourner l'émulateur (v0 ou v5200) ; chacun indique
-   avec quelles versions il marche.
-5. Onglets **Sauvegarde** (tout débloquer, médailles, drapeau premium), **Sous-marins** (caractéristiques),
-   **Musique** (écouter les musiques du jeu, les remplacer par vos MP3 ou WAV, remettre celles d'origine) et
-   **Serveur** (héberger des parties en ligne).
+1. **bring online play back**, with a server anyone can run and an emulator mod that connects to it;
+2. **mod the game** (the full version, your own music, cheats, characteristics...), from recipes applied to your own copy;
+3. **decompile it** into readable pseudo-source, toward a native **PC port**.
 
-Les mêmes outils existent en ligne de commande : `tools/mod.py`, `tools/save.py`, `tools/subs.py`, `tools/music.py`
-([mods/README.md](mods/README.md)). Ils fonctionnent sous Windows, macOS et Linux avec Python seul.
+> [!IMPORTANT]
+> **No game data is in this repository**, and none is ever downloaded by its tools. You bring your own copy of the game;
+> the tools read it on your computer and never send it anywhere.
 
-## État actuel
+## Features
 
-*Avancement estimé du projet : pseudo-code source 20 %, portage PC 0 %, serveur en ligne 85 %, mods 75 % (détail par section dans chaque page).*
+| | |
+|---|---|
+| 🌐 **Online battles again** | A self-hostable server (Python, no dependency) speaks the game's protocols (NEX, PRUDP, Kerberos, NAT traversal). One click in the launcher starts it, opens the router's ports (UPnP) and gives you the address to share. |
+| 🤖 **Bots that play like players** | Alone in a match? Bots join the lobby like players and fly with a player's physics and limits: they aim where you will be, dodge, use the masker, take crews, start at the players' spawn points, and learn how you dodge. |
+| ⭐ **Premium without the eShop** | The full version, every submarine (39 with the update), patterns and crew, unlocked from what is already in the free game. |
+| 🎵 **Your own music** | Listen to any music of the game and replace it with an MP3, WAV, OGG, FLAC... at the original's loudness. One button brings the originals back. |
+| 🛠️ **Mods** | All missions, cheats, submarine speed, your own characteristics, your console nickname instead of "Citra", and a fix for an Azahar crash. |
+| 💾 **Save editor** | Unlock everything, gold medals, any value, export and import as JSON, with a backup before every write. |
+| 🔍 **Decompilation** | 9,431 real function names recovered, the 123 Pawn scripts decompiled, in-house formats documented, the engine being rewritten as readable C++. |
 
-- Extraction complète du CIA (EUR, `00040000000D7E00`, v0), déjà déchiffré : aucune clé de console n'est nécessaire.
-- **Mise à jour v5200** (`0004000E000D7E00`) : extraite dans `extracted/v5200/`, installable dans Azahar ; les
-  mods se construisent pour la version installée, et tous sauf le jeu en ligne marchent déjà avec elle
-  ([docs/update-v5200.md](docs/update-v5200.md)).
-- **Table des symboles du linker trouvée dans le RomFS** (`romfs:/map`) : 9431 fonctions avec leur vrai nom, leur
-  taille et leur fichier objet d'origine (84,7 % du code). Elle est appliquée automatiquement dans Ghidra.
-- 44 chemins de fichiers sources originaux retrouvés (`source/net/session.cpp`, `source/amx/amxactor.cpp`, …).
-- Pseudo-code C++ exporté par fichier objet d'origine dans `decomp/raw/` (généré localement), avec les classes
-  `World`, `AMXLoader` et les 647 natives Pawn typées.
-- **Scripts Pawn décompilés** : les 123 scripts qui portent la logique du jeu (modes, acteurs, interface) sont
-  décompilés en pseudo-Pawn lisible dans `decomp/scripts/` ([docs/pawn-scripts.md](docs/pawn-scripts.md)).
+## Install
 
-- **Données du jeu lisibles et modifiables** : le format BXML (niveaux, stats, textes) est décodé ; `make data`
-  convertit les 490 fichiers en XML, et `tools/bxml.py --to-bxml` les reconvertit (identiques à l'octet près si on
-  n'y touche pas). Formats documentés dans [docs/formats.md](docs/formats.md).
+You need:
 
-- **Moteur en cours de nettoyage** (`decomp/src/`) : boucle principale, chargeur de scripts, monde (pool d'acteurs,
-  format des niveaux, replays), système, cycle de vie des acteurs.
-- **Mods pour Azahar** : `make azahar` rend le jeu installable dans l'émulateur (le CIA de l'eShop est refusé à cause
-  du manuel chiffré), et `tools/mod.py` construit et installe des mods décrits par des recettes
-  ([mods/README.md](mods/README.md), [docs/mods.md](docs/mods.md)).
-- **Le jeu en ligne refonctionne** : serveur maison ([server/](server/README.md), Python sans dépendance) et mod
-  `online` pour Azahar. Deux émulateurs se connectent, se trouvent par le matchmaking et jouent une bataille
-  ensemble. Entre deux maisons, le serveur ouvre lui-même ses ports sur la box (UPnP) et le lanceur donne
-  l'adresse à partager. Protocole reconstitué : [docs/online.md](docs/online.md).
+- **[Python 3.11 or newer](https://www.python.org/downloads/)** — nothing else to install;
+- **[Azahar](https://azahar-emu.org/)** (or another emulator of the Citra family: Lime3DS, Citra, Borked3DS), started at
+  least once;
+- **your own copy** of the European version of the game (`00040000000D7E00`), decrypted: the eShop `.cia`, a `.cxi` or a
+  `.3ds`. Optionally its last **update v5200** (16 more submarines, 3 more maps).
+
+Then:
+
+1. **Download** this project (*Code › Download ZIP* on GitHub) and unzip it.
+2. **Start the launcher**: double-click `launch-windows.bat` (Windows), `launch-macos.command` (macOS; the first time,
+   right-click › Open) or `launch-linux.sh` (Linux), or run `python3 subwars.py`. It opens in your web browser and only
+   talks to your own computer.
+3. **Game tab** — *Find the game and prepare it*: the launcher looks for your game in the project's `cia/` folder and in
+   the emulator, or lets you choose the file. It prepares the update too if it finds it, and installs it into the
+   emulator.
+4. **Mods tab** — tick what you want (**Premium** to start with), then *Install into the emulator*. Restart the game in
+   Azahar: done.
+
+<details>
+<summary>What the launcher's tabs do</summary>
+
+| Tab | |
+|---|---|
+| **Game** | finds and prepares your game and its update, makes a copy Azahar accepts (the eShop CIA's manual is encrypted), installs the update into the emulator |
+| **Mods** | builds the mods you tick for the version of the game your emulator runs (v0 or v5200) and installs them into every emulator found |
+| **Save** | unlock everything, gold medals, clear the premium flag of an old save, edit any value |
+| **Submarines** | your own characteristics of each submarine (the *Characteristics* mod applies them) |
+| **Music** | listen to the game's music, replace it with yours at the same loudness, restore the originals |
+| **Server** | host online battles: start the server, share its address, test a friend's, edit its options |
+| **Help** | short answers to the usual questions |
+
+</details>
+
+The same tools exist on the command line (`tools/mod.py`, `tools/save.py`, `tools/subs.py`, `tools/music.py`): see
+[mods/README.md](mods/README.md). They run on Windows, macOS and Linux with Python alone.
+
+## Play online with friends
+
+1. **One player hosts**: launcher › **Server** › *Start the server*. It finds its public address, asks the router to open
+   its ports, and shows **the address to give to your friends**.
+2. **Everyone installs the *Online play* mod**: the host keeps the default address (`127.0.0.1`); friends paste the
+   host's address in *Join a friend's server* (*Test* checks it answers), then *Use it for the Online play mod* and
+   *Install into the emulator*.
+3. In the game: **Multiplayer › Internet Battle**. Players of the same version who cheat or do not cheat alike meet in
+   the same lobby; a player left alone gets bots after the delay set by the server.
+
+Behind a router that cannot forward ports (shared IPv4, operator NAT), a virtual private network such as ZeroTier or
+Tailscale works without opening anything: see [server/README.md](server/README.md#play-with-friends-far-away).
+
+## Project status
+
+| Part | Progress | |
+|---|---|---|
+| 🌐 Online server | `█████████░` 90 % | protocol complete, checked with the real game; a real battle between two homes remains |
+| 🛠️ Mods for Azahar | `████████░░` 80 % | all listed mods work with v0 and v5200; 60 fps waits for the PC port |
+| 🤖 Bots | `█████████░` 90 % | checked in a sandbox; remain to be seen in long battles in Azahar |
+| 🔍 Pseudo-source | `██░░░░░░░░` 20 % | everything exported and the scripts decompiled; 9 % of the game's code rewritten cleanly |
+| 💻 PC port | `░░░░░░░░░░` 0 % | strategy chosen: static recompilation + HLE ([roadmap](docs/roadmap.md)) |
+
+## How it works
+
+- **Mods are recipes, never modified games.** Each mod is a `mods/<name>/mod.toml` listing changes (texts, data, ARM code
+  patches, Pawn script hooks, music) that `tools/mod.py` applies to your own files to make the folder Azahar loads
+  (`load/mods/00040000000D7E00/`). Sharing a mod means sharing its recipe.
+- **The game's logic is in Pawn.** 123 compiled scripts drive the modes, the submarines and the interface. The project
+  disassembles, decompiles and assembles them, and compiles new Pawn code into hooks (that is how the bots are written).
+- **The developers left the linker's symbol table** in the game's files: 9,431 functions with their real names, sizes
+  and object files, applied automatically in Ghidra.
+- **The online mod** replaces the three functions of the console's *friends* module that Azahar does not emulate, and
+  points the game at your server; the battles stay peer to peer, as on the console.
+
+## Documentation
+
+| | |
+|---|---|
+| [docs/initial-analysis.md](docs/initial-analysis.md) | the dump, the symbol table, the game's architecture, the RomFS |
+| [docs/online.md](docs/online.md) | the online mode, step by step, as the server implements it |
+| [docs/bots.md](docs/bots.md) | the bots' pilot, crews, the sandbox and its results |
+| [docs/mods.md](docs/mods.md) | what can be modded and how, the Azahar crash, 60 fps |
+| [docs/premium.md](docs/premium.md) | free version, premium and add-on contents |
+| [docs/update-v5200.md](docs/update-v5200.md) | the last update, and how mods follow both versions |
+| [docs/formats.md](docs/formats.md) | BXML, levels, collisions, the save, music streams |
+| [docs/pawn-scripts.md](docs/pawn-scripts.md) | the Pawn scripts and their decompiler |
+| [docs/ai.md](docs/ai.md) | how many matches a trained AI would need to match a player |
+| [docs/roadmap.md](docs/roadmap.md) | the plan, part by part |
+| [mods/README.md](mods/README.md) · [server/README.md](server/README.md) · [decomp/README.md](decomp/README.md) | mods and recipes · the server · the pseudo-source |
+
+## For developers
+
+<details>
+<summary>Reverse-engineering pipeline (Linux)</summary>
+
+Requirements: Linux, Python 3.11+, Java 21+, [Ghidra 12](https://github.com/NationalSecurityAgency/ghidra/releases)
+unpacked in a path **without non-ASCII characters** (e.g. `~/tools/`; Ghidra fails to start otherwise).
 
 ```sh
-cd server && python3 -m sdsw_server                        # le serveur (royaumes « emulateur » et « pc »)
-.venv/bin/python tools/mod.py build online --set server=<adresse> --install    # chaque joueur
-.venv/bin/python tools/mod.py build online triche --set server=<adresse> --install   # avec la triche
+./setup.sh          # Python venv + Ghidra detection (writes local.env)
+cp <your dump>.cia cia/
+make                # extraction -> ELF -> Ghidra analysis -> C++ pseudo-code -> decompiled Pawn scripts
 ```
 
-  Le serveur règle le nombre de joueurs humains par partie et décide quoi faire des tricheurs. Un joueur
-  resté seul une minute joue contre des bots qui rejoignent la partie comme des joueurs (noms, vrais
-  sous-marins, niveaux) ; équipes (4v4, 1v4…), carte, niveau, durée et noms se règlent dans le lanceur
-  ([server/README.md](server/README.md)).
-- **Premium sans l'eShop** : le mod `premium` débloque la version complète, les 23 sous-marins (dont les 5
-  historiques vendus à part), les motifs et l'équipage ([docs/premium.md](docs/premium.md)).
-- **Éditeur de sauvegarde** : `tools/save.py` affiche et modifie la sauvegarde d'Azahar (déblocages, médailles,
-  n'importe quelle valeur, export JSON) ; format dans [docs/formats.md](docs/formats.md#sauvegarde).
-- **Plantage d'Azahar corrigé** : quand une torpille touchait un sous-marin sous l'eau, l'émulateur remplissait
-  la mémoire et se faisait tuer par le système. C'est un bug du JIT de shaders d'Azahar (et de Citra), déclenché
-  par le geometry shader de la nappe d'huile ; le mod `correctifs`, inclus dans tous les mods, le contourne
-  ([docs/mods.md](docs/mods.md#correctifs)).
-- **Autres mods** : `missions` (les 21 missions jouables tout de suite, sans toucher à la sauvegarde), `vitesse`
-  (votre sous-marin ×2, ×3, ×5, ×10 ou ×15), `triche` (invincible, torpilles infinies et tir sans délai…).
+Individual steps: `make extract`, `make elf`, `make analyze`, `make export`, `make scripts`, `make data`; the bots:
+`make pawncc bots`. To explore in the interface: start Ghidra and open `ghidra/project/SteelDiver.gpr`.
 
-```sh
-.venv/bin/python tools/mod.py build premium --install       # version complète et tous les sous-marins
-.venv/bin/python tools/save.py show                         # la sauvegarde ; unlock all, set, export…
-```
+Tests: `python3 -m unittest discover -s tools/tests` (the players' tools, no game file needed) and
+`cd server && python3 -m unittest discover -s tests -t .` (the server).
 
-Détails : [docs/initial-analysis.md](docs/initial-analysis.md) · Plan : [docs/roadmap.md](docs/roadmap.md) · IA
-aussi forte qu'un joueur, combien de parties : [docs/ai.md](docs/ai.md)
+</details>
 
-## Arborescence
-
-*Avancement estimé : 100 % — à jour.*
+<details>
+<summary>Repository layout</summary>
 
 ```
-cia/               ton dump .cia (ignoré par git)
-extracted/         sortie de l'extraction : code.bin, nsub.elf, exefs/, romfs/ ; v5200/ : la mise à jour (ignoré)
-tools/             scripts Python : extraction CIA, code.bin -> ELF, Pawn (amx*.py), BXML, Azahar, mods
-mods/              recettes de mods (aucune donnée du jeu : elles s'appliquent au dump du joueur)
-ghidra/scripts/    scripts Ghidra : symboles du map, SVC, pointeurs de code, export du pseudo-code
-ghidra/symbols.txt noms et prototypes ajoutés à la main (versionnés, réappliqués à chaque analyse/export)
-ghidra/types.h     types C reconstitués (idem)
-ghidra/project/    base Ghidra, jetable : `make analyze` la recrée (ignorée)
-decomp/            pseudo-code source : raw/ (C++ Ghidra), scripts/ (Pawn décompilé), src/ (nettoyé à la main)
-port/              portage PC
-server/            serveur online (royaumes émulateur et PC, détection de NAT, tests)
-docs/              notes de rétro-ingénierie
+cia/               your dump (.cia), ignored by git
+extracted/         extraction output: code.bin, nsub.elf, exefs/, romfs/; v5200/: the update (ignored)
+tools/             Python tools: CIA extraction, Pawn (amx*.py), BXML, BCSTM, Azahar, mods, launcher
+mods/              mod recipes (no game data: they apply to the player's dump)
+ghidra/            Ghidra scripts, hand-added symbols (symbols.txt) and types (types.h); project/ is disposable
+decomp/            pseudo-source: raw/ (Ghidra C++, generated), scripts/ (decompiled Pawn, generated), src/ (cleaned)
+port/              PC port
+server/            online server (emulator and PC realms, NAT detection, tests)
+docs/              reverse-engineering notes
 ```
 
-## Installation
+</details>
 
-*Avancement estimé : 90 % — la chaîne de rétro-ingénierie (Ghidra) n'est décrite et vérifiée que sous Linux.*
+## Legal
 
-Pour jouer, Python 3.11 suffit (voir plus haut). Pour la rétro-ingénierie : Linux, Python 3.11+, Java 21+,
-[Ghidra 12](https://github.com/NationalSecurityAgency/ghidra/releases) extrait dans un chemin **sans accents**
-(par ex. `~/tools/`, le chargement de Ghidra échoue sinon).
+This project contains no part of the game: no code, no assets, no keys. Every tool works on the copy you own, on your
+computer. Steel Diver: Sub Wars, its data and its code remain the property of Nintendo; this project is not affiliated
+with or endorsed by Nintendo or Vitei.
 
-```sh
-./setup.sh          # venv Python + détection de Ghidra (écrit local.env)
-cp <ton dump>.cia cia/
-make                # extraction -> ELF -> analyse Ghidra -> pseudo-code C++ -> scripts Pawn décompilés
-```
-
-Étapes individuelles : `make extract`, `make elf`, `make analyze`, `make export`, `make scripts`, `make data`.
-Pour explorer dans l'interface : lancer Ghidra et ouvrir `ghidra/project/SteelDiver.gpr`.
-
-## Licence
-
-*Avancement estimé : 100 %.*
-
-Le code de ce dépôt (outils, scripts, portage, serveur, documentation) est sous licence [MIT](LICENSE).
-Elle ne couvre pas le jeu : Steel Diver: Sub Wars, ses données et son code restent la propriété de Nintendo.
+The code of this repository (tools, scripts, port, server, documentation) is under the [MIT](LICENSE) licence. GPL/AGPL
+projects (Pretendo's server, Azahar/Citra) were only used as references; no code was copied from them.

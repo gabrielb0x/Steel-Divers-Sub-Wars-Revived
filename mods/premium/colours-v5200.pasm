@@ -28,10 +28,10 @@ pw_sdswPatternColors:
     proc
     push.c 0x18afc
     sysreq.n sysGetGlobal, 1
-    jzer @couleurs_l0
+    jzer @colours_l0
     zero.pri
     retn
-couleurs_l0:
+colours_l0:
     stack -128
     zero.pri
     addr.alt -128
@@ -52,28 +52,28 @@ couleurs_l0:
     addr.alt -516
     fill 0x180
     push.c 0x1
-    jump @couleurs_l3
-couleurs_l1:
+    jump @colours_l3
+colours_l1:
     inc.s -520
-couleurs_l3:
+colours_l3:
     load.s.pri -520
     const.alt 0x20
-    jsgeq @couleurs_l2
+    jsgeq @colours_l2
     addr.alt -128
     load.s.pri -520
     lidx.b 0x2
-    jnz @couleurs_l4
-    jump @couleurs_l1
-couleurs_l4:
+    jnz @colours_l4
+    jump @colours_l1
+colours_l4:
     push.c 0x0
     push.c 0x0
-    jump @couleurs_l7
-couleurs_l5:
+    jump @colours_l7
+colours_l5:
     inc.s -528
-couleurs_l7:
+colours_l7:
     load.s.pri -528
     const.alt 0x3
-    jsgeq @couleurs_l6
+    jsgeq @colours_l6
     push.adr -528
     push.adr -520
     push.c 0x18bd8
@@ -83,18 +83,18 @@ couleurs_l7:
     sysreq.n strformat, 6
     push.adr -516
     sysreq.n sysGetGlobal, 1
-    jzer @couleurs_l8
+    jzer @colours_l8
     const.pri 0x1
     stor.s.pri -524
-couleurs_l8:
-    jump @couleurs_l5
-couleurs_l6:
+colours_l8:
+    jump @colours_l5
+colours_l6:
     stack 0x4
     load.s.pri -524
-    jzer @couleurs_l9
+    jzer @colours_l9
     stack 0x4
-    jump @couleurs_l1
-couleurs_l9:
+    jump @colours_l1
+colours_l9:
     stack -16
     zero.pri
     addr.alt -540
@@ -115,13 +115,13 @@ couleurs_l9:
     push.adr -516
     sysreq.n actorGetPropRGB, 3
     push.c 0x0
-    jump @couleurs_l12
-couleurs_l10:
+    jump @colours_l12
+colours_l10:
     inc.s -544
-couleurs_l12:
+colours_l12:
     load.s.pri -544
     const.alt 0x3
-    jsgeq @couleurs_l11
+    jsgeq @colours_l11
     push.adr -544
     push.adr -520
     push.c 0x18c78
@@ -135,12 +135,12 @@ couleurs_l12:
     push.pri
     push.adr -516
     sysreq.n sysSetGlobal, 2
-    jump @couleurs_l10
-couleurs_l11:
+    jump @colours_l10
+colours_l11:
     stack 0x4
     stack 0x14
-    jump @couleurs_l1
-couleurs_l2:
+    jump @colours_l1
+colours_l2:
     stack 0x4
     push.s -132
     sysreq.n actorKill, 1

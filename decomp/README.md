@@ -1,69 +1,72 @@
-# Pseudo-code source
+# Pseudo source code
 
-## `raw/` — sortie brute de Ghidra (générée, non versionnée)
+## `raw/` — Ghidra's raw output (generated, not versioned)
 
-*Avancement estimé : 100 % — toutes les fonctions exportées, rangées par fichier objet d'origine.*
+*Estimated progress: 100 % — every function exported, sorted by original object file.*
 
-`make export` (ou `ghidra/export.sh`) décompile toutes les fonctions et range chacune dans le fichier objet d'où
-elle vient, d'après la table des symboles du linker (`romfs:/map`) :
+`make export` (or `ghidra/export.sh`) decompiles every function and puts each one into the object file it comes from,
+according to the linker's symbol table (`romfs:/map`):
 
 ```
-raw/source/main.cpp, raw/source/net/session.cpp, …   code du jeu (chemins d'origine quand ils sont connus)
-raw/lib/libnw_gfx/gfx_Model.cpp, …                     NintendoWare, SDK, NEX, Pia, runtime C
-raw/unmapped/0x00330000.cpp, …                         fonctions absentes du map, par tranche de 64 Kio
-raw/functions.csv                                      adresse, taille (map / Ghidra), nom, objet, fichier
+raw/source/main.cpp, raw/source/net/session.cpp, ...   the game's code (original paths when they are known)
+raw/lib/libnw_gfx/gfx_Model.cpp, ...                    NintendoWare, SDK, NEX, Pia, C runtime
+raw/unmapped/0x00330000.cpp, ...                        functions missing from the map, by 64 KiB slices
+raw/functions.csv                                       address, size (map / Ghidra), name, object, file
 ```
 
-Chaque fonction est précédée de son adresse et de sa taille dans le map.
+Each function is preceded by its address and its size in the map.
 
-## `scripts/` — scripts Pawn décompilés (générés, non versionnés)
+## `scripts/` — decompiled Pawn scripts (generated, not versioned)
 
-*Avancement estimé : 100 % — les 123 scripts décompilés ; leur lisibilité dépend des noms de `pawn/`.*
+*Estimated progress: 100 % — the 123 scripts decompiled; how readable they are depends on the names of `pawn/`.*
 
-`make scripts` désassemble (`scripts/asm/*.asm`) et décompile (`scripts/*.p`) les 123 scripts `romfs:/amx/*.amx`.
-Voir [../docs/pawn-scripts.md](../docs/pawn-scripts.md).
+`make scripts` disassembles (`scripts/asm/*.asm`) and decompiles (`scripts/*.p`) the 123 scripts `romfs:/amx/*.amx`. See
+[../docs/pawn-scripts.md](../docs/pawn-scripts.md).
 
-## `pawn/` — connaissances sur les scripts (versionné)
+## `pawn/` — knowledge about the scripts (versioned)
 
-*Avancement estimé : 35 % — 343 natives prototypées sur 647 ; 236 noms de fonctions et de globales, environ 1 400 groupes de fonctions restent à nommer.*
+*Estimated progress: 35 % — 343 natives prototyped out of 647; 236 names of functions and globals, about 1,400 groups of
+functions remain to be named.*
 
-- `pawn/natives.inc` : prototypes Pawn des natives (noms de paramètres, `Float:`, références) et énumérations
-  (`UID`, `BUTTON`), écrits à partir des implémentations C++ ;
-- `pawn/symbols.txt` : noms des fonctions de script sans log et de leurs paramètres, et noms de globales ; un nom
-  s'applique à toutes les copies de la fonction dans les autres scripts.
+- `pawn/natives.inc`: Pawn prototypes of the natives (parameter names, `Float:`, references) and enumerations (`UID`,
+  `BUTTON`), written from the C++ implementations;
+- `pawn/symbols.txt`: names of the script functions without logs and of their parameters, and names of globals; a name
+  applies to every copy of the function in the other scripts.
 
-## Améliorer le pseudo-code
+## Improving the pseudo-code
 
-*Avancement estimé : 15 % — classes reconstituées : `World`, `Actor`, `AMXLoader`, `NsubShop`… ; la plupart des classes du jeu restent à typer.*
+*Estimated progress: 15 % — classes rebuilt: `World`, `Actor`, `AMXLoader`, `NsubShop`...; most of the game's classes
+remain to be typed.*
 
-La base Ghidra est jetable (`make analyze` la recrée). Tout ce qu'on comprend va dans deux fichiers versionnés,
-réappliqués à chaque export :
+The Ghidra database is disposable (`make analyze` recreates it). Everything we understand goes into two versioned files,
+applied again at every export:
 
-- `ghidra/symbols.txt` : nom et prototype C des fonctions (celles absentes du map, ou dont on connaît la signature) ;
-- `ghidra/types.h` : structures, énumérations et typedefs reconstitués.
+- `ghidra/symbols.txt`: name and C prototype of functions (those missing from the map, or whose signature we know);
+- `ghidra/types.h`: structures, enumerations and typedefs rebuilt.
 
-Boucle de travail : lire `raw/`, vérifier dans le désassemblage, compléter `symbols.txt` / `types.h`, `make export`.
+Working loop: read `raw/`, check in the disassembly, complete `symbols.txt` / `types.h`, `make export`.
 
-Piège connu : `armlink` fusionne les fonctions au code identique. Un appel peut donc porter le nom d'une autre
-fonction (par ex. un `printf` de debug vidé qui apparaît comme `Renderer::getActiveMask("source/main.cpp", …)`).
+A known trap: `armlink` merges functions with identical code. A call can therefore carry the name of another function
+(e.g. an emptied debug `printf` that shows as `Renderer::getActiveMask("source/main.cpp", ...)`).
 
-## `src/` — code nettoyé (versionné)
+## `src/` — cleaned code (versioned)
 
-*Avancement estimé : 9 % — 185 fonctions du jeu réécrites sur 2 126 (environ 11 % du code du jeu, hors bibliothèques Nintendo).*
+*Estimated progress: 9 % — 185 of the game's 2,126 functions rewritten (about 11 % of the game's code, Nintendo's
+libraries aside).*
 
-Le C++ réécrit à la main à partir du pseudo-code, avec la même arborescence que `raw/source/` :
+C++ rewritten by hand from the pseudo-code, with the same tree as `raw/source/`:
 
-| Fichier | Contenu |
+| File | Content |
 |---|---|
-| `main.cpp` | démarrage, boucle principale à 30 fps, enchaînement des modes |
-| `amx/amxloader.cpp` | chargeurs de scripts : liste, exécution image par image, messages, appels différés, observateurs |
-| `game/world.cpp` | monde : pool de 256 acteurs, chargement des niveaux, tampon de replay de 7 s |
-| `game/actor.cpp` | cycle de vie d'un acteur : propriétés, script et ses fonctions publiques, mort |
-| `sys/system.cpp` | démarrage, tas mémoire, temps, boutons HOME et marche/arrêt |
-| `net/connectionInternet.cpp` | jeu en ligne : réseau de la console, connexion au serveur, recherche de partie (critères, attributs, somme de version), session créée ou rejointe, liste de blocage, notifications |
+| `main.cpp` | start-up, main loop at 30 fps, sequence of the modes |
+| `amx/amxloader.cpp` | script loaders: list, frame-by-frame execution, messages, delayed calls, observers |
+| `game/world.cpp` | the world: pool of 256 actors, loading the levels, 7-second replay buffer |
+| `game/actor.cpp` | an actor's life cycle: properties, script and its public functions, death |
+| `sys/system.cpp` | start-up, memory heap, time, HOME and power buttons |
+| `net/connectionInternet.cpp` | online play: the console's network, connection to the server, match search (criteria, attributes, version checksum), session created or joined, block list, notifications |
 
-Conventions :
+Conventions:
 
-- garder le nom d'origine des classes, méthodes et fichiers (ceux du map et des chaînes `__FILE__`) ;
-- indiquer l'adresse d'origine au-dessus de chaque fonction (`// 0x00101118`) ;
-- ne pas copier les données du jeu (tables, textes, assets) : les lire depuis le RomFS.
+- keep the original names of classes, methods and files (those of the map and of the `__FILE__` strings);
+- give the original address above each function (`// 0x00101118`);
+- do not copy the game's data (tables, texts, assets): read them from the RomFS.

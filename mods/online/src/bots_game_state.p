@@ -109,7 +109,7 @@ public @botHitBy(owner, sub, node, torpedo, shooter, k, team, homing)
 }
 
 /* The bot k's torpedo hit a player: every console notes it (the update names the bot that sank a player:
- * botShooterOf), and that player is told "<bot> vous attaque !" (@eventMessageWeaponHitTorp only says it of
+ * botShooterOf), and that player is told "<bot> is attacking you!" (@eventMessageWeaponHitTorp only says it of
  * players). */
 forward @botAttacks(victim, shooter);
 public @botAttacks(victim, shooter)

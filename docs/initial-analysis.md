@@ -1,36 +1,36 @@
-# Analyse initiale — Steel Diver: Sub Wars (EUR)
+# Initial analysis — Steel Diver: Sub Wars (EUR)
 
-## Le dump
+## The dump
 
-*Avancement estimé : 100 %.*
+*Estimated progress: 100 %.*
 
 | | |
 |---|---|
-| Fichier | `votre-dump.cia` |
-| Title ID | `00040000000D7E00`, code produit `CTR-N-JNUP`, nom interne `nsub` |
-| Version | TMD v0 (version de lancement, sans mise à jour) |
-| Contenu 0 | le jeu (CXI), **NoCrypto** : déjà déchiffré, aucune clé de console requise |
-| Contenu 1 | manuel électronique (CFA), encore chiffré, inutile pour le projet |
+| File | the European eShop CIA (one's own dump) |
+| Title ID | `00040000000D7E00`, product code `CTR-N-JNUP`, internal name `nsub` |
+| Version | TMD v0 (launch version, without update) |
+| Content 0 | the game (CXI), **NoCrypto**: already decrypted, no console key needed |
+| Content 1 | electronic manual (CFA), still encrypted, useless for the project |
 
-Le `.code` de l'ExeFS est compressé (LZ « backward ») ; une fois décompressé (`extracted/code.bin`, 0x2B5000 octets) :
+The ExeFS `.code` is compressed (LZ "backward"); once decompressed (`extracted/code.bin`, 0x2B5000 bytes):
 
-| Segment | Adresse | Taille |
+| Segment | Address | Size |
 |---|---|---|
-| `.text` | `0x00100000` | `0x251408` (2,3 Mio) |
+| `.text` | `0x00100000` | `0x251408` (2.3 MiB) |
 | `.rodata` | `0x00352000` | `0x0332D0` |
 | `.data` | `0x00386000` | `0x02EAE4` |
 | `.bss` | `0x003B4AE4` | `0x23EEE4` |
 
-Pile 0x8000, sauvegarde 512 Kio. Services système autorisés (exheader) : `APT:U ac:u boss:U cam:u cecd:u cfg:u
+Stack 0x8000, save 512 KiB. System services allowed (exheader): `APT:U ac:u boss:U cam:u cecd:u cfg:u
 dlp:FKCL dlp:SRVR dsp::DSP frd:u fs:USER gsp::Gpu hid:USER http:C mic:u ndm:u news:u nwm::UDS ptm:u soc:U ssl:C
-y2r:u ldr:ro ir:USER nim:aoc am:app`, plus `$hioFIO $hostio0 $hostio1 pxi:dev` (accès debug « host I/O » oubliés).
+y2r:u ldr:ro ir:USER nim:aoc am:app`, plus `$hioFIO $hostio0 $hostio1 pxi:dev` (forgotten "host I/O" debug access).
 
-## La table des symboles du linker (`romfs:/map`)
+## The linker's symbol table (`romfs:/map`)
 
-*Avancement estimé : 100 %.*
+*Estimated progress: 100 %.*
 
-Les développeurs ont laissé à la racine du RomFS la liste des symboles produite par `armlink` :
-**9431 fonctions** avec adresse, taille, nom C++ démanglé et fichier objet / bibliothèque d'origine.
+The developers left at the root of the RomFS the symbol listing produced by `armlink`: **9431 functions** with
+address, size, demangled C++ name and object file / library of origin.
 
 ```
 0x00100114 3528 nnMain main.o
@@ -39,32 +39,32 @@ Les développeurs ont laissé à la racine du RomFS la liste des symboles produi
 0x00141e94 4 nw::ut::LinkList libnw_snd.fast.a(snd_SoundArchivePlayer.o)
 ```
 
-Elle couvre 84,7 % du `.text`. Les trous restants sont surtout des fonctions statiques et le runtime C en fin de
-segment ; `ghidra/scripts/ScanCodePointers.java` récupère celles qui ne sont atteignables que par des tables de
-pointeurs (vtables). Les noms sont parfois tronqués (constructeurs/destructeurs affichés comme `nn::nex::qList`,
-fonctions locales nommées `<Func12>`).
+It covers 84.7 % of `.text`. The remaining holes are mostly static functions and the C runtime at the end of
+the segment; `ghidra/scripts/ScanCodePointers.java` recovers those only reachable through tables of pointers
+(vtables). Names are sometimes truncated (constructors/destructors shown as `nn::nex::qList`, local functions named
+`<Func12>`).
 
-Répartition du code :
+Breakdown of the code:
 
-| Composant | Fonctions | Code | Objets |
+| Component | Functions | Code | Objects |
 |---|---|---|---|
-| NEX (auth / matchmaking online) | 2005 | 488 Kio | 11 |
-| **Jeu (Vitei)** | **2120** | **389 Kio** | **111** |
-| NintendoWare for CTR (`nw::gfx`, `snd`, `lyt`, `font`, `anim`, `ut`) | 1398 | 327 Kio | 197 |
-| CTR-SDK (`nn::*`) | 1724 | 263 Kio | 221 |
-| Pia (réseau P2P) | 1419 | 245 Kio | 161 |
-| `libgles2` (API GL ES du SDK) | 155 | 140 Kio | 15 |
-| ImageDb (captures d'écran) | 310 | 59 Kio | 36 |
-| `libcfl` (Mii) | 210 | 57 Kio | 8 |
-| zlib, runtime armcc, divers | 90 | 43 Kio | 51 |
+| NEX (online auth / matchmaking) | 2005 | 488 KiB | 11 |
+| **Game (Vitei)** | **2120** | **389 KiB** | **111** |
+| NintendoWare for CTR (`nw::gfx`, `snd`, `lyt`, `font`, `anim`, `ut`) | 1398 | 327 KiB | 197 |
+| CTR-SDK (`nn::*`) | 1724 | 263 KiB | 221 |
+| Pia (P2P networking) | 1419 | 245 KiB | 161 |
+| `libgles2` (the SDK's GL ES API) | 155 | 140 KiB | 15 |
+| ImageDb (screenshots) | 310 | 59 KiB | 36 |
+| `libcfl` (Mii) | 210 | 57 KiB | 8 |
+| zlib, armcc runtime, misc. | 90 | 43 KiB | 51 |
 
-Le code propre au jeu ne pèse que ~390 Kio : le reste, ce sont des bibliothèques Nintendo.
+The game's own code weighs only ~390 KiB: the rest is Nintendo libraries.
 
-## Arborescence source d'origine
+## The original source tree
 
-*Avancement estimé : 100 % — tout ce que le binaire révèle (chemins `__FILE__` et fichiers objets du map).*
+*Estimated progress: 100 % — everything the binary reveals (`__FILE__` paths and object files of the map).*
 
-Les macros d'assert/log du jeu ont laissé `__FILE__` dans le binaire : 44 chemins sont confirmés.
+The game's assert/log macros left `__FILE__` in the binary: 44 paths are confirmed.
 
 ```
 source/main.cpp
@@ -79,60 +79,62 @@ source/sys/      allocator binxml dlc exception facesystem flashmemory resource 
                  screenshot sdcard system textdata
 ```
 
-Les ~70 autres objets du jeu (`metaball.o`, `torpedotrail.o`, `DsSubAudioMgr.o`, `eauAudioSystem.o`, …) n'ont pas
-de chemin connu : ils sont exportés à la racine de `source/` en attendant d'être classés.
+The ~70 other objects of the game (`metaball.o`, `torpedotrail.o`, `DsSubAudioMgr.o`, `eauAudioSystem.o`, ...) have
+no known path: they are exported at the root of `source/` until they are sorted.
 
-## Architecture du jeu
+## The game's architecture
 
-*Avancement estimé : 70 % — boucle, modes, monde et scripts compris ; rendu, son et réseau bas niveau seulement survolés.*
+*Estimated progress: 70 % — loop, modes, world and scripts understood; rendering, sound and low-level networking
+only skimmed.*
 
-- **Moteur maison de Vitei** en C++ au-dessus de NintendoWare for CTR et du CTR-SDK.
-- **Le jeu est une suite de « modes »** : `nnMain` charge un script Pawn `mode_*` (20 au total : `mode_title`,
-  `mode_select`, `mode_lobby`, `mode_periscope`, `mode_shop`…), le fait tourner jusqu'à ce qu'il se termine après
-  avoir choisi le mode suivant, puis réinitialise tout (voir `decomp/src/main.cpp`). Boucle verrouillée à 30 fps,
-  trois renderers : écran du haut en 3D stéréo, écran du haut en 2D, écran du bas.
-- **Logique de jeu scriptée en Pawn** : 123 scripts compilés `romfs:/amx/*.amx` (format AMX file version 10,
-  Pawn 3.x, flags `COMPACT|SLEEP`, sans infos de debug ; les fonctions publiques et natives restent nommées, par ex.
-  `@actorSync`, `@eventMessage`). Les natives (`amxsys`, `amxactor`, `amxnet`, `amxgfx`, `amxsound`, `amxworld`,
-  `amxeffects`…) sont implémentées en C++ dans le jeu, et la VM AMX est celle, open source, de CompuPhase.
-- **Données** : `bxml` (XML binaire maison, magic `BXML`), `hmap` (heightmaps, magic `hmtl`), `edge`.
-- **Graphismes** : modèles CGFX (`.bcmdl`), layouts NW4C (`.arc` = darc), polices `.bcfnt`, shaders PICA200
-  (`.shbin` DVLB, `.bcsdr`), textures brutes `.bin` (en-tête de 5 octets : largeur u16, hauteur u16, format PICA,
-  puis les données, souvent en ETC1A4).
-- **Audio** : NW4C snd (`.bcsar`, `.bcstm`), plus les fichiers SoundMaker (`.csid` = en-tête C des ID de sons,
+- **Vitei's in-house engine** in C++ on top of NintendoWare for CTR and the CTR-SDK.
+- **The game is a sequence of "modes"**: `nnMain` loads a Pawn script `mode_*` (20 in all: `mode_title`,
+  `mode_select`, `mode_lobby`, `mode_periscope`, `mode_shop`...), runs it until it ends after choosing the next
+  mode, then resets everything (see `decomp/src/main.cpp`). The loop is locked at 30 fps, with three renderers:
+  top screen in stereo 3D, top screen in 2D, bottom screen.
+- **Game logic scripted in Pawn**: 123 compiled scripts `romfs:/amx/*.amx` (AMX file version 10, Pawn 3.x, flags
+  `COMPACT|SLEEP`, without debug info; the public and native functions keep their names, e.g. `@actorSync`,
+  `@eventMessage`). The natives (`amxsys`, `amxactor`, `amxnet`, `amxgfx`, `amxsound`, `amxworld`, `amxeffects`...)
+  are implemented in C++ in the game, and the AMX VM is CompuPhase's open-source one.
+- **Data**: `bxml` (in-house binary XML, magic `BXML`), `hmap` (heightmaps, magic `hmtl`), `edge`.
+- **Graphics**: CGFX models (`.bcmdl`), NW4C layouts (`.arc` = darc), `.bcfnt` fonts, PICA200 shaders (`.shbin`
+  DVLB, `.bcsdr`), raw `.bin` textures (5-byte header: width u16, height u16, PICA format, then the data, often
+  ETC1A4).
+- **Audio**: NW4C snd (`.bcsar`, `.bcstm`), plus the SoundMaker files (`.csid` = C header of the sound IDs,
   `.xml`, `.html`).
-- **Réseau** : NEX 3.x pour l'authentification et le matchmaking (aucune bibliothèque Ranking/DataStore n'est
-  liée), Pia pour les parties en P2P (Internet via NEX, local via UDS).
+- **Networking**: NEX 3.x for authentication and matchmaking (no Ranking/DataStore library is linked), Pia for
+  P2P battles (Internet through NEX, local through UDS).
 
-## Inventaire du RomFS (1179 fichiers, 200 Mo)
+## Inventory of the RomFS (1179 files, 200 MB)
 
-*Avancement estimé : 75 % — formats maison décodés ; modèles, layouts, polices et sons NintendoWare seulement identifiés.*
+*Estimated progress: 75 % — in-house formats decoded; NintendoWare models, layouts, fonts and sounds only
+identified.*
 
-| Dossier | Fichiers | Taille | Contenu |
+| Folder | Files | Size | Content |
 |---|---|---|---|
-| `audiores/` | 48 | 86 Mo | `.bcstm` (musiques), `sound_data.bcsar` |
-| `models/` | 261 | 52 Mo | `.bcmdl` (CGFX) |
-| `layouts/` | 76 | 22 Mo | `.arc` (darc NW4C) |
-| `hmaps/` | 57 | 13 Mo | `.hmap` |
-| `fonts/` | 13 | 8,4 Mo | `.bcfnt`, `.bxml` |
-| `textures/` | 130 | 5,5 Mo | 114 `.bxml`, 16 textures brutes `.bin` |
-| `edges/` | 58 | 4,7 Mo | `.edge` |
-| `text/` | 9 | 4,6 Mo | textes `.bxml` de toutes les régions (EU ×5, US ×3, JP) |
-| `amx/` | 123 | 3,0 Mo | scripts Pawn compilés |
-| `worlds/` | 221 | 2,9 Mo | `.bxml` (niveaux) |
-| `bxml/` | 143 | 1,8 Mo | `.bxml` (configuration, dont `buildinfo.bxml`) |
-| `screenshots/` | 10 | 524 Ko | `.mpo` (photos 3D) |
-| `shaders/` | 23 | 292 Ko | `.shbin`, `.bcsdr` |
-| `audiores_SeaBattle/` | 6 | 116 Ko | `.bcsar` |
-| `map` | 1 | 800 Ko | **table des symboles du linker** |
+| `audiores/` | 48 | 86 MB | `.bcstm` (music), `sound_data.bcsar` |
+| `models/` | 261 | 52 MB | `.bcmdl` (CGFX) |
+| `layouts/` | 76 | 22 MB | `.arc` (NW4C darc) |
+| `hmaps/` | 57 | 13 MB | `.hmap` |
+| `fonts/` | 13 | 8.4 MB | `.bcfnt`, `.bxml` |
+| `textures/` | 130 | 5.5 MB | 114 `.bxml`, 16 raw `.bin` textures |
+| `edges/` | 58 | 4.7 MB | `.edge` |
+| `text/` | 9 | 4.6 MB | `.bxml` texts of every region (EU ×5, US ×3, JP) |
+| `amx/` | 123 | 3.0 MB | compiled Pawn scripts |
+| `worlds/` | 221 | 2.9 MB | `.bxml` (levels) |
+| `bxml/` | 143 | 1.8 MB | `.bxml` (configuration, including `buildinfo.bxml`) |
+| `screenshots/` | 10 | 524 KB | `.mpo` (3D photos) |
+| `shaders/` | 23 | 292 KB | `.shbin`, `.bcsdr` |
+| `audiores_SeaBattle/` | 6 | 116 KB | `.bcsar` |
+| `map` | 1 | 800 KB | **the linker's symbol table** |
 
 ## Online
 
-*Avancement estimé : 100 % — détaillé depuis dans [online.md](online.md), protocole complet et serveur fonctionnel.*
+*Estimated progress: 100 % — detailed since in [online.md](online.md), complete protocol and working server.*
 
-- Le Nintendo Network a fermé le 8 avril 2024.
-- [Pretendo Network](https://github.com/PretendoNetwork/steel-diver-sub-wars) a déjà un serveur NEX pour ce jeu
-  (Go, AGPL-3.0) : NEX 3.7.0, clé d'accès `fb9537fe`, protocoles TicketGranting, SecureConnection, NATTraversal,
-  MatchMaking, MatchMakingExt et MatchmakeExtension. Il dépend des serveurs de comptes de Pretendo (gRPC).
-- Côté client, l'ID du serveur de jeu (`0x000D7C00`), la clé d'accès (en UTF-16) et les paramètres de matchmaking
-  sont détaillés dans [online.md](online.md).
+- The Nintendo Network closed on 8 April 2024.
+- [Pretendo Network](https://github.com/PretendoNetwork/steel-diver-sub-wars) already has a NEX server for this
+  game (Go, AGPL-3.0): NEX 3.7.0, access key `fb9537fe`, protocols TicketGranting, SecureConnection, NATTraversal,
+  MatchMaking, MatchMakingExt and MatchmakeExtension. It depends on Pretendo's account servers (gRPC).
+- On the client side, the game server's ID (`0x000D7C00`), the access key (in UTF-16) and the matchmaking
+  parameters are detailed in [online.md](online.md).

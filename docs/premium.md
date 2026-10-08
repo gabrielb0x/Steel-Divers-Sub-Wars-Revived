@@ -1,21 +1,20 @@
-# Version gratuite, premium et contenus additionnels
+# Free version, premium and add-on contents
 
-Sub Wars était un jeu gratuit. La **version complète** (« premium », *enlist* dans le code : s'engager) et cinq
-sous-marins historiques se vendaient sur l'eShop sous forme de **contenus additionnels** (DLC). L'eShop ne vend plus
-rien depuis 2023 : le mod [`premium`](../mods/premium/mod.toml) débloque tout sans lui. Cette page explique comment
-le jeu décide de ce qui est acheté, et ce que le mod change.
+Sub Wars was a free game. The **full version** ("premium", *enlist* in the code) and five historical submarines were
+sold on the eShop as **add-on contents** (DLC). The eShop has sold nothing since 2023: the
+[`premium`](../mods/premium/mod.toml) mod unlocks everything without it. This page explains how the game decides what
+is bought, and what the mod changes.
 
-## Ce qu'il y a dans le jeu de base
+## What is in the base game
 
-*Avancement estimé : 100 %.*
+*Estimated progress: 100 %.*
 
-Tout le contenu premium est déjà dans le RomFS du jeu gratuit : les 7 zones de missions, les 18 sous-marins de base,
-les 32 motifs et les 32 membres d'équipage, et même les coques des 5 sous-marins historiques (`n2ply_x001` à
-`n2ply_x005`, que les joueurs gratuits voyaient chez les autres en ligne). L'achat n'ajoutait qu'un **droit**, plus,
-pour chaque sous-marin historique, une petite archive avec sa **proue** : le modèle détaillé que voit son propre
-pilote (`n2ply_x00N_prow`).
+All the premium content is already in the free game's RomFS: the 7 mission areas, the 18 base submarines, the 32
+patterns and the 32 crew members, and even the hulls of the 5 historical submarines (`n2ply_x001` to `n2ply_x005`,
+which free players saw on the others online). The purchase only added a **right**, plus, for each historical
+submarine, a small archive with its **prow**: the detailed model its own pilot sees (`n2ply_x00N_prow`).
 
-| Sous-marin | Fichier | Coque (jeu de base) | Contenu |
+| Submarine | File | Hull (base game) | Content |
 |---|---|---|---|
 | 19 | `bxml/pscope_ply19` | `n2ply_x002` | 1 |
 | 20 | `bxml/pscope_ply20` | `n2ply_x004` | 2 |
@@ -23,138 +22,134 @@ pilote (`n2ply_x00N_prow`).
 | 22 | `bxml/pscope_ply22` | `n2ply_x003` | 4 |
 | 23 | `bxml/pscope_ply23` | `n2ply_x005` | 5 |
 
-Les contenus additionnels forment le titre `0004008C000D7E00` (le jeu est `00040000000D7E00`), chaque achat étant
-un « contenu » numéroté de ce titre.
+The add-on contents form the title `0004008C000D7E00` (the game is `00040000000D7E00`), each purchase being a
+numbered "content" of this title.
 
-## Comment le jeu vérifie les achats (`source/sys/dlc.cpp`)
+## How the game checks the purchases (`source/sys/dlc.cpp`)
 
-*Avancement estimé : 100 %.*
+*Estimated progress: 100 %.*
 
-La classe `NsubShop` (un singleton, `getNsubShop()`) enveloppe la bibliothèque d'achat `nn::ec` :
+The `NsubShop` class (a singleton, `getNsubShop()`) wraps the `nn::ec` purchase library:
 
-- `updateCondition()` demande à `nn::ec::CTR::DataTitle` la liste des contenus du titre de DLC et, pour chaque
-  contenu présent et acheté, met un bit à 1 dans un bitmap de 128 bits (`+0xFA0`, 4 mots) ;
-- `checkCondition(n)` lit le bit `n` : vrai si le contenu `n` est acheté ;
-- `checkPaidForFullVer()` lit le bit 27 du troisième mot (`+0xFA8`), c'est-à-dire le **contenu 91** : la version
-  complète ;
-- `mountContentArchive(n)` / `unmountContentArchive()` montent l'archive du contenu `n` sous `content:`
-  (`nn::fs::MountAddOnContent`) ;
-- le reste (`initializeEc`, `validateSession`, catalogue, `purchaseItem`, `redownloadItem`, solde…) sert la
-  boutique et l'écran d'achat, en parlant aux serveurs de l'eShop.
+- `updateCondition()` asks `nn::ec::CTR::DataTitle` for the list of contents of the DLC title and, for each content
+  present and bought, sets a bit in a 128-bit bitmap (`+0xFA0`, 4 words);
+- `checkCondition(n)` reads bit `n`: true if content `n` is bought;
+- `checkPaidForFullVer()` reads bit 27 of the third word (`+0xFA8`), that is **content 91**: the full version;
+- `mountContentArchive(n)` / `unmountContentArchive()` mount the archive of content `n` as `content:`
+  (`nn::fs::MountAddOnContent`);
+- the rest (`initializeEc`, `validateSession`, catalogue, `purchaseItem`, `redownloadItem`, balance...) serves the
+  shop and the purchase screen, talking to the eShop's servers.
 
-Les scripts y accèdent par les natives `sysDLC*` d'`amxsys` ; `sysDLCCheckPaidForFullVer` et
-`sysDLCCheckCondition` sont deux mini-fonctions placées juste avant `checkPaidForFullVer` et `checkCondition`,
-dans lesquelles elles « tombent » après avoir chargé le singleton.
+The scripts reach it through the `sysDLC*` natives of `amxsys`; `sysDLCCheckPaidForFullVer` and
+`sysDLCCheckCondition` are two tiny functions placed right before `checkPaidForFullVer` and `checkCondition`, into
+which they "fall" after loading the singleton.
 
-**Sous-marins historiques** : leur fichier de propriétés (`bxml/pscope_ply19.bxml`…) contient
-`<mount_dlc_arc content_index="n"/>` et un attribut `model_mutable_dlc` au lieu de `model_mutable`.
-`Actor::readProperties` monte alors l'archive du contenu si `checkCondition(n)` est vrai, et
-`Actor::setAttributeString` ne charge `model_mutable_dlc` que si l'archive est montée (sinon le sous-marin n'a pas
-de proue). La coque, `modelship`, vient toujours du jeu de base : c'est elle qu'envoient les autres consoles
+**Historical submarines**: their properties file (`bxml/pscope_ply19.bxml`...) holds
+`<mount_dlc_arc content_index="n"/>` and an attribute `model_mutable_dlc` instead of `model_mutable`.
+`Actor::readProperties` then mounts the content's archive if `checkCondition(n)` is true, and
+`Actor::setAttributeString` only loads `model_mutable_dlc` if the archive is mounted (otherwise the submarine has no
+prow). The hull, `modelship`, always comes from the base game: it is what the other consoles send
 (`@syncNetworkSpawn`).
 
-## Ce que la version gratuite limite (scripts Pawn)
+## What the free version limits (Pawn scripts)
 
-*Avancement estimé : 100 %.*
+*Estimated progress: 100 %.*
 
-Tous les scripts de modes ont une copie de `isFullVersion()` (`return sysDLCCheckPaidForFullVer();`) :
+Every mode script has a copy of `isFullVersion()` (`return sysDLCCheckPaidForFullVer();`):
 
-| Script | Version gratuite | Version complète |
+| Script | Free version | Full version |
 |---|---|---|
-| `mode_title` | écran titre au coucher du soleil, mention « Version gratuite » (volet `trial`), bouton « S'engager » | décor de jour, sans la mention ni le bouton |
-| `mode_select` | le bouton Boutique propose l'achat (`alert_salemessage02`, puis `mode_sale`) | il ouvre la boutique (`mode_shop`) |
-| `mode_mission_select` | seules les deux premières zones | les 7 zones, débloquées par le nombre de médailles |
-| `mode_customize` | seuls les sous-marins 1 et 2 (`sub_detail_unlock_not_enlist` sinon) | tous ceux débloqués |
-| `mode_lobby` | sous-marins 1 et 2 en ligne (`save.sub.unlock[2..22]` mis à 0) | tous ceux débloqués |
+| `mode_title` | title screen at sunset, "Free version" note (`trial` pane), "Enlist" button | daytime scenery, without the note or the button |
+| `mode_select` | the Shop button offers the purchase (`alert_salemessage02`, then `mode_sale`) | it opens the shop (`mode_shop`) |
+| `mode_mission_select` | only the first two areas | the 7 areas, unlocked by the number of medals |
+| `mode_customize` | only submarines 1 and 2 (`sub_detail_unlock_not_enlist` otherwise) | every unlocked one |
+| `mode_lobby` | submarines 1 and 2 online (`save.sub.unlock[2..22]` set to 0) | every unlocked one |
 
-Les sous-marins 19 à 23 suivent `sysDLCCheckCondition(n° − 18)` : au titre, un sous-marin historique choisi mais
-plus acheté est remplacé par le n° 1 (`save.sub.typenum`).
+Submarines 19 to 23 follow `sysDLCCheckCondition(n° − 18)`: at the title screen, a historical submarine that is
+chosen but no longer bought is replaced by n° 1 (`save.sub.typenum`).
 
-## Déblocages et sauvegarde
+## Unlocks and the save
 
-*Avancement estimé : 100 %.*
+*Estimated progress: 100 %.*
 
-En version complète, les sous-marins et les motifs se gagnent par des **récompenses** (`bxml/reward_data` :
-`decalNN` pour un motif, `lobby_sub_nameNN` pour un sous-marin, appliquées par `unlockReward`) :
+In the full version, submarines and patterns are won through **rewards** (`bxml/reward_data`: `decalNN` for a
+pattern, `lobby_sub_nameNN` for a submarine, applied by `unlockReward`):
 
-- en solo, aux 3, 4, 8, 9, 15, 18 et 21 médailles d'or (`medal.inc::updateAwardMedal`, `reward100` à `reward106`) :
-  les sous-marins 2 et 3 et cinq motifs ;
-- **en ligne, à chaque niveau de rang** (`reward02` à `reward42`) : les sous-marins 4 à 18 et la plupart des motifs.
-  Sans serveur en ligne, ils étaient devenus impossibles à obtenir.
+- in single player, at 3, 4, 8, 9, 15, 18 and 21 gold medals (`medal.inc::updateAwardMedal`, `reward100` to
+  `reward106`): submarines 2 and 3 and five patterns;
+- **online, at each rank level** (`reward02` to `reward42`): submarines 4 to 18 and most patterns. Without an online
+  server, they had become impossible to get.
 
-Les membres d'équipage se trouvent dans les missions (`crew.get`, `saveFoundCrew`). Le tout est gardé dans trois
-tableaux de la sauvegarde ([formats.md](formats.md#sauvegarde)) :
+The crew members are found in the missions (`crew.get`, `saveFoundCrew`). All of this is kept in three arrays of the
+save ([formats.md](formats.md#save)):
 
-- `save.sub.unlock[23]` : sous-marins (l'indice 0 est toujours débloqué) ;
-- `save.sub.pattern.unlock[32]` : motifs de coque (*decal*) ;
-- `save.sub.crew.unlock[32]` : membres d'équipage.
+- `save.sub.unlock[23]`: submarines (index 0 is always unlocked);
+- `save.sub.pattern.unlock[32]`: hull patterns (*decal*);
+- `save.sub.crew.unlock[32]`: crew members.
 
-**Le piège du drapeau premium** : au titre, la première fois que la version complète est présente, le jeu écrit
-`save.sub.enlist = 1`. Si plus tard ce drapeau est dans la sauvegarde mais que la version complète a disparu (DLC
-effacé), le bouton Start affiche l'erreur **098-0101** (`sysShowErrEULA(98101)`) et la partie ne démarre plus.
+**The premium flag's trap**: at the title screen, the first time the full version is there, the game writes
+`save.sub.enlist = 1`. If later this flag is in the save but the full version has gone (DLC deleted), the Start
+button shows error **098-0101** (`sysShowErrEULA(98101)`) and the game no longer starts.
 
-## Le mod `premium`
+## The `premium` mod
 
-*Avancement estimé : 100 % — vérifié dans Azahar.*
+*Estimated progress: 100 % — checked in Azahar.*
 
 ```sh
 .venv/bin/python tools/mod.py build premium --install
 ```
 
-1. `checkPaidForFullVer` et `checkCondition` renvoient toujours vrai (deux patchs de 8 octets) : version complète
-   et cinq sous-marins historiques.
-2. `updateCondition` (le bitmap ne sert plus) est remplacée par une routine qui met à 1 les trois tableaux de
-   déblocage (option `debloquer`, activée par défaut) : les scripts l'appellent au titre, juste après le
-   chargement de la sauvegarde, et avant le salon et le hangar. Le jeu enregistre ensuite ces tableaux : les
-   déblocages restent même sans le mod, comme s'ils avaient été gagnés.
-3. Sans DLC (option `dlc=non`, par défaut), les sous-marins historiques prennent la proue d'un sous-marin du jeu
-   de même taille : plus d'archive à monter (`mount_dlc_arc` retiré), `model_mutable_dlc="n2ply_x00N_prow"`
-   devient par exemple `model_mutable="n2ply_l001_prow"` (I-400). Une première version leur donnait leur coque
-   comme proue : la caméra du pilote se retrouvait dans la coque (toute la vue cachée sur la classe Z de la
-   v5200, immense), et les couleurs des motifs ne s'y voyaient pas (le jeu les pose sur le matériau `prow_mat`
-   des proues). Avec `dlc=oui`, pour qui a installé dans Azahar le DLC qu'il a acheté, les fichiers d'origine
-   restent.
-4. Le bouton Boutique du menu recharge le menu : la boutique attendrait l'eShop dans des boucles sans fin.
-5. `save.sub.enlist` est écrit dans une globale `mode.sub.enlist`, que la sauvegarde ne garde pas : retirer le mod
-   ne déclenche pas l'erreur 098-0101. Une sauvegarde déjà marquée se répare avec `tools/save.py premium-off`.
-6. Les motifs débloqués par le mod reçoivent leurs couleurs par défaut (`bxml/sub_color_set`), que le jeu ne
-   donne qu'aux motifs débloqués par une récompense : une fois par sauvegarde (`save.sdsw.colors`), au titre, ceux
-   dont les trois couleurs sont encore à 0 (`mods/premium/src/colours.p`).
+1. `checkPaidForFullVer` and `checkCondition` always return true (two 8-byte patches): the full version and the five
+   historical submarines.
+2. `updateCondition` (the bitmap is no longer used) is replaced by a routine that sets the three unlock arrays (option
+   `unlock`, on by default): the scripts call it at the title screen, right after the save is loaded, and before the
+   lobby and the hangar. The game then saves these arrays: the unlocks stay even without the mod, as if they had
+   been won.
+3. Without the DLC (option `dlc=no`, the default), the historical submarines take the prow of a game submarine of the
+   same size: no archive to mount any more (`mount_dlc_arc` removed), `model_mutable_dlc="n2ply_x00N_prow"` becomes
+   for instance `model_mutable="n2ply_l001_prow"` (I-400). A first version gave them their hull as a prow: the
+   pilot's camera ended up inside the hull (the whole view hidden on the v5200's huge Z class), and the patterns'
+   colours did not show on it (the game puts them on the prows' `prow_mat` material). With `dlc=yes`, for whoever
+   installed in Azahar the DLC they bought, the original files stay.
+4. The menu's Shop button reloads the menu: the shop would wait for the eShop in endless loops.
+5. `save.sub.enlist` is written into a global `mode.sub.enlist`, which the save does not keep: removing the mod does
+   not trigger error 098-0101. A save already flagged is repaired with `tools/save.py premium-off`.
+6. The patterns unlocked by the mod get their default colours (`bxml/sub_color_set`), which the game only gives to
+   patterns unlocked by a reward: once per save (`save.sdsw.colors`), at the title screen, those whose three colours
+   are still 0 (`mods/premium/src/colours.p`).
 
-Les missions restent à jouer : elles se débloquent avec les médailles. Pour tout ouvrir d'un coup, l'éditeur de
-sauvegarde ([../tools/save.py](../tools/save.py)) sait aussi donner des médailles.
+The missions remain to be played: they unlock with the medals. To open everything at once, the save editor
+([../tools/save.py](../tools/save.py)) can also give medals, and the `missions` mod opens them all.
 
-En ligne, ce mod ne compte pas comme de la triche : il donne ce que les joueurs premium avaient.
+Online, this mod does not count as cheating: it gives what premium players had.
 
-## Dans la mise à jour v5200
+## In the update v5200
 
-*Avancement estimé : 90 % — vérifié dans Azahar : équipage complet, sous-marins de la mise à jour débloqués ; reste
-le détail des « remodelages ».*
+*Estimated progress: 90 % — checked in Azahar: complete crew, the update's submarines unlocked; the details of the
+"refits" remain.*
 
-La mise à jour ([update-v5200.md](update-v5200.md)) vend davantage :
+The update ([update-v5200.md](update-v5200.md)) sells more:
 
-- **15 sous-marins** à part : les 5 historiques (n° 19 à 23, contenus 1 à 5) et 10 nouveaux (n° 27 à 36 : I-168,
-  Type XXI, Blue-Marine, Classe Z, Soryu, USS Nautilus, Classe S, Daphné, Kilo, Victor III ; contenus 6 à 15),
-  leur proue dans le contenu additionnel comme celle des historiques (`mount_dlc_arc`). La table des
-  correspondances est dans `mode_title` (sous-marins et contenus, 15 cellules chacune).
-- **Un « remodelage » de chaque sous-marin** (`save.sub.typeN.expanded`), acheté comme le contenu N + 30.
-- **De l'expérience d'équipage** et la version complète (`sysDLCSetFilterModeCrewExp`, `…Enlist`).
+- **15 submarines** separately: the 5 historical ones (n° 19 to 23, contents 1 to 5) and 10 new ones (n° 27 to 36:
+  I-168, Type XXI, Blue-Marine, Z class, Soryu, USS Nautilus, S class, Daphné, Kilo, Victor III; contents 6 to 15),
+  their prow in the add-on content like the historical ones' (`mount_dlc_arc`). The table matching them is in
+  `mode_title` (submarines and contents, 15 cells each).
+- **A "refit" of each submarine** (`save.sub.typeN.expanded`), bought as content N + 30.
+- **Crew experience** and the full version (`sysDLCSetFilterModeCrewExp`, `...Enlist`).
 
-`NsubShop::updateCondition` (`0x0013A9B0`) y remplit deux bitmaps : les contenus achetés (`+0x2DB0`, lus par
-`checkCondition` et `checkPaidForFullVer`) et les contenus possédés (`+0x2DC0`, lus par la nouvelle native
-`sysDLCCheckOwned`, `0x0030B988`). Les sous-marins se débloquent dans `save.sub.unlock[23]` (comme en v0) et dans
-`save.sub.unlock2[36]` (n° 1 à 36) et `save.p3.sub.unlock[3]` (n° 37 à 39 : Type ORDI, Fretin, Sous-boss, les
-sous-marins de l'ordinateur devenus jouables) ; `updateSubUnlock` (`mode_title`) en déduit `save.sub.owned[36]` et
-`save.p3.sub.owned[3]`. L'équipage des sous-marins 37 à 39 est dans `save.p3.sub.crew.unlock[8]`.
+`NsubShop::updateCondition` (`0x0013A9B0`) fills two bitmaps there: the contents bought (`+0x2DB0`, read by
+`checkCondition` and `checkPaidForFullVer`) and the contents owned (`+0x2DC0`, read by the new native
+`sysDLCCheckOwned`, `0x0030B988`). The submarines unlock in `save.sub.unlock[23]` (as in v0) and in
+`save.sub.unlock2[36]` (n° 1 to 36) and `save.p3.sub.unlock[3]` (n° 37 to 39: the computer's submarines made
+playable); `updateSubUnlock` (`mode_title`) deduces `save.sub.owned[36]` and `save.p3.sub.owned[3]` from them. The
+crew of submarines 37 to 39 is in `save.p3.sub.crew.unlock[8]`.
 
-Le mod `premium` y fait tout acheter et tout posséder (les trois fonctions de vérification rendent 1), remplit les
-huit tableaux de déblocage, donne une proue du jeu aux sous-marins 27 à 36 sans le DLC, et mène au menu le bouton
-Boutique et l'invitation à la « boutique d'essai » de la v5200.
+The `premium` mod buys and owns everything there (the three checking functions return 1), fills the eight unlock
+arrays, gives a prow of the game to submarines 27 to 36 without the DLC, and sends the Shop button and the v5200's
+invitation to the "trial shop" to the menu.
 
-**Les couleurs des motifs** : la v5200 resynchronise à chaque démarrage les récompenses avec le niveau en ligne
-(`mode_title`, `func_103e4`, nouveau) : tout ce qui est au-dessus du niveau du joueur est reverrouillé, et un motif
-reverrouillé reprend des couleurs « par défaut » qui ne sont pas encore lues (0, 0, 0). Le mod redéverrouillait
-ensuite tout : les couleurs choisies pour les motifs 6 à 31 (récompenses des niveaux 2 à 42) étaient perdues à
-chaque démarrage. Avec `debloquer`, `func_10358` (débloquer ou verrouiller une récompense) ne verrouille plus. `tools/save.py` et le lanceur connaissent les
-39 sous-marins et les tableaux de la v5200.
-
+**The patterns' colours**: at every start-up the v5200 resynchronises the rewards with the online level
+(`mode_title`, `func_103e4`, new): everything above the player's level is locked again, and a pattern locked again
+gets "default" colours that are not read yet (0, 0, 0). The mod then unlocked everything again: the colours chosen
+for patterns 6 to 31 (rewards of levels 2 to 42) were lost at every start-up. With `unlock`, `func_10358` (unlock or
+lock a reward) no longer locks. `tools/save.py` and the launcher know the 39 submarines and the v5200's arrays.

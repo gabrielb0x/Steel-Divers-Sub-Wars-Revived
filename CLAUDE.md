@@ -1,8 +1,8 @@
 # Steel Diver: Sub Wars — Open Sourced
 
 Reverse engineering of the 3DS game (EUR, title 00040000000D7E00, v0) with three goals: readable pseudo-source
-(`decomp/`), a native PC port (`port/`), and an online server (`server/`). The user writes in French: docs and
-replies in French, code and code comments in English.
+(`decomp/`), a native PC port (`port/`), and an online server (`server/`). The repository is public: docs, code,
+comments, the launcher and the tools' messages are in English. The user writes in French: replies to them in French.
 
 ## Hard rules
 
@@ -12,8 +12,11 @@ replies in French, code and code comments in English.
 - Targets: the EUR v0 executable and its update v5200 (title 0004000E000D7E00, docs/update-v5200.md), mods for the
   Azahar emulator, then the PC port. Not real 3DS. The RE pipeline (Ghidra, decomp/) works on v0.
 - The repo is MIT-licensed: never copy GPL/AGPL code (Pretendo, Azahar/Citra) into it; use it as reference only.
-- Ghidra must live in a path without non-ASCII characters (its log4j config fails on `Téléchargements`):
-  it is in `~/tools/ghidra_12.1.4_PUBLIC`, referenced by `local.env`.
+- Ghidra must live in a path without non-ASCII characters (its log4j config fails on them): it is in
+  `~/tools/ghidra_12.1.4_PUBLIC`, referenced by `local.env`.
+- Names were French before the project went English (mods `en-ligne`, `triche`..., options `facteur`..., server values
+  `separes`, `difficile`..., settings files `identites.json`, `sous-marins.toml`...): the code still accepts them
+  (mod.MOD_ALIASES, mod.PARAM_ALIASES, server config.VALUE_ALIASES, azahar.settings_file) and writes English.
 
 ## Pipeline
 
@@ -37,7 +40,7 @@ make pawncc bots     build/pawncc (Pawn 3.3, built with -D_I32_MAX/_I32_MIN: els
 tools/botsim.py                                     bot sandbox: AMX interpreter + small world (docs/bots.md)
 python3 subwars.py                                  players' launcher: local web UI (tools/webui.py + webui.html)
 python3 -m unittest discover -s tools/tests         tests of the players' tools (no game file needed)
-cd server && python3 -m sdsw_server        online server (realms "emulateur" and "pc", server.toml); tests: python3 -m unittest discover -s tests -t .
+cd server && python3 -m sdsw_server        online server (realms "emulator" and "pc", server.toml); tests: python3 -m unittest discover -s tests -t .
 ```
 
 Players' tools (subwars.py, mod.py, save.py, subs.py, music.py, bcstm.py, extract_cia.py) must run with Python 3.11 alone on
@@ -68,7 +71,7 @@ Ghidra scripts are Java (`ghidra/scripts/`), compiled by Ghidra 12.1.4; check th
 - Premium = add-on content title 0004008C000D7E00 checked by NsubShop (source/sys/dlc.cpp): content 91 is the full
   version, 1-5 the historical subs 19-23 (their prow models only exist in the DLC). docs/premium.md, mods/premium.
   Never use a DLC CIA that is not the player's own purchase (a "piratelegit"/generated ticket has console id 0).
-- Save: "data:/save" = CRC-32 + script globals named save* (version 27); docs/formats.md#sauvegarde.
+- Save: "data:/save" = CRC-32 + script globals named save* (version 27); docs/formats.md#save.
 - Online: NEX 3.7 (auth, matchmaking, NAT traversal) + Pia P2P, fully documented in `docs/online.md` and checked
   with the real game: PRUDP v1, RC4 "CD&ML" before the Kerberos session key, aggregate ACKs (MULTI_ACK, substream 1).
   Azahar's frd:u lacks game authentication, hence the `online` mod. Pretendo's server (Go, AGPL-3.0) is cloned for

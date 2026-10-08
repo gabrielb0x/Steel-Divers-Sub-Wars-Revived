@@ -286,7 +286,7 @@ class StateFile(unittest.TestCase):
                               f'nat_check = false\n[[realm]]\nname = "test"\nauth_port = {free_udp_port()}\n'
                               f'secure_port = {free_udp_port()}\n', encoding="utf-8")
             server, realms = entry.load_config(config, None)
-            state = tmp / "data" / "serveur.json"
+            state = tmp / "data" / "server.json"
             task = asyncio.get_running_loop().create_task(entry.run(server, realms, config, state))
             for _ in range(50):
                 await asyncio.sleep(0.05)

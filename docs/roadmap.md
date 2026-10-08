@@ -1,129 +1,129 @@
-# Feuille de route
+# Roadmap
 
-## Volet 1 — Pseudo-code source (`decomp/`)
+## Part 1 — Pseudo source code (`decomp/`)
 
-*Avancement estimé : 20 % — tout est exporté et les scripts décompilés, mais 9 % seulement du code du jeu est réécrit proprement.*
+*Estimated progress: 20 % — everything is exported and the scripts are decompiled, but only 9 % of the game's code
+is cleanly rewritten.*
 
-But : un code C++ lisible qui montre comment le jeu était écrit.
+Goal: readable C++ code that shows how the game was written.
 
-Fait :
-- [x] Extraction du CIA, conversion `code.bin` → ELF (`tools/`)
-- [x] Projet Ghidra : 9431 fonctions nommées depuis `romfs:/map`, 439 fonctions retrouvées via les tables de pointeurs,
-      wrappers SVC annotés (`ghidra/scripts/`)
-- [x] Export du pseudo-code brut, un fichier par fichier objet d'origine (`decomp/raw/`, généré localement)
-- [x] Connaissances versionnées (`ghidra/symbols.txt`, `ghidra/types.h`) réappliquées à chaque export ; premières
-      entrées : runtime C (`memcpy`, `strlen`, `__aeabi_uidiv`…), `operator new`, prototypes de la séquence de démarrage
-- [x] Premier fichier nettoyé : `decomp/src/main.cpp` (démarrage, système de « modes », boucle à 30 fps, rendu stéréo)
-- [x] Scripts Pawn : désassembleur + décompilateur (`tools/amx.py`, `tools/amxdec.py`), 123 scripts en pseudo-Pawn ;
-      647 natives retrouvées et typées dans Ghidra, types de paramètres déduits du C++ (`tools/native_types.py`)
-- [x] Classes `World` et `AMXLoader` (vtable) typées ; faux « no-return » de Ghidra corrigés (378 → 41)
-- [x] Boutique et contenus additionnels (`decomp/src/sys/dlc.cpp`, classe `NsubShop` typée), sauvegarde
-      (`decomp/src/sys/savedata.cpp`, globales et natives de sauvegarde dans `decomp/src/amx/amxsys.cpp`)
+Done:
+- [x] CIA extraction, `code.bin` → ELF conversion (`tools/`)
+- [x] Ghidra project: 9,431 functions named from `romfs:/map`, 439 functions found through the tables of pointers,
+      SVC wrappers annotated (`ghidra/scripts/`)
+- [x] Export of the raw pseudo-code, one file per original object file (`decomp/raw/`, generated locally)
+- [x] Versioned knowledge (`ghidra/symbols.txt`, `ghidra/types.h`) applied again at every export; first entries:
+      C runtime (`memcpy`, `strlen`, `__aeabi_uidiv`...), `operator new`, prototypes of the start-up sequence
+- [x] First cleaned file: `decomp/src/main.cpp` (start-up, the "modes" system, 30 fps loop, stereo rendering)
+- [x] Pawn scripts: disassembler + decompiler (`tools/amx.py`, `tools/amxdec.py`), 123 scripts as pseudo-Pawn;
+      647 natives found and typed in Ghidra, parameter types deduced from the C++ (`tools/native_types.py`)
+- [x] `World` and `AMXLoader` classes (vtable) typed; Ghidra's false "no-return" fixed (378 → 41)
+- [x] Shop and add-on contents (`decomp/src/sys/dlc.cpp`, class `NsubShop` typed), save
+      (`decomp/src/sys/savedata.cpp`, save globals and natives in `decomp/src/amx/amxsys.cpp`)
 
-À faire :
-1. **Types** : reconstituer les classes du jeu (`Actor`, `World`, `Session`, `Connection`, `Model`…) dans Ghidra à
-   partir des constructeurs et des vtables, puis réexporter : le pseudo-code devient beaucoup plus lisible.
-2. **Nettoyage** module par module dans `decomp/src/`, avec la même arborescence que `source/`, en commençant par
-   `main.cpp`, `sys/system.cpp`, `game/world.cpp`, `game/actor.cpp` et `amx/*` (les natives appelées par les scripts).
-3. **Scripts Pawn** : prototypes des natives écrits (`decomp/pawn/natives.inc`), noms propagés entre scripts,
-   états Pawn décompilés ; continuer à nommer les ~1 400 groupes de fonctions restants et les globales
-   (`decomp/pawn/symbols.txt`).
-4. ~~**Formats maison**~~ : BXML dans les deux sens (`tools/bxml.py`, XML lisible, réécriture identique à l'octet
-   près pour les 490 fichiers) ; `hmap` et `edge` entièrement documentés ([formats.md](formats.md)).
+To do:
+1. **Types**: rebuild the game's classes (`Actor`, `World`, `Session`, `Connection`, `Model`...) in Ghidra from the
+   constructors and vtables, then export again: the pseudo-code becomes much more readable.
+2. **Cleaning** module by module in `decomp/src/`, with the same tree as `source/`, starting with `main.cpp`,
+   `sys/system.cpp`, `game/world.cpp`, `game/actor.cpp` and `amx/*` (the natives the scripts call).
+3. **Pawn scripts**: native prototypes written (`decomp/pawn/natives.inc`), names propagated across scripts, Pawn
+   states decompiled; keep naming the ~1,400 groups of functions left and the globals (`decomp/pawn/symbols.txt`).
+4. ~~**In-house formats**~~: BXML both ways (`tools/bxml.py`, readable XML, rewritten byte for byte for the 490
+   files); `hmap` and `edge` fully documented ([formats.md](formats.md)).
 
-## Volet 2 — Portage PC (`port/`)
+## Part 2 — PC port (`port/`)
 
-*Avancement estimé : 0 % — stratégie choisie, rien d'écrit.*
+*Estimated progress: 0 % — strategy chosen, nothing written.*
 
-Approche recommandée : **recompilation statique + HLE, puis remplacement progressif par le code décompilé**
-(la méthode de Zelda64Recomp ou Unleashed Recompiled).
+Recommended approach: **static recompilation + HLE, then progressive replacement by the decompiled code** (the
+method of Zelda64Recomp or Unleashed Recompiled).
 
-- Le jeu tourne sur PC bien avant la fin de la décompilation.
-- Les bibliothèques Nintendo (NEX, Pia, NintendoWare, SDK : 80 % du code) tournent telles quelles, sans réécriture.
-- La pile réseau d'origine fonctionne sur des sockets PC, donc reste compatible avec les serveurs NEX.
-- Chaque fonction décompilée du volet 1 peut remplacer sa version recompilée : c'est là que se feront les
-  améliorations (écran large, haute résolution, 60 fps).
+- The game runs on PC long before the decompilation is finished.
+- Nintendo's libraries (NEX, Pia, NintendoWare, SDK: 80 % of the code) run as they are, without being rewritten.
+- The original network stack works on PC sockets, so it stays compatible with NEX servers.
+- Each function decompiled in part 1 can replace its recompiled version: that is where the improvements will be
+  made (widescreen, high resolution, 60 fps).
 
-Étapes :
-1. **Recompilateur ARM11 → C** (`tools/recomp/`) : ARMv6K + VFPv2, liste des fonctions issue du map et de Ghidra,
-   tables de `switch`, appels indirects (vtables) via une table adresse → fonction.
-2. **Runtime** (`port/runtime/`) : espace mémoire 3DS, threads et synchronisation (SVC), HLE des services utilisés :
-   `fs` → RomFS + sauvegardes, `hid`/`ir` → clavier/manette, `apt`, `cfg`, `ptm`, `ac`, `frd`…
-3. **Rendu** : commandes PICA200 (via `gsp::Gpu` / `libgles2`) → OpenGL ou Vulkan, deux écrans, montée en résolution.
-4. **Audio** : HLE du DSP (voix, ADPCM, mixage) → SDL.
-5. **Réseau** : `soc:U`/`ssl:C`/`http:C` → sockets PC ; `frd:u` (authentification NASC) → serveur configurable.
+Steps:
+1. **ARM11 → C recompiler** (`tools/recomp/`): ARMv6K + VFPv2, list of functions from the map and Ghidra, `switch`
+   tables, indirect calls (vtables) through an address → function table.
+2. **Runtime** (`port/runtime/`): 3DS memory space, threads and synchronisation (SVC), HLE of the services used:
+   `fs` → RomFS + saves, `hid`/`ir` → keyboard/gamepad, `apt`, `cfg`, `ptm`, `ac`, `frd`...
+3. **Rendering**: PICA200 commands (through `gsp::Gpu` / `libgles2`) → OpenGL or Vulkan, two screens, upscaling.
+4. **Audio**: HLE of the DSP (voices, ADPCM, mixing) → SDL.
+5. **Network**: `soc:U`/`ssl:C`/`http:C` → PC sockets; `frd:u` (NASC authentication) → configurable server.
 
-Alternative : portage « source pur » (tout décompiler en C++ compilable, réécrire les couches `nn`/`nw`). Plus propre
-au final, mais rien ne tourne avant que tout soit terminé.
+Alternative: a "pure source" port (decompile everything into compilable C++, rewrite the `nn`/`nw` layers). Cleaner
+in the end, but nothing runs before everything is done.
 
-## Volet 3 — Serveur online (`server/`)
+## Part 3 — Online server (`server/`)
 
-*Avancement estimé : 90 % — reste : voir les nouveaux bots dans Azahar, une vraie partie entre deux maisons.*
+*Estimated progress: 90 % — left: see the new bots in Azahar, a real battle between two homes.*
 
-Constat : le serveur ne gère que l'authentification, le matchmaking et le NAT traversal ; les parties elles-mêmes
-se jouent en P2P via Pia. Aucune bibliothèque NEX de classement ou de stockage n'est liée au jeu.
+Finding: the server only handles authentication, matchmaking and NAT traversal; the battles themselves are played
+P2P through Pia. No NEX ranking or storage library is linked into the game.
 
-1. ~~**Rétro-ingénierie du client**~~ : PRUDP v1, Kerberos, RMC, structures NEX 3.7, détection de NAT de Pia,
+1. ~~**Reverse engineering of the client**~~: PRUDP v1, Kerberos, RMC, NEX 3.7 structures, Pia's NAT detection,
    notifications ([online.md](online.md)).
-2. ~~**Serveur autonome**~~ (Python, sans dépendance) : TicketGranting, SecureConnection, NATTraversal, MatchMaking,
-   MatchMakingExt, MatchmakeExtension, serveurs « nncs » ; deux royaumes séparés, émulateur et PC ; options
-   `max_players` (plus de bots) et `cheats` (tricheurs acceptés, séparés ou refusés).
-3. ~~**Validation avec le jeu**~~ : deux Azahar avec le mod `online` se connectent, se trouvent et jouent une
-   bataille ensemble.
-4. ~~**Serveur public**~~ : adresse publique trouvée (box, STUN), ports ouverts par UPnP (vérifié avec une
-   box), joueurs du réseau du serveur présentés sous l'adresse publique et port de leur jeu redirigé
-   ([online.md](online.md#7-joueurs-éloignés--adresses-publiques-et-privées)) ; validé par simulation (deux NAT
-   Linux dans des espaces de noms réseau) ; lanceur : arrêt d'un serveur déjà lancé, adresse à partager, test.
-5. ~~**Bots pour un joueur seul**~~ : seul `bots_delay` secondes, le joueur joue contre des bots réglés par le
-   serveur (équipes 4v4, 1v4…, carte, niveau, durée, noms) ; ils rejoignent le salon comme des joueurs, ont de
-   vrais sous-marins, leur nom et leur niveau, et comptent pour la victoire. Vérifié dans Azahar. Le serveur
-   règle le jeu par des notifications à lui (variables de script, [online.md](online.md#8-serveur--jeu--les-variables-du-mod)).
-   Options du serveur affichées et modifiables dans le lanceur.
-6. ~~**Bots qui jouent comme des joueurs**~~ ([bots.md](bots.md)) : physique et caractéristiques d'un sous-marin
-   de joueur, collisions avec la carte et les sous-marins, combats contre tout ennemi (bots compris), visée là où
-   sera la cible, esquive, torpilles à tête chercheuse, masqueur et repli. Écrits en Pawn (`tools/pawn2pasm.py`),
-   vérifiés dans un bac à sable (`tools/botsim.py`) ; reste à les voir dans Azahar. Pour une IA apprise,
-   estimation dans [ia.md](ai.md).
-7. **À suivre** : une vraie partie entre deux maisons ; relais pour les NAT stricts si besoin ; migration d'hôte
-   et départs en cours de partie à éprouver.
+2. ~~**Standalone server**~~ (Python, no dependency): TicketGranting, SecureConnection, NATTraversal, MatchMaking,
+   MatchMakingExt, MatchmakeExtension, "nncs" servers; two separate realms, emulator and PC; options `max_players`
+   (more computer subs) and `cheats` (cheaters allowed, separate or refused).
+3. ~~**Validation with the game**~~: two Azahar instances with the `online` mod connect, find each other and play a
+   battle together.
+4. ~~**Public server**~~: public address found (router, STUN), ports opened by UPnP (checked with a consumer
+   router), players of the server's network shown under the public address with their game's port forwarded
+   ([online.md](online.md#7-distant-players-public-and-private-addresses)); validated by simulation (two Linux NATs
+   in network namespaces); launcher: stopping a server already running, address to share, test.
+5. ~~**Bots for a player alone**~~: alone for `bots_delay` seconds, the player plays against bots set by the server
+   (teams 4v4, 1v4..., map, level, duration, names); they join the lobby like players, have real submarines, their
+   name and level, and count for the victory. Checked in Azahar. The server sets the game through notifications of
+   its own (script variables, [online.md](online.md#8-server--game-the-mods-variables)). The server's options are
+   shown and editable in the launcher.
+6. ~~**Bots that play like players**~~ ([bots.md](bots.md)): a player's submarine physics and characteristics,
+   collisions with the map and the submarines, fighting any enemy (bots included), aiming where the target will be,
+   dodging, homing torpedoes, masker and retreat, player spawn points, crews, varied maneuvers. Written in Pawn
+   (`tools/pawn2pasm.py`), checked in a sandbox (`tools/botsim.py`); remain to be seen in Azahar. For a learnt AI,
+   an estimate in [ai.md](ai.md).
+7. **Next**: a real battle between two homes; a relay for strict NATs if needed; host migration and players leaving
+   mid-battle to put to the test.
 
-## Volet 4 — Mods (Azahar, puis portage PC)
+## Part 4 — Mods (Azahar, then the PC port)
 
-*Avancement estimé : 75 % — reste : 60 images/s (portage PC), pseudo-Pawn recompilable, menu de debug, somme de version des mods de gameplay.*
+*Estimated progress: 75 % — left: 60 frames/s (PC port), recompilable pseudo-Pawn, debug menu, a version checksum
+of the gameplay mods.*
 
-Le plan détaillé est dans [mods.md](mods.md) : on publie des recettes (`mods/`), jamais un CIA modifié.
+The detailed plan is in [mods.md](mods.md): we publish recipes (`mods/`), never a modified CIA.
 
-1. ~~**Outillage**~~ : jeu installable dans Azahar (`tools/azahar.py`), mods en recettes construites et installées
-   par `tools/mod.py` (textes, BXML, patchs de code IPS) ; reste les scripts Pawn (assembleur AMX).
-2. **Scripts Pawn** : ~~patchs ciblés~~ (chaînes et opérandes, réencodage compact identique à l'octet près :
-   `tools/amx.py`, recettes `[[amx]]`, mod `triche`) ; ~~assembleur~~ (`tools/amxasm.py` : code, données,
-   natives et fonctions publiques ajoutés, crochets sur les instructions existantes, fichiers `.pasm`) ; reste
-   du pseudo-Pawn recompilable. Le menu de debug des développeurs en dépend (sa logique et son affichage ont
-   été retirés).
-3. ~~**Jeu en ligne**~~ : mod `online` (patch des fonctions *friends* utilisées par `JobCTRLogin`, serveurs de
-   détection de NAT redirigés, identité par joueur). Reste : une somme de version propre aux mods de gameplay.
-4. **60 fps** : un essai dans Azahar (image intermédiaire interpolée entre deux pas de simulation, commit
-   bfac07c) a été abandonné pour l'instant, trop de défauts en jeu ([mods.md](mods.md#60-et-120-images-par-seconde)).
-   À reprendre dans le portage PC, où le rendu est à nous : 60, 120 images/s et plus.
-5. ~~**Premium**~~ : mod `premium` (version complète et contenus additionnels sans l'eShop, déblocages,
-   sous-marins historiques avec leur coque), [premium.md](premium.md).
-6. ~~**Sauvegarde**~~ : format décodé, éditeur `tools/save.py`.
-7. ~~**Correctifs**~~ : plantage d'Azahar quand une torpille touche un sous-marin sous l'eau (bug de son JIT de
-   shaders, contourné dans `shaders/metaball.shbin`), mod `correctifs` inclus partout ([mods.md](mods.md#correctifs)).
-8. ~~**Petits mods**~~ : `missions` (toutes les missions), `vitesse` (sous-marin ×2 à ×15), tir sans délai
-   (`triche`, option `rafale`).
-9. ~~**Pseudo**~~ : en ligne et en local, le nom d'un joueur est le pseudo de sa console (de l'émulateur), plus
-   « Citra » pour tout le monde (mod `pseudo`, inclus partout).
+1. ~~**Tooling**~~: game installable in Azahar (`tools/azahar.py`), mods as recipes built and installed by
+   `tools/mod.py` (texts, BXML, IPS code patches).
+2. **Pawn scripts**: ~~targeted patches~~ (strings and operands, compact re-encoding identical byte for byte:
+   `tools/amx.py`, `[[amx]]` recipes, `cheats` mod); ~~assembler~~ (`tools/amxasm.py`: code, data, natives and
+   public functions added, hooks on existing instructions, `.pasm` files); ~~Pawn compiler~~
+   (`tools/pawn2pasm.py`: Pawn sources compiled into hooks); left: recompilable pseudo-Pawn. The developers' debug
+   menu depends on it (its logic and display were removed).
+3. ~~**Online play**~~: `online` mod (patch of the *friends* functions used by `JobCTRLogin`, NAT detection servers
+   redirected, an identity per player). Left: a version checksum specific to the gameplay mods.
+4. **60 fps**: an attempt in Azahar (an intermediate frame interpolated between two simulation steps, commit
+   bfac07c) was set aside for now, too many glitches in the game ([mods.md](mods.md#60-and-120-frames-per-second)).
+   To take up again in the PC port, where the rendering is ours: 60, 120 frames/s and more.
+5. ~~**Premium**~~: `premium` mod (full version and add-on contents without the eShop, unlocks, historical submarines
+   with a prow of the game), [premium.md](premium.md).
+6. ~~**Save**~~: format decoded, editor `tools/save.py`.
+7. ~~**Fixes**~~: Azahar's crash when a torpedo hits a submarine underwater (a bug of its shader JIT, worked around in
+   `shaders/metaball.shbin`), mod `fixes` included everywhere ([mods.md](mods.md#fixes)).
+8. ~~**Small mods**~~: `missions` (every mission), `speed` (submarine ×2 to ×15), firing without delay (`cheats`,
+   option `rapid_fire`), `music` (your music, at the original's loudness).
+9. ~~**Nickname**~~: online and offline, a player's name is their console's (emulator's) nickname, no more "Citra"
+   for everybody (mod `nickname`, included everywhere).
 
-## Décisions
+## Decisions
 
-*Avancement estimé : 100 %.*
+*Estimated progress: 100 %.*
 
-- **Versions du jeu** : la version de lancement (v0, Europe), celle du dump, et sa dernière mise à jour, v5200
-  ([update-v5200.md](update-v5200.md)). La rétro-ingénierie (Ghidra, `decomp/`) travaille sur la v0 ; les mods et
-  le jeu en ligne marchent avec les deux (adresses de la v5200 retrouvées par correspondance : `tools/amxport.py`
-  pour les scripts), et le serveur ne mélange jamais les joueurs des deux versions.
-- **Cibles** : mods pour Azahar d'abord, portage PC ensuite (recompilation statique + HLE). La 3DS n'est pas une
-  cible.
-- **Licence du dépôt : MIT**. Le code GPL/AGPL (serveur Pretendo, Azahar/Citra) ne peut pas être intégré tel quel : il
-  sert de référence, et on écrit nos propres implémentations.
+- **Versions of the game**: the launch version (v0, Europe), that of the dump, and its last update, v5200
+  ([update-v5200.md](update-v5200.md)). Reverse engineering (Ghidra, `decomp/`) works on the v0; mods and online play
+  work with both (the v5200's addresses found by matching: `tools/amxport.py` for the scripts), and the server never
+  mixes players of both versions.
+- **Targets**: mods for Azahar first, the PC port next (static recompilation + HLE). The 3DS is not a target.
+- **The repository's licence: MIT**. GPL/AGPL code (Pretendo's server, Azahar/Citra) cannot be taken in as it is: it
+  is used as a reference, and we write our own implementations.
