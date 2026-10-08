@@ -58,8 +58,9 @@ REALM_OPTIONS = (
     Option("bots_delay", "int", 60, "Délai avant les bots", "secondes seul dans la partie", low=5, high=3600),
     Option("bots_format", "choice", "4v4", "Équipes",
            "votre équipe contre l'autre : 4v4 = vous et 3 bots contre 4 bots, 1v4 = seul contre 4", choices=FORMATS),
-    Option("bots_map", "choice", "aleatoire", "Carte", "aleatoire, ou le numéro d'une carte",
-           choices=("aleatoire", "1", "2", "4", "5", "6", "7", "8", "9", "10")),
+    Option("bots_map", "choice", "aleatoire", "Carte", "aleatoire, ou le numéro d'une carte (11 à 13 : celles de "
+           "la mise à jour v5200, aléatoire pour les joueurs du jeu d'origine)",
+           choices=("aleatoire", "1", "2", "4", "5", "6", "7", "8", "9", "10", "11", "12", "13")),
     Option("bots_level", "choice", "difficile", "Niveau des bots",
            "ils jouent comme des joueurs ; le niveau règle réflexes et précision ; pour tous les bots en ligne",
            choices=("normal", "difficile", "expert")),

@@ -131,10 +131,10 @@ async def matchmade(port: int, pid: int, flags: str = ""):
     return await testclient.matchmake(secure, 3)
 
 
-async def console(port: int, pid: int, flags: str = ""):
+async def console(port: int, pid: int, flags: str = "", checksum: int = testclient.V0):
     """A simulated console in a match: (its connection, the session)."""
     secure, _ = await testclient.login("127.0.0.1", port, pid, "password", flags)
-    session = await testclient.matchmake(secure, 3)
+    session = await testclient.matchmake(secure, 3, checksum=checksum)
     if session.owner_pid == pid:
         params = StreamOut(); params.u32(session.id)
         await secure.call(109, 2, params)                         # OpenParticipation, as the lobby does
@@ -285,6 +285,17 @@ class Bots(unittest.TestCase):
             return after, len(again)
         self.assertEqual(self.run_bots(test), (0, 1))
 
+    def test_bots_of_the_update(self):
+        async def test(realm, port, clock):
+            secure, _ = await console(port, 0x10000001, checksum=testclient.V5200)
+            clock.now += 61
+            realm.matchmaker.tick()
+            await asyncio.sleep(0.3)
+            return secure.game_globals()
+        values = self.run_bots(test)
+        self.assertEqual(values["server.bots"], 1)
+        self.assertTrue(all(1 <= values[f"server.bots.sub{k}"] <= 36 for k in range(1, 8)))
+
     def test_settings(self):
         b = BotSettings.from_config({"bots_format": "2v3", "bots_map": "4", "bots_level": "normal",
                                      "bots_delay": 30, "bots_countdown": 20, "bots_duration": 8,
@@ -302,6 +313,18 @@ class Bots(unittest.TestCase):
 
 class Options(unittest.TestCase):
     """serveur.toml options: max_players (more AI subs) and the cheat policy."""
+
+    def test_versions_never_meet(self):
+        async def test(realm, port):
+            _, old = await console(port, 0x10000001)
+            _, new = await console(port, 0x10000002, checksum=testclient.V5200)
+            _, old2 = await console(port, 0x10000003)
+            _, new2 = await console(port, 0x10000004, checksum=testclient.V5200)
+            return old.id, new.id, old2.id, new2.id
+        old, new, old2, new2 = run_realm(test)
+        self.assertNotEqual(old, new)
+        self.assertEqual(old, old2)
+        self.assertEqual(new, new2)
 
     def test_max_players(self):
         async def test(realm, port):

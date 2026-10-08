@@ -43,10 +43,18 @@ SET_GLOBAL = 999001            # our own types, handled by the online mod's patc
 SET_GLOBAL_STRING = 999002     # global (string = name, param1 = value), a string global ("name=value")
 
 # Battle maps of the online mode: their number (the game's text key stage_multi_NN) and the stage of the
-# scripts (player.stage = 9 + number). Number 3 exists in the files but the game never picks it.
-MAPS = (1, 2, 4, 5, 6, 7, 8, 9, 10)
+# scripts (player.stage = 9 + number). Number 3 exists in the files but the game never picks it. The update
+# v5200 adds 11 to 13 (worlds/scope00_online_stage11..13; its getRandomStage draws stages 10 to 22).
+MAPS = (1, 2, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13)
+MAPS_OF = {"v0": MAPS[:9], "v5200": MAPS}
 LEVELS = {"normal": 1, "difficile": 2, "expert": 3}
-SUBS = 23                      # submarine types; the bots show one at random, as players would
+# The game's versions, by the version checksum of their search (attribute 3, sysGetVersionChecksum): players of
+# two versions never meet (maps, submarines and scripts differ), whatever their criteria say.
+VERSIONS = {0xB95D7F2B: "v0", 868960903: "v5200"}
+VERSION_ATTRIBUTE = 3
+# Submarines the bots show, one at random as players would: the game's 23, the update's 36 (37 to 39 are the
+# computer's own, rewards of the update's events).
+SUBS = {"v0": 23, "v5200": 36}
 BOT_NAMES = ("Requin", "Kraken", "Narval", "Murene", "Espadon", "Barracuda", "Orque", "Nautilus", "Abysse",
              "Corsaire", "Marlin", "Calamar", "Triton", "Poseidon", "Sonar", "Torpille", "Ressac", "Hublot",
              "Abordage", "Typhon", "Neptune", "Leviathan", "Remous", "Sillage", "Capitaine", "Matelot",
@@ -113,21 +121,22 @@ class BotSettings:
     def format(self) -> str:
         return f"{self.mine}v{self.other}"
 
-    def identities(self, rng: random.Random | None = None) -> list[dict]:
+    def identities(self, rng: random.Random | None = None, version: str = "v0") -> list[dict]:
         """Seven bots that look like players: a name, a submarine, a level (Lv shown by the game)."""
         rng = rng or random.Random()
-        return [{"name": name, "sub": rng.randint(1, SUBS), "level": rng.randint(4, 40)}
+        return [{"name": name, "sub": rng.randint(1, SUBS.get(version, SUBS["v0"])), "level": rng.randint(4, 40)}
                 for name in rng.sample(self.names, 7)]
 
-    def game_globals(self, bots: list[dict] | None = None) -> dict[str, int | str]:
+    def game_globals(self, bots: list[dict] | None = None, version: str = "v0") -> dict[str, int | str]:
         """What the online mod's scripts read; server.bots last: it starts everything. Bot k (1 to 7):
         server.bots.name<k>, sub<k>, lv<k>; bots of the players' team first, then the other team's."""
         values: dict[str, int | str] = {}
-        for k, bot in enumerate(bots or self.identities(), 1):
+        for k, bot in enumerate(bots or self.identities(version=version), 1):
             values |= {f"server.bots.name{k}": bot["name"], f"server.bots.sub{k}": bot["sub"],
                        f"server.bots.lv{k}": bot["level"]}
+        known = self.map in MAPS_OF.get(version, MAPS_OF["v0"])       # a map of the update: random for v0
         return values | {"server.bots.mine": self.mine, "server.bots.other": self.other,
-                         "server.bots.stage": 9 + self.map if self.map else 0,
+                         "server.bots.stage": 9 + self.map if self.map and known else 0,
                          "server.bots.level": LEVELS[self.level], "server.bots.countdown": self.countdown * 1000,
                          "server.bots.duration": self.duration * 60, "server.bots": 1}
 
@@ -138,6 +147,7 @@ class Session:
     participants: list[int] = field(default_factory=list)
     created: float = field(default_factory=time.monotonic)
     pool: str = ""                                  # players of different pools never meet
+    version: int = 0                                # version checksum of the game that created it
     alone_since: float | None = None                # one player only, since then
     bots: bool = False                              # this round is played against bots
     bot_globals: dict = field(default_factory=dict)  # what its players were told about the bots
@@ -149,6 +159,15 @@ class Session:
 
     def full(self) -> bool:
         return len(self.participants) >= max(self.info.max_participants, 1)
+
+    @property
+    def version_name(self) -> str:
+        return VERSIONS.get(self.version, f"{self.version:#x}")
+
+
+def version_of(info: MatchmakeSession) -> int:
+    """The version checksum a game puts in its search (0: none)."""
+    return info.attributes[VERSION_ATTRIBUTE] if len(info.attributes) > VERSION_ATTRIBUTE else 0
 
 
 class Matchmaker:
@@ -178,9 +197,11 @@ class Matchmaker:
 
     # -- search ----------------------------------------------------------------------------------
 
-    def _matches(self, session: Session, c: SearchCriteria, pid: int, pool: str) -> bool:
+    def _matches(self, session: Session, c: SearchCriteria, pid: int, pool: str, version: int) -> bool:
         info = session.info
         if session.pool != pool or not info.open_participation or session.full() or pid in session.participants:
+            return False
+        if session.version != version:
             return False
         if c.vacant_only and len(session.participants) + max(c.vacant_participants, 1) > info.max_participants:
             return False
@@ -205,8 +226,9 @@ class Matchmaker:
     def auto_matchmake(self, pid: int, criteria: list[SearchCriteria], proposal: MatchmakeSession,
                        message: str, pool: str = "") -> MatchmakeSession:
         self.leave(pid, "")
+        version = version_of(proposal)
         for c in criteria:
-            found = [s for s in self.sessions.values() if self._matches(s, c, pid, pool)]
+            found = [s for s in self.sessions.values() if self._matches(s, c, pid, pool, version)]
             if found:
                 session = max(found, key=lambda s: (len(s.participants), -s.created))
                 self._join(session, pid, message)
@@ -218,13 +240,14 @@ class Matchmaker:
         info.owner_pid = info.host_pid = pid
         info.participation_count = 1
         info.max_participants = min(info.max_participants or 8, self.max_players)
-        session = Session(info, [pid], pool=pool, created=self.clock(), alone_since=self.clock())
+        session = Session(info, [pid], pool=pool, version=version, created=self.clock(), alone_since=self.clock())
         self.sessions[info.id] = session
         self.by_pid[pid] = info.id
         if self.bot_level:
             self.set_globals(pid, {"server.bots.level": self.bot_level, "server.bots": 0})
-        log.info("pid %d creates session %d (game mode %d, attributes %s, %d players max%s)", pid, info.id,
-                 info.game_mode, info.attributes, info.max_participants, f", pool {pool}" if pool else "")
+        log.info("pid %d creates session %d (game %s, game mode %d, attributes %s, %d players max%s)", pid, info.id,
+                 session.version_name, info.game_mode, info.attributes, info.max_participants,
+                 f", pool {pool}" if pool else "")
         return info
 
     def _join(self, session: Session, pid: int, message: str) -> None:
@@ -272,7 +295,7 @@ class Matchmaker:
                     and session.alone_since is not None and now - session.alone_since >= self.bots.delay):
                 session.bots = True
                 session.alone_since = None
-                session.bot_globals = self.bots.game_globals()
+                session.bot_globals = self.bots.game_globals(version=VERSIONS.get(session.version, "v0"))
                 log.info("session %d: alone for %d s, bots (%s)", session.gid, self.bots.delay, self.bots.format)
                 self.set_globals(session.participants[0], session.bot_globals)
                 started.append(session)

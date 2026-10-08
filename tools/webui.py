@@ -422,7 +422,10 @@ def map_names() -> dict[str, str]:
     with contextlib.suppress(OSError, ValueError, ImportError):
         import xml.etree.ElementTree as ET
         from bxml import Bxml
-        root = ET.fromstring(Bxml((EXTRACTED / "romfs" / "text" / "EU_French.bxml").read_bytes()).to_xml())
+        text = EXTRACTED / "v5200" / "romfs" / "text" / "EU_French.bxml"        # the update names its maps too
+        if not text.is_file():
+            text = EXTRACTED / "romfs" / "text" / "EU_French.bxml"
+        root = ET.fromstring(Bxml(text.read_bytes()).to_xml())
         for node in root.iter("string"):
             key = node.get("key", "")
             if key.startswith("stage_multi_") and key[12:].isdigit():

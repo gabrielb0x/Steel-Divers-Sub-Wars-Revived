@@ -32,7 +32,8 @@ status_port = 0                 # page d'état (joueurs en ligne, parties) en HT
 #   bots_format     taille des deux équipes : "4v4" (vous et 3 bots contre 4 bots), "1v4" (seul contre
 #                   4 bots), "2v3"… de 1 à 4 par équipe ; si quelqu'un vous rejoint avant la bataille, il
 #                   joue avec vous et les bots complètent
-#   bots_map        "aleatoire", ou le numéro de la carte : 1, 2, 4 à 10 (le lanceur affiche leurs noms)
+#   bots_map        "aleatoire", ou le numéro de la carte : 1, 2, 4 à 10, et 11 à 13 pour la mise à jour v5200
+#                   (aléatoire pour les joueurs du jeu d'origine) ; le lanceur affiche leurs noms
 #   bots_level      "normal", "difficile" ou "expert" : des bots qui pilotent comme des joueurs (visée
 #                   là où sera la cible, esquive, masqueur…) ; le niveau règle leurs réflexes et leur
 #                   précision ; vaut pour tous les bots des parties en ligne, pas seulement ceux des
