@@ -113,7 +113,7 @@ def main() -> None:
               "`Install-here-macOS.zip`, Linux `install-here.sh`), put it where you want the game's folder, and "
               "open it. Already installed: the launcher offers this version by itself.")
     url = run(tool, "release", "create", tag, *map(str, assets), "-R", REPO, "--target", head,
-              "--title", f"Sub Wars Open Sourced {version}", "--notes", notes)
+              "--title", tag, "--notes", notes)
     print(f"[+] {url}")
 
 
