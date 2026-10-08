@@ -107,13 +107,19 @@ effacé), le bouton Start affiche l'erreur **098-0101** (`sysShowErrEULA(98101)`
    déblocage (option `debloquer`, activée par défaut) : les scripts l'appellent au titre, juste après le
    chargement de la sauvegarde, et avant le salon et le hangar. Le jeu enregistre ensuite ces tableaux : les
    déblocages restent même sans le mod, comme s'ils avaient été gagnés.
-3. Sans DLC (option `dlc=non`, par défaut), les sous-marins historiques prennent leur coque comme proue : plus
-   d'archive à monter (`mount_dlc_arc` retiré), `model_mutable_dlc="n2ply_x00N_prow"` devient
-   `model_mutable="n2ply_x00N"`. Avec `dlc=oui`, pour qui a installé dans Azahar le DLC qu'il a acheté, les
-   fichiers d'origine restent.
+3. Sans DLC (option `dlc=non`, par défaut), les sous-marins historiques prennent la proue d'un sous-marin du jeu
+   de même taille : plus d'archive à monter (`mount_dlc_arc` retiré), `model_mutable_dlc="n2ply_x00N_prow"`
+   devient par exemple `model_mutable="n2ply_l001_prow"` (I-400). Une première version leur donnait leur coque
+   comme proue : la caméra du pilote se retrouvait dans la coque (toute la vue cachée sur la classe Z de la
+   v5200, immense), et les couleurs des motifs ne s'y voyaient pas (le jeu les pose sur le matériau `prow_mat`
+   des proues). Avec `dlc=oui`, pour qui a installé dans Azahar le DLC qu'il a acheté, les fichiers d'origine
+   restent.
 4. Le bouton Boutique du menu recharge le menu : la boutique attendrait l'eShop dans des boucles sans fin.
 5. `save.sub.enlist` est écrit dans une globale `mode.sub.enlist`, que la sauvegarde ne garde pas : retirer le mod
    ne déclenche pas l'erreur 098-0101. Une sauvegarde déjà marquée se répare avec `tools/save.py premium-off`.
+6. Les motifs débloqués par le mod reçoivent leurs couleurs par défaut (`bxml/sub_color_set`), que le jeu ne
+   donne qu'aux motifs débloqués par une récompense : une fois par sauvegarde (`save.sdsw.colors`), au titre, ceux
+   dont les trois couleurs sont encore à 0 (`mods/premium/src/couleurs.p`).
 
 Les missions restent à jouer : elles se débloquent avec les médailles. Pour tout ouvrir d'un coup, l'éditeur de
 sauvegarde ([../tools/save.py](../tools/save.py)) sait aussi donner des médailles.
@@ -142,7 +148,13 @@ sous-marins de l'ordinateur devenus jouables) ; `updateSubUnlock` (`mode_title`)
 `save.p3.sub.owned[3]`. L'équipage des sous-marins 37 à 39 est dans `save.p3.sub.crew.unlock[8]`.
 
 Le mod `premium` y fait tout acheter et tout posséder (les trois fonctions de vérification rendent 1), remplit les
-huit tableaux de déblocage, donne leur coque aux sous-marins 27 à 36 sans le DLC, et mène au menu le bouton
-Boutique et l'invitation à la « boutique d'essai » de la v5200. `tools/save.py` et le lanceur connaissent les
+huit tableaux de déblocage, donne une proue du jeu aux sous-marins 27 à 36 sans le DLC, et mène au menu le bouton
+Boutique et l'invitation à la « boutique d'essai » de la v5200.
+
+**Les couleurs des motifs** : la v5200 resynchronise à chaque démarrage les récompenses avec le niveau en ligne
+(`mode_title`, `func_103e4`, nouveau) : tout ce qui est au-dessus du niveau du joueur est reverrouillé, et un motif
+reverrouillé reprend des couleurs « par défaut » qui ne sont pas encore lues (0, 0, 0). Le mod redéverrouillait
+ensuite tout : les couleurs choisies pour les motifs 6 à 31 (récompenses des niveaux 2 à 42) étaient perdues à
+chaque démarrage. Avec `debloquer`, `func_10358` (débloquer ou verrouiller une récompense) ne verrouille plus. `tools/save.py` et le lanceur connaissent les
 39 sous-marins et les tableaux de la v5200.
 

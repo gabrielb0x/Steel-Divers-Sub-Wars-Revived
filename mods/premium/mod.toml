@@ -170,36 +170,39 @@ p3crew:
 # Leur coque (n2ply_x00N, « modelship ») est dans le jeu de base (ou dans la mise à jour) : c'est elle que les
 # autres joueurs voient en ligne et que montre le hangar. Seule leur proue, le modèle détaillé vu par son propre
 # pilote (model_mutable_dlc = n2ply_x00N_prow), était dans le DLC, chargée depuis l'archive « content: » montée
-# par <mount_dlc_arc content_index="n"/> (Actor::readProperties). Sans le DLC, le pilote voit donc la coque.
+# par <mount_dlc_arc content_index="n"/> (Actor::readProperties). Sans le DLC, le pilote voit la proue d'un
+# sous-marin du jeu de même taille (n2ply_s/m/l…_prow : petit, moyen, grand). Montrer la coque entière à sa
+# place mettait la caméra du pilote dedans (la classe Z, immense, cachait toute la vue) et les couleurs des
+# motifs ne s'y voyaient pas : le jeu les pose sur le matériau « prow_mat » des proues.
 [[bxml]]
 unless = "${dlc}"
 file = "bxml/pscope_ply19.bxml"           # Type VII, contenu 1
 rename = { model_mutable_dlc = "model_mutable" }
-set = { model_mutable = "n2ply_x002" }
+set = { model_mutable = "n2ply_m000_prow" }
 
 [[bxml]]
 unless = "${dlc}"
 file = "bxml/pscope_ply20.bxml"           # HMS X1, contenu 2
 rename = { model_mutable_dlc = "model_mutable" }
-set = { model_mutable = "n2ply_x004" }
+set = { model_mutable = "n2ply_l002_prow" }
 
 [[bxml]]
 unless = "${dlc}"
 file = "bxml/pscope_ply21.bxml"           # I-400, contenu 3
 rename = { model_mutable_dlc = "model_mutable" }
-set = { model_mutable = "n2ply_x001" }
+set = { model_mutable = "n2ply_l001_prow" }
 
 [[bxml]]
 unless = "${dlc}"
 file = "bxml/pscope_ply22.bxml"           # classe Gato, contenu 4
 rename = { model_mutable_dlc = "model_mutable" }
-set = { model_mutable = "n2ply_x003" }
+set = { model_mutable = "n2ply_m003_prow" }
 
 [[bxml]]
 unless = "${dlc}"
 file = "bxml/pscope_ply23.bxml"           # Surcouf, contenu 5
 rename = { model_mutable_dlc = "model_mutable" }
-set = { model_mutable = "n2ply_x005" }
+set = { model_mutable = "n2ply_l004_prow" }
 
 [[bxml]]
 unless = "${dlc}"
@@ -218,70 +221,70 @@ versions = ["v5200"]
 unless = "${dlc}"
 file = "bxml/pscope_ply27.bxml"           # contenu 6
 rename = { model_mutable_dlc = "model_mutable" }
-set = { model_mutable = "n2ply_x006" }
+set = { model_mutable = "n2ply_m001_prow" }
 
 [[bxml]]
 versions = ["v5200"]
 unless = "${dlc}"
 file = "bxml/pscope_ply28.bxml"           # contenu 7
 rename = { model_mutable_dlc = "model_mutable" }
-set = { model_mutable = "n2ply_x007" }
+set = { model_mutable = "n2ply_m005_prow" }
 
 [[bxml]]
 versions = ["v5200"]
 unless = "${dlc}"
 file = "bxml/pscope_ply29.bxml"           # contenu 8
 rename = { model_mutable_dlc = "model_mutable" }
-set = { model_mutable = "n2ply_x008" }
+set = { model_mutable = "n2ply_s002_prow" }
 
 [[bxml]]
 versions = ["v5200"]
 unless = "${dlc}"
 file = "bxml/pscope_ply30.bxml"           # contenu 9
 rename = { model_mutable_dlc = "model_mutable" }
-set = { model_mutable = "n2ply_x009" }
+set = { model_mutable = "n2ply_l005_prow" }
 
 [[bxml]]
 versions = ["v5200"]
 unless = "${dlc}"
 file = "bxml/pscope_ply31.bxml"           # contenu 10
 rename = { model_mutable_dlc = "model_mutable" }
-set = { model_mutable = "n2ply_x010" }
+set = { model_mutable = "n2ply_m004_prow" }
 
 [[bxml]]
 versions = ["v5200"]
 unless = "${dlc}"
 file = "bxml/pscope_ply32.bxml"           # contenu 11
 rename = { model_mutable_dlc = "model_mutable" }
-set = { model_mutable = "n2ply_x011" }
+set = { model_mutable = "n2ply_m002_prow" }
 
 [[bxml]]
 versions = ["v5200"]
 unless = "${dlc}"
 file = "bxml/pscope_ply33.bxml"           # contenu 12
 rename = { model_mutable_dlc = "model_mutable" }
-set = { model_mutable = "n2ply_x012" }
+set = { model_mutable = "n2ply_s001_prow" }
 
 [[bxml]]
 versions = ["v5200"]
 unless = "${dlc}"
 file = "bxml/pscope_ply34.bxml"           # contenu 13
 rename = { model_mutable_dlc = "model_mutable" }
-set = { model_mutable = "n2ply_x013" }
+set = { model_mutable = "n2ply_s004_prow" }
 
 [[bxml]]
 versions = ["v5200"]
 unless = "${dlc}"
 file = "bxml/pscope_ply35.bxml"           # contenu 14
 rename = { model_mutable_dlc = "model_mutable" }
-set = { model_mutable = "n2ply_x014" }
+set = { model_mutable = "n2ply_m006_prow" }
 
 [[bxml]]
 versions = ["v5200"]
 unless = "${dlc}"
 file = "bxml/pscope_ply36.bxml"           # contenu 15
 rename = { model_mutable_dlc = "model_mutable" }
-set = { model_mutable = "n2ply_x015" }
+set = { model_mutable = "n2ply_l006_prow" }
 
 [[bxml]]
 versions = ["v5200"]
@@ -329,3 +332,30 @@ file = "amx/mode_title.amx"
 at = { v0 = 0x36C0, v5200 = 0x3C74 }     # sysSetGlobal("save.sub.enlist", 1) de func_5e50 (v5200 : func_6864)
 string = "save.sub.enlist"
 replace = "mode.sub.enlist"
+
+# -- Les couleurs des motifs -------------------------------------------------------------------------------
+# Quand une récompense débloque un motif, le jeu lui donne ses couleurs par défaut (bxml/sub_color_set). Les
+# motifs débloqués par ce mod n'en avaient pas (0, 0, 0) : une fois par sauvegarde (save.sdsw.colors), au titre,
+# ceux dont les trois couleurs sont encore à 0 reçoivent celles du jeu (src/couleurs.p ; tools/pawn2pasm.py,
+# --version v5200 pour la mise à jour).
+[[amx]]
+if = "${debloquer}"
+file = "amx/mode_title.amx"
+asm_file = { v0 = "couleurs.pasm", v5200 = "couleurs-v5200.pasm" }
+
+# La v5200 resynchronise à chaque démarrage les récompenses avec le niveau en ligne du joueur (mode_title,
+# func_103e4) : celles au-dessus de son niveau sont reverrouillées, et un motif reverrouillé reprend ses couleurs
+# par défaut (en fait 0, 0, 0 : elles ne sont pas encore lues). Le mod les redéverrouille ensuite (sysDLCUpdate-
+# Condition, avant le hangar), si bien que les couleurs choisies par le joueur pour les motifs 6 à 31 étaient
+# perdues à chaque démarrage. Avec « debloquer », une récompense n'est plus jamais reverrouillée : func_10358
+# (débloquer ou verrouiller une récompense : un motif, ou un sous-marin) ne fait plus que débloquer.
+[[amx]]
+versions = ["v5200"]
+if = "${debloquer}"
+file = "amx/mode_title.amx"
+asm = """
+.hook 0x1035c                       ; func_10358(reward[], lock): lock = 0
+    zero.s 0x10
+    .original
+    .return
+"""
