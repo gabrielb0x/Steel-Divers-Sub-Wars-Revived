@@ -40,12 +40,22 @@ tools/shbin.py <file.shbin> [--check]               PICA200 shader disassembler;
 make pawncc bots     build/pawncc (Pawn 3.3, built with -D_I32_MAX/_I32_MIN: else cellmin = 0 on 64 bits), then
                      tools/pawn2pasm.py mods/online/src/*.p -> mods/online/*.pasm (Pawn source of the bots' AI)
 tools/botsim.py                                     bot sandbox: AMX interpreter + small world (docs/bots.md)
-python3 subwars.py                                  players' launcher: local web UI (tools/webui.py + webui.html)
+python3 subwars.py [--setup]                        players' launcher: local web UI (tools/webui.py + webui.html)
+tools/selfupdate.py [--apply]                       the launcher's own update from the latest GitHub release
+tools/release.py --notes "..."                      publish VERSION as release v<VERSION>: Sub-Wars-Open-Sourced.zip
+                                                    (git archive) + installer/ (Install-here.bat, install-here.sh,
+                                                    Install-here-macOS.zip); needs gh logged in, the commit pushed
 python3 -m unittest discover -s tools/tests         tests of the players' tools (no game file needed)
 cd server && python3 -m sdsw_server        online server (realms "emulator" and "pc", server.toml); tests: python3 -m unittest discover -s tests -t .
 ```
 
-Players' tools (subwars.py, mod.py, save.py, subs.py, music.py, bcstm.py, extract_cia.py, decrypt.py) must run with Python 3.11 alone on
+Every finished change is released: raise VERSION (0.2 -> 0.3), commit, push, then tools/release.py (the installers
+and the launcher's update popup download the latest release). The launch-* scripts find Python 3.11+ or download a
+portable one into build/python/ (python.org embeddable on Windows, its ._pth removed; python-build-standalone on
+macOS/Linux; pinned by SHA-256). .bat files are CRLF (.gitattributes); launch-windows.bat runs Python on its last
+line, as an update may rewrite it meanwhile.
+
+Players' tools (subwars.py, mod.py, save.py, subs.py, music.py, bcstm.py, extract_cia.py, decrypt.py, selfupdate.py) must run with Python 3.11 alone on
 Windows/macOS/Linux: no pip package (tools/ncch.py reads NCCH/RomFS, tools/armasm.py assembles the recipes' ARM;
 its encodings are checked against keystone in tools/tests). Only the RE pipeline uses the venv (capstone).
 

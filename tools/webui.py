@@ -42,6 +42,7 @@ import extract_cia
 import mod
 import music
 import save
+import selfupdate
 import subs
 import versions
 from ctr import CIA, GAME_TITLE_ID, UPDATE_TITLE_ID
@@ -64,7 +65,7 @@ class UserError(Exception):
 # The tools, in import order. The launcher keeps running while the project is updated (git pull, a new
 # version unpacked over it): their code is reloaded when their files change, between two tasks.
 TOOL_MODULES = ["ctr", "ncch", "armasm", "bxml", "amx", "versions", "azahar", "decrypt", "extract_cia", "save", "subs",
-                "bcstm", "music", "mod"]
+                "bcstm", "music", "mod", "selfupdate"]
 TOOLS = Path(__file__).resolve().parent
 
 
@@ -175,8 +176,8 @@ class Tasks:
                 except SystemExit as e:              # the tools exit with a message
                     task.error = str(e.code) if e.code not in (None, 0) else None
                 except (UserError, mod.ModError, save.SaveError, subs.SubsError, extract_cia.ExtractError,
-                        music.MusicError, bcstm.BcstmError, decrypt.DecryptError, OSError, ValueError, KeyError,
-                        tomllib.TOMLDecodeError) as e:
+                        music.MusicError, bcstm.BcstmError, decrypt.DecryptError, selfupdate.UpdateError, OSError,
+                        ValueError, KeyError, tomllib.TOMLDecodeError) as e:
                     task.error = str(e)
                 except Exception as e:                # a bug: keep the traceback for the report
                     task.write(traceback.format_exc())
@@ -447,7 +448,7 @@ def server_config() -> dict:
     try:
         options = config.read(path)
     except (OSError, ValueError) as e:
-        raise UserError(f"server.toml illisible : {e}") from e
+        raise UserError(f"server.toml is unreadable: {e}") from e
     return {"options": options, "schema": config.schema(), "maps": map_names(), "file": str(path)}
 
 
@@ -1205,7 +1206,7 @@ class Handler(BaseHTTPRequestHandler):
         except UserError as e:
             self._json(400, {"error": str(e)})
         except (save.SaveError, subs.SubsError, extract_cia.ExtractError, mod.ModError, music.MusicError,
-                bcstm.BcstmError, decrypt.DecryptError) as e:
+                bcstm.BcstmError, decrypt.DecryptError, selfupdate.UpdateError) as e:
             self._json(400, {"error": str(e)})
         except Exception as e:
             traceback.print_exc()
@@ -1222,6 +1223,7 @@ class LauncherServer(ThreadingHTTPServer):
         self.tasks = Tasks()
         self.game_server = GameServer()
         self.code = CodeWatcher()
+        self.restart = False                       # asked after an update: subwars.py starts the launcher again
 
     def api(self, method: str, route: str, query: dict, body: dict):
         key = f"{method} {route}"
@@ -1238,6 +1240,16 @@ class LauncherServer(ThreadingHTTPServer):
             return task.json()
         if key == "GET files":
             return list_files(query.get("dir"))
+        if key == "GET launcher/version":
+            return selfupdate.check(force=query.get("force") == "1")
+        if key == "POST launcher/update":
+            return self.tasks.start("Update the launcher", lambda log: {"version": selfupdate.apply(print)}).json()
+        if key == "POST launcher/restart":
+            if self.tasks.current and not self.tasks.current.done:
+                raise UserError(f"A task is running: {self.tasks.current.title}")
+            self.restart = True
+            threading.Thread(target=self.shutdown, daemon=True).start()
+            return {}
         if key in ("POST setup", "POST setup/preview"):
             extra = [Path(str(p)).expanduser() for p in body.get("paths") or []]
             if key == "POST setup/preview":
@@ -1421,14 +1433,15 @@ def open_folder(path: Path) -> None:
         subprocess.Popen(["xdg-open", str(path)], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 
 
-def serve(port: int = 0, open_browser: bool = True) -> None:
+def serve(port: int = 0, open_browser: bool = True, setup: bool = False) -> int | None:
+    """Runs the launcher until Ctrl+C; returns its port when it is to be started again (after an update)."""
     server = LauncherServer(port)
     url = f"http://127.0.0.1:{server.port}/"
-    print(f"Sub Wars Open Sourced: the launcher is open in your web browser.\n"
+    print(f"Sub Wars Open Sourced {selfupdate.current()}: the launcher is open in your web browser.\n"
           f"  Otherwise, open this address: {url}\n"
           f"  Keep this window open while you use it; Ctrl+C to quit.")
     if open_browser:
-        threading.Timer(0.5, webbrowser.open, args=(url,)).start()
+        threading.Timer(0.5, webbrowser.open, args=(url + ("?setup=1#game" if setup else ""),)).start()
     try:
         server.serve_forever()
     except KeyboardInterrupt:
@@ -1436,3 +1449,7 @@ def serve(port: int = 0, open_browser: bool = True) -> None:
     finally:
         server.game_server.stop()
         server.server_close()
+    if server.restart:
+        print("Starting the new version of the launcher…")
+        return server.port
+    return None

@@ -171,6 +171,9 @@ tr.sel td:first-child { border-radius: 10px 0 0 10px; } tr.sel td:last-child { b
   border-radius: 50%; animation: spin .8s linear infinite; vertical-align: -2px; flex: none; }
 @keyframes spin { to { transform: rotate(360deg); } }
 details summary { cursor: pointer; color: var(--muted); margin: 10px 0; font-weight: 750; }
+.notes { white-space: pre-wrap; background: var(--panel2); border: 1px solid var(--line); border-radius: var(--r);
+  padding: 12px 14px; max-height: 40vh; overflow: auto; font-size: 13.5px; font-weight: 600; margin: 10px 0 16px; }
+.version-row { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin-top: 10px; }
 
 /* setting the game up */
 .setup-head { display: flex; align-items: center; gap: 10px; justify-content: space-between; flex-wrap: wrap; }
@@ -513,6 +516,9 @@ ol.steps { margin: 6px 0 0; padding-left: 20px; } ol.steps li { margin-bottom: 6
     <p class="small"><b>Cheating online?</b> The server knows which mods you have: depending on its configuration,
       cheaters (Cheats, Characteristics, Submarine speed) only play together, with everybody, or not at all. Premium
       and Music are not cheating.</p>
+    <div class="version-row small"><span class="pill accent" id="version-pill">Version</span>
+      <button class="btn" id="btn-check-update" data-icon="refresh">Check for updates</button>
+      <span class="muted" id="version-detail"></span></div>
     <p class="small muted">Free software (MIT): <code>README.md</code>, <code>mods/README.md</code>, <code>docs/</code>.
       The same tools exist on the command line in <code>tools/</code>.</p>
   </div>
@@ -534,6 +540,18 @@ ol.steps { margin: 6px 0 0; padding-left: 20px; } ol.steps li { margin-bottom: 6
   <div class="files" id="files-list"></div>
   <p class="small muted">The files marked ★ are Steel Diver: Sub Wars (Europe).</p>
   <div class="row"><button class="btn" id="files-cancel" data-icon="x">Cancel</button></div>
+</div></div>
+
+<div class="overlay" id="update-overlay"><div class="dialog">
+  <h2><span class="badge"><svg class="i"><use href="#i-download"/></svg></span>A new version of the launcher</h2>
+  <p id="update-text"></p>
+  <div class="notes" id="update-notes"></div>
+  <p class="small muted">Your game, its files, your mods' choices and your save stay as they are; the launcher
+    restarts in this page.</p>
+  <div class="row">
+    <button class="btn primary" id="btn-update-now" data-icon="download">Update now</button>
+    <button class="btn" id="btn-update-later" data-icon="x">Later</button>
+  </div>
 </div></div>
 
 <div class="toast" id="toast"></div>
@@ -1446,12 +1464,76 @@ $("#btn-srv-use").addEventListener("click", () => {
   if (card) card.scrollIntoView({behavior: "smooth", block: "center"});
 });
 
+// ---- the launcher's own updates --------------------------------------------------------------------
+let launcherVersion = null;
+function sessionGet(key) { try { return sessionStorage.getItem(key); } catch (e) { return null; } }
+function sessionSet(key, value) { try { sessionStorage.setItem(key, value); } catch (e) { /* private window */ } }
+function showVersion(v) {
+  launcherVersion = v;
+  $("#version-pill").textContent = "Version " + v.current;
+  $("#version-detail").textContent = v.error ? "Could not ask GitHub: " + v.error
+    : v.newer ? `Version ${v.latest} is available.` + (v.git ? " This folder is a git clone: git pull." : "")
+    : v.latest ? "This is the latest version." : "";
+  const chip = document.getElementById("chip-update");
+  if (chip) chip.remove();
+  if (v.newer) $("#chips").append(el("span", {class: "chip warn", id: "chip-update", style: "cursor:pointer",
+    onclick: () => v.git ? showTab("help") : askUpdate(v)}, `Version ${v.latest} available`));
+}
+function askUpdate(v) {
+  $("#update-text").replaceChildren(`Version ${v.latest} is out; you have ${v.current}. `,
+    el("a", {href: v.url, target: "_blank", rel: "noopener"}, "Its page on GitHub"), ".");
+  $("#update-notes").textContent = v.notes || "(no notes)";
+  $("#update-notes").style.display = v.notes ? "block" : "none";
+  $("#update-overlay").classList.add("show");
+}
+async function checkLauncher(force = false) {
+  const v = await api("launcher/version" + (force ? "?force=1" : ""));
+  showVersion(v);
+  if (v.newer && !v.git && (force || sessionGet("update-later") !== v.latest)) askUpdate(v);
+  return v;
+}
+$("#btn-update-later").addEventListener("click", () => {
+  if (launcherVersion) sessionSet("update-later", launcherVersion.latest);
+  $("#update-overlay").classList.remove("show");
+});
+$("#btn-update-now").addEventListener("click", async () => {
+  $("#update-overlay").classList.remove("show");
+  const t = await runTask("launcher/update");
+  if (!t || t.error) return;
+  $("#task-end").replaceChildren(el("span", {class: "spin"}), " Starting the new version…");
+  $("#task-close").disabled = true;
+  await api("launcher/restart", {body: {}}).catch(() => null);
+  await new Promise(r => setTimeout(r, 1200));
+  for (let i = 0; i < 120; i++) {               // the new launcher answers on the same port, with a new token
+    try {
+      const r = await fetch("/", {cache: "no-store"});
+      if (r.ok && !(await r.text()).includes(TOKEN)) { location.reload(); return; }
+    } catch (e) { /* not started yet */ }
+    await new Promise(r => setTimeout(r, 500));
+  }
+  $("#task-end").textContent = "The launcher did not come back: start it again.";
+  $("#task-close").disabled = false;
+});
+$("#btn-check-update").addEventListener("click", () => guarded(async () => {
+  const v = await checkLauncher(true);
+  if (!v.newer && !v.error) toast(`Version ${v.current} is the latest.`);
+  if (v.error) toast(v.error, true);
+}));
+
 // ---- start -----------------------------------------------------------------------------------------
 document.querySelectorAll("[data-icon]").forEach(node => node.prepend(icon(node.dataset.icon)));
 guarded(async () => {
   await refresh();
   const tab = location.hash.slice(1);
   if (tab && document.getElementById("tab-" + tab)) showTab(tab);
+  if (new URLSearchParams(location.search).get("setup")) {   // opened by an installer: set the game up
+    history.replaceState(null, "", location.pathname + "#game");
+    showTab("game");
+    const s = state.game.setup;
+    if (s.game && !(s.game_installed && s.extracted.includes("v0"))) await startSetup();
+  }
+  checkLauncher().catch(() => null);
+  setInterval(() => checkLauncher().catch(() => null), 6 * 3600 * 1000);
 });
 </script>
 </body>

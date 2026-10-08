@@ -7,6 +7,7 @@ import hashlib
 import io
 import json
 import os
+import shutil
 import socket
 import struct
 import subprocess
@@ -15,6 +16,7 @@ import tarfile
 import tempfile
 import tomllib
 import unittest
+import zipfile
 import zlib
 from collections import Counter
 from pathlib import Path
@@ -31,6 +33,7 @@ import ctr                                     # noqa: E402
 import decrypt                                 # noqa: E402
 import mod                                     # noqa: E402
 import music                                   # noqa: E402
+import selfupdate                              # noqa: E402
 import shbin                                   # noqa: E402
 import versions                                # noqa: E402
 from amx import disassemble                    # noqa: E402
@@ -1104,6 +1107,130 @@ class GameSetup(unittest.TestCase):
         self.assertEqual(save.read_bytes(), b"my save")
         with self.assertRaises(ValueError):
             azahar.install_game(self.write("update.cia", make_cia()), base)
+
+
+def release_zip(files: dict[str, bytes], executable: tuple[str, ...] = ()) -> bytes:
+    """A release of the project as tools/release.py makes it: its files in a folder Sub-Wars-Open-Sourced/."""
+    out = io.BytesIO()
+    with zipfile.ZipFile(out, "w") as z:
+        for name, data in files.items():
+            info = zipfile.ZipInfo("Sub-Wars-Open-Sourced/" + name)
+            info.external_attr = (0o100755 if name in executable else 0o100644) << 16
+            z.writestr(info, data)
+    return out.getvalue()
+
+
+class LauncherUpdates(unittest.TestCase):
+    """The launcher updates its folder from the latest release, without touching the player's files."""
+
+    def setUp(self):
+        folder = tempfile.TemporaryDirectory()
+        self.addCleanup(folder.cleanup)
+        self.root = Path(folder.name) / "Sub-Wars-Open-Sourced"
+        for name, data in {"VERSION": "0.2\n", "subwars.py": "old launcher", "tools/same.py": "same",
+                           "tools/old.py": "removed in 0.3", "tools/renamed.py": "renamed in 0.3",
+                           "server/server.toml": "realm = 'mine'", "cia/game.cia": "my game",
+                           "mods/mine/mod.toml": "my own mod", "server/data/accounts.sqlite3": "accounts"}.items():
+            (self.root / name).parent.mkdir(parents=True, exist_ok=True)
+            (self.root / name).write_text(data)
+        patcher = mock.patch.object(selfupdate, "ROOT", self.root)
+        patcher.start()
+        self.addCleanup(patcher.stop)
+        selfupdate._checked.update(at=0.0, result=None)
+        self.release = release_zip({"VERSION": b"0.3\n", "subwars.py": b"new launcher", "tools/same.py": b"same",
+                                    "tools/new.py": b"new", "launch-linux.sh": b"#!/bin/sh\n",
+                                    "server/server.toml": b"realm = 'new default'", "build/stray": b"x"},
+                                   executable=("launch-linux.sh",))
+        self.shipped_toml = b"realm = 'shipped in 0.2'"
+
+    def fetch(self, url, timeout=20, accept=""):
+        if url.endswith("/releases/latest"):
+            return json.dumps({"tag_name": "v0.3", "body": "Notes of 0.3", "html_url": "https://example/v0.3",
+                               "assets": [{"name": "Sub-Wars-Open-Sourced.zip", "size": len(self.release),
+                                           "browser_download_url": "https://example/zip",
+                                           "digest": "sha256:" + hashlib.sha256(self.release).hexdigest()}]}).encode()
+        if url == "https://example/zip":
+            return self.release
+        if "/compare/v0.2...v0.3" in url:
+            return json.dumps({"files": [{"status": "removed", "filename": "tools/old.py"},
+                                         {"status": "renamed", "filename": "tools/new.py",
+                                          "previous_filename": "tools/renamed.py"},
+                                         {"status": "removed", "filename": "cia/game.cia"}]}).encode()
+        if url.endswith("/v0.2/server/server.toml"):
+            return self.shipped_toml
+        raise selfupdate.UpdateError(f"{url}: HTTP 404")
+
+    def test_check(self):
+        with mock.patch.object(selfupdate, "fetch", self.fetch):
+            state = selfupdate.check(force=True)
+        self.assertEqual((state["current"], state["latest"], state["newer"], state["git"]), ("0.2", "0.3", True, False))
+        self.assertEqual(state["notes"], "Notes of 0.3")
+        with mock.patch.object(selfupdate, "fetch", side_effect=selfupdate.UpdateError("offline")):
+            self.assertEqual(selfupdate.check(force=True)["error"], "offline")
+        self.assertGreater(selfupdate.version_key("0.10"), selfupdate.version_key("0.9"))
+
+    def test_apply(self):
+        with mock.patch.object(selfupdate, "fetch", self.fetch):
+            self.assertEqual(selfupdate.apply(log=lambda *a: None), "0.3")
+        read = lambda name: (self.root / name).read_text()                                # noqa: E731
+        self.assertEqual((read("VERSION"), read("subwars.py"), read("tools/new.py")), ("0.3\n", "new launcher", "new"))
+        self.assertFalse((self.root / "tools/old.py").exists())                        # removed by 0.3
+        self.assertFalse((self.root / "tools/renamed.py").exists())
+        self.assertEqual(read("server/server.toml"), "realm = 'mine'")                   # changed by the player
+        for name, data in (("cia/game.cia", "my game"), ("mods/mine/mod.toml", "my own mod"),
+                           ("server/data/accounts.sqlite3", "accounts")):
+            self.assertEqual(read(name), data)                                           # the player's files
+        self.assertFalse((self.root / "build/stray").exists())
+        if os.name != "nt":
+            self.assertTrue(os.access(self.root / "launch-linux.sh", os.X_OK))
+        self.assertEqual([p.name for p in self.root.rglob("*.update")], [])
+
+    def test_unchanged_config_follows_the_new_version(self):
+        self.shipped_toml = b"realm = 'mine'"
+        with mock.patch.object(selfupdate, "fetch", self.fetch):
+            selfupdate.apply(log=lambda *a: None)
+        self.assertEqual((self.root / "server/server.toml").read_text(), "realm = 'new default'")
+
+    def test_refusals(self):
+        good = self.release
+        self.release = good[:-1] + b"?"                       # not the file GitHub describes
+        with mock.patch.object(selfupdate, "fetch", self.fetch):
+            digest = hashlib.sha256(good).hexdigest()
+            with mock.patch.object(selfupdate, "latest", return_value={
+                    "version": "0.3", "zip": {"url": "https://example/zip", "size": len(good), "sha256": digest}}):
+                with self.assertRaises(selfupdate.UpdateError):
+                    selfupdate.apply(log=lambda *a: None)
+        self.assertEqual((self.root / "VERSION").read_text(), "0.2\n")
+        self.release = release_zip({"VERSION": b"0.3", "subwars.py": b"x", "../escape": b"x"})
+        with mock.patch.object(selfupdate, "fetch", self.fetch), self.assertRaises(selfupdate.UpdateError):
+            selfupdate.apply(log=lambda *a: None)
+        self.assertFalse((self.root.parent / "escape").exists())
+        (self.root / ".git").mkdir()
+        with mock.patch.object(selfupdate, "fetch", self.fetch), self.assertRaises(selfupdate.UpdateError) as e:
+            selfupdate.apply(log=lambda *a: None)
+        self.assertIn("git pull", str(e.exception))
+
+
+class Installers(unittest.TestCase):
+    ROOT = TOOLS.parent
+
+    def test_line_ends(self):
+        for name in ("launch-windows.bat", "installer/Install-here.bat"):
+            data = (self.ROOT / name).read_bytes()
+            self.assertNotIn(b"\n", data.replace(b"\r\n", b""), name)           # cmd wants CRLF everywhere
+        for name in ("launch-linux.sh", "launch-macos.command", "installer/install-here.sh"):
+            self.assertNotIn(b"\r", (self.ROOT / name).read_bytes(), name)
+
+    @unittest.skipIf(shutil.which("sh") is None, "no POSIX shell")
+    def test_shell_syntax(self):
+        for name in ("launch-linux.sh", "launch-macos.command", "installer/install-here.sh"):
+            result = subprocess.run(["sh", "-n", str(self.ROOT / name)], capture_output=True, text=True)
+            self.assertEqual(result.returncode, 0, f"{name}: {result.stderr}")
+
+    def test_same_release_address(self):
+        url = f"https://github.com/{selfupdate.REPO}/releases/latest/download/{selfupdate.ASSET}"
+        for name in ("installer/Install-here.bat", "installer/install-here.sh"):
+            self.assertIn(url, (self.ROOT / name).read_text())
 
 
 class AmxPort(unittest.TestCase):

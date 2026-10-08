@@ -42,28 +42,40 @@ its full version can no longer be bought since the eShop closed. This project re
 
 ## Install
 
-You need:
-
-- **[Python 3.11 or newer](https://www.python.org/downloads/)**: nothing else to install (on Windows, tick *Add
-  python.exe to PATH*);
-- **[Azahar](https://azahar-emu.org/)** (or another emulator of the Citra family: Lime3DS, Citra, Borked3DS), started at
-  least once;
-- **your own copy** of the European version of the game (`00040000000D7E00`): its eShop `.cia`, **encrypted or not**,
-  or a decrypted `.3ds` or `.cxi`. Optionally its last **update v5200** (16 more submarines, 3 more maps), a `.cia`
-  encrypted or not.
-
-Then:
-
-1. **Download** this project (*Code › Download ZIP* on GitHub) and unzip it.
-2. **Start the launcher**: double-click `launch-windows.bat` (Windows), `launch-macos.command` (macOS; the first time,
-   right-click › Open) or `launch-linux.sh` (Linux), or run `python3 subwars.py`. It opens in your web browser and only
-   talks to your own computer.
-3. **Game tab › *Set everything up*.** The launcher finds your game and its update by itself (in your Downloads,
-   Desktop and Documents folders, the project's `cia/` folder, the emulator), or you **drop the files** on the page. It
-   decrypts them if needed, extracts the files the mods need, and installs the game and its update into the emulator:
-   the game shows in Azahar's list, and your save stays.
+1. **Download the installer** of your system from the [latest release](https://github.com/gabrielb0x/Sub-Wars-Steel-Divers-Open-Sourced/releases/latest):
+   **Windows** `Install-here.bat` · **macOS** `Install-here-macOS.zip` (it unzips to `Install here.command`) ·
+   **Linux** `install-here.sh`.
+2. **Put it where you want the game's folder** (Documents, Desktop...) and open it: double-click it (Linux:
+   `sh install-here.sh`; macOS, the first time: *System Settings › Privacy & Security › Open Anyway*). It downloads the
+   project into a folder `Sub-Wars-Open-Sourced` next to it, opens the launcher in your web browser, and starts
+   setting the game up.
+3. **Your game**: the launcher finds your copy of the game and of its update by itself (your Downloads, Desktop and
+   Documents folders, the project's `cia/` folder, the emulator), or you **drop the files** on its page. It decrypts
+   them if needed, extracts the files the mods need, and installs the game and its update into the emulator: the
+   game shows in Azahar's list, and your save stays.
 4. **Mods tab** — tick what you want (**Premium** to start with), then *Install into the emulator*. Restart the game in
    Azahar: done.
+
+On macOS and Linux, a terminal does the same in one line, in the folder it is in:
+`curl -fsSL https://github.com/gabrielb0x/Sub-Wars-Steel-Divers-Open-Sourced/releases/latest/download/install-here.sh | sh`
+
+You need **[Azahar](https://azahar-emu.org/)** (or another emulator of the Citra family: Lime3DS, Citra, Borked3DS),
+started at least once, and **your own copy** of the European version of the game (`00040000000D7E00`): its eShop
+`.cia`, **encrypted or not**, or a decrypted `.3ds` or `.cxi`; optionally its last **update v5200** (16 more
+submarines, 3 more maps), a `.cia` encrypted or not. Python is not needed beforehand: the launcher uses yours when it
+is 3.11 or newer, else downloads a portable one into its folder (11 MB on Windows, 25 to 30 MB on macOS and Linux).
+
+**Updates**: at start, the launcher asks GitHub for a newer version and offers to update itself in one click (Help tab:
+*Check for updates*). Your game, its files, your save and your settings stay.
+
+<details>
+<summary>Without the installer</summary>
+
+Download the project (*Code › Download ZIP*, or a release's `Sub-Wars-Open-Sourced.zip`, or `git clone`), then
+double-click `launch-windows.bat` (Windows), `launch-macos.command` (macOS) or `launch-linux.sh` (Linux), or run
+`python3 subwars.py`. A git clone is updated with `git pull`, not by the launcher.
+
+</details>
 
 <details>
 <summary>An encrypted game or update: what the launcher downloads to decrypt it</summary>
@@ -155,6 +167,17 @@ Tailscale works without opening anything: see [server/README.md](server/README.m
 ## For developers
 
 <details>
+<summary>Publishing a version</summary>
+
+After each finished change: raise `VERSION`, commit, push, then `python3 tools/release.py --notes "..."`. It makes the
+GitHub release `v<VERSION>`: `Sub-Wars-Open-Sourced.zip` (`git archive` of the commit: tracked files only) and the
+installers of `installer/`. The installers always download the latest release; the launcher updates a folder from it
+(`tools/selfupdate.py`: changed files replaced, removed ones deleted, the player's files and a `server.toml` they
+changed kept).
+
+</details>
+
+<details>
 <summary>Reverse-engineering pipeline (Linux)</summary>
 
 Requirements: Linux, Python 3.11+, Java 21+, [Ghidra 12](https://github.com/NationalSecurityAgency/ghidra/releases)
@@ -180,7 +203,8 @@ Tests: `python3 -m unittest discover -s tools/tests` (the players' tools, no gam
 ```
 cia/               your game files (the launcher copies or decrypts them there), ignored by git
 extracted/         extraction output: code.bin, nsub.elf, exefs/, romfs/; v5200/: the update (ignored)
-tools/             Python tools: CIA extraction, Pawn (amx*.py), BXML, BCSTM, Azahar, mods, launcher
+tools/             Python tools: CIA extraction, Pawn (amx*.py), BXML, BCSTM, Azahar, mods, launcher, updates
+installer/         the installers attached to each release (Windows, macOS, Linux)
 mods/              mod recipes (no game data: they apply to the player's dump)
 ghidra/            Ghidra scripts, hand-added symbols (symbols.txt) and types (types.h); project/ is disposable
 decomp/            pseudo-source: raw/ (Ghidra C++, generated), scripts/ (decompiled Pawn, generated), src/ (cleaned)
