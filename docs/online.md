@@ -284,6 +284,10 @@ Différences relevées pour le mod `en-ligne` :
   chaque partie retient la somme de version du jeu qui l'a créée (`Session.version`) ; une partie d'une autre
   version n'est jamais proposée, quels que soient les critères envoyés. Le journal du serveur dit la version de
   chaque partie créée ;
+- la v5200 ajoute les **parties entre amis** (troisième bouton du menu Internet, version complète) : la même
+  recherche automatique, avec le continent (attribut 0) à −1 ; seules les consoles de ce mode se retrouvent, sans
+  rien de plus côté serveur. Les autres natives réseau qu'elle ajoute restent sur la console : `netIsFriend` (sa
+  liste d'amis), `netIsOwner`, `netDisallowParticipation` (un drapeau local, `0x0030AAEC`) ;
 - les bots du serveur en v5200 montrent un des 36 sous-marins de la mise à jour (23 en v0), et `bots_map` accepte
   ses trois cartes (11 à 13 : Pôle Nord, Usine sous-marine, Anneaux en mer ; aléatoire pour un joueur v0) ;
 - le menu multijoueur de la v5200 n'a plus l'état inutilisé où le mod ouvrait le dialogue du serveur : il s'ouvre
