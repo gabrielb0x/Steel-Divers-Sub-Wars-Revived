@@ -57,6 +57,13 @@ CHAT_LOBBY = 2                      # no battle there: no bots
 # Submarines the bots show, one at random as players would: the game's 23, the update's 36 (37 to 39 are the
 # computer's own, rewards of the update's events).
 SUBS = {"v0": 23, "v5200": 36}
+# Crew members (worlds/crew_stats: crew_00 to crew_31, the update adds 32 to 39). The bots take a crew as a player
+# does (server.bots.crew<k>), never the members whose ability only helps a human: Morse tapping (14), the allies
+# on the map (31), the update's mine dropped with the masker (32). The expert bots take members that only add.
+CREW = {"v0": 32, "v5200": 40}
+CREW_NOT_FOR_BOTS = {14, 31, 32}
+CREW_STRONG = (20, 21, 22, 24, 25, 26, 27, 28, 29, 30, 33, 34, 36, 37, 38, 39)
+CREW_SIZE = {"normal": (0, 3), "difficile": (2, 5), "expert": (4, 5)}     # members drawn (the sub may hold fewer)
 BOT_NAMES = ("Requin", "Kraken", "Narval", "Murene", "Espadon", "Barracuda", "Orque", "Nautilus", "Abysse",
              "Corsaire", "Marlin", "Calamar", "Triton", "Poseidon", "Sonar", "Torpille", "Ressac", "Hublot",
              "Abordage", "Typhon", "Neptune", "Leviathan", "Remous", "Sillage", "Capitaine", "Matelot",
@@ -75,6 +82,7 @@ class BotSettings:
     map: int = 0                   # 0: a random map, else its number (MAPS)
     level: str = "difficile"       # how hard the bots are: normal, difficile, expert
     countdown: int = 10            # seconds before the battle once the bots are announced
+    crew: bool = True              # the bots take a crew
     duration: int = 10             # minutes of the battle: the realm's duration, as for the other battles
     names: tuple[str, ...] = BOT_NAMES                  # the bots look like players: names, subs, levels
 
@@ -103,6 +111,7 @@ class BotSettings:
         if b.level not in LEVELS:
             raise ValueError(f"realm {realm}: bots_level must be one of {', '.join(LEVELS)}")
         b.countdown = int(entry.get("bots_countdown", b.countdown))
+        b.crew = bool(entry.get("bots_crew", b.crew))
         # a battle against bots lasts as the others (duration); bots_duration, an older option, is ignored
         b.duration = int(entry.get("duration", 10))
         names = entry.get("bots_names", b.names)
@@ -125,10 +134,21 @@ class BotSettings:
         return f"{self.mine}v{self.other}"
 
     def identities(self, rng: random.Random | None = None, version: str = "v0") -> list[dict]:
-        """Seven bots that look like players: a name, a submarine, a level (Lv shown by the game)."""
+        """Seven bots that look like players: a name, a submarine, a level (Lv shown by the game), a crew."""
         rng = rng or random.Random()
-        return [{"name": name, "sub": rng.randint(1, SUBS.get(version, SUBS["v0"])), "level": rng.randint(4, 40)}
-                for name in rng.sample(self.names, 7)]
+        return [{"name": name, "sub": rng.randint(1, SUBS.get(version, SUBS["v0"])), "level": rng.randint(4, 40),
+                 "crew": self.crew_for(rng, version)} for name in rng.sample(self.names, 7)]
+
+    def crew_for(self, rng: random.Random, version: str = "v0") -> list[int]:
+        """The members of a bot's crew (up to 5, all different), better at the expert level."""
+        if not self.crew:
+            return []
+        count = CREW.get(version, CREW["v0"])
+        usable = [c for c in range(count) if c not in CREW_NOT_FOR_BOTS]
+        strong = [c for c in CREW_STRONG if c < count]
+        low, high = CREW_SIZE[self.level]
+        pool = strong if self.level == "expert" else usable
+        return rng.sample(pool, rng.randint(low, high))
 
     def game_globals(self, bots: list[dict] | None = None, version: str = "v0") -> dict[str, int | str]:
         """What the online mod's scripts read; server.bots last: it starts everything. Bot k (1 to 7):
@@ -136,12 +156,21 @@ class BotSettings:
         values: dict[str, int | str] = {}
         for k, bot in enumerate(bots or self.identities(version=version), 1):
             values |= {f"server.bots.name{k}": bot["name"], f"server.bots.sub{k}": bot["sub"],
-                       f"server.bots.lv{k}": bot["level"]}
+                       f"server.bots.lv{k}": bot["level"], f"server.bots.crew{k}": pack_crew(bot.get("crew", []))}
         known = self.map in MAPS_OF.get(version, MAPS_OF["v0"])       # a map of the update: random for v0
         return values | {"server.bots.mine": self.mine, "server.bots.other": self.other,
                          "server.bots.stage": 9 + self.map if self.map and known else 0,
                          "server.bots.level": LEVELS[self.level], "server.bots.countdown": self.countdown * 1000,
                          "server.bots.duration": self.duration * 60, "server.bots": 1}
+
+
+def pack_crew(members: list[int]) -> int:
+    """server.bots.crew<k>: up to five members, 6 bits each (member + 1, 0: none), the first in the low bits;
+    the bot keeps as many as its submarine holds (crewCount)."""
+    packed = 0
+    for i, member in enumerate(members[:5]):
+        packed |= (member + 1) << (6 * i)
+    return packed
 
 
 @dataclass

@@ -161,14 +161,93 @@ vitesse de pointe, axe de chaque tir.
   nœud de la console qui le pilote (« Position du bâtiment <votre pseudo> »). Maintenant, c'est son propre nœud,
   et chaque console connaît son nom dès son arrivée (`@botJoin`).
 
+- **Le départ, comme un joueur.** Le jeu place chaque joueur sur un point de départ de la carte, le fichier
+  `<carte>_p<emplacement>` (position et cap) : l'emplacement vaut (rang de sa console + `network.randomstartloc`)
+  modulo 8, plus 1. Sur les cartes où les équipes partent de deux côtés (`teamSpawnIndex` de `mode_settings` :
+  cartes 4, 7 et 10), c'est (`randomstartloc` + rang dans l'équipe) modulo 4, plus 1, et 4 de plus pour la
+  seconde équipe (`mode_periscope.p` `func_540c` ; le décompilateur perd ces modulos, `sdiv.alt` suivi de
+  `move.pri`). Les bots du jeu, eux, apparaissaient aux six points de ses sous-marins de l'ordinateur
+  (`func_10120`), éparpillés sur la carte, coéquipiers compris. Désormais chaque bot prend, à sa première
+  image, l'emplacement qui suit ceux des joueurs, comme le ferait un joueur de plus. Les points viennent des
+  fichiers de la carte, recopiés à la construction du mod en `bxml/sdsw_spawn_<carte>[_p<n>]` (recette
+  `[[bxml]] extract`, `mods/en-ligne/mod.toml`).
+- **Les murs, avec toute la coque.** Un sous-marin de joueur est une capsule de 550 unités de long : son nez est
+  à 300 unités de son centre. Le pilote sondait depuis le centre et ne ralentissait qu'à 300 unités d'un mur,
+  c'est-à-dire nez contre la paroi. Pire : ce frein et la remontée devant une pente n'étaient appliqués qu'une
+  image sur trois, quand `steerClear` tourne. Maintenant :
+  - il regarde à 750 unités plus 80 fois sa vitesse (environ 1 500 à pleine vitesse), le temps que le virage
+    s'installe ;
+  - il vérifie aussi deux rayons le long de ses flancs (un rayon central rate un angle) ;
+  - il ralentit selon la place devant son nez, et recule s'il va toucher ;
+  - il respecte le plafond d'une grotte ;
+  - ces limites valent à chaque image.
+- **Pas deux combats pareils.**
+  - Chaque bot tire son tempérament au départ : la distance qu'il aime (de 0,85 à 1,25 fois l'habituelle),
+    son agressivité, le côté par lequel il tourne, la profondeur qu'il prend.
+  - En combat, il change de manœuvre toutes les 2 à 10 secondes, au hasard et selon son tempérament. Il peut
+    tenir sa distance face à la cible, tourner autour d'elle, se rapprocher, décrocher puis revenir, changer
+    de profondeur, ou s'arrêter net : une torpille tirée sur sa vitesse passe alors devant lui.
+  - Prêt à tirer et presque en face, il se tourne vers sa cible et tire, comme un joueur.
+  - Quand ses coéquipiers combattent la même cible, il arrive par un autre côté.
+- **Il apprend comment vous esquivez.** Après chaque tir, il regarde comment sa cible tourne 30 images plus
+  tard, le temps de réaction d'un humain. Il en garde la moyenne par joueur, pour toute la session, dans
+  `bots.dodge.<nœud>` : tous les bots de la console en profitent. À chaque tir, il choisit au hasard comment
+  viser : la cible garde son virage, elle va tout droit, ou elle esquive comme d'habitude (après 15 images de
+  réaction). Qui casse toujours du même côté se fait prendre ; qui apprend « le » tir des bots n'en voit plus un
+  seul. Il esquive aussi lui-même de plusieurs façons : d'un côté ou de l'autre, en montant ou en descendant,
+  à fond ou en freinant pour laisser passer la torpille devant.
+- **Toujours dans les limites d'un joueur.** Tout passe par les mêmes commandes qu'avant (manche,
+  accélérateur, ballasts, tir dans l'axe). Le bac à sable vérifie toujours chaque image.
+
+## L'équipage
+
+*Avancement estimé : 85 % — vérifié dans le bac à sable (notes, réparation, chargement de `crew_stats`) ; reste à
+le voir dans Azahar.*
+
+Le serveur donne à chaque bot un équipage, comme celui d'un joueur (`server.bots.crew<k>` : jusqu'à cinq
+membres, 6 bits chacun). Le bot n'en garde que ce que son sous-marin accepte (`crewCount`, 1 à 5). Il lit les
+membres dans les acteurs `crew_NN` que le script du joueur charge (`worlds/crew_stats`), et les charge lui-même
+s'ils manquent. Au niveau normal, il prend 0 à 3 membres au hasard ; au niveau difficile, 2 à 5 ; au niveau
+expert, 4 ou 5 membres qui n'ont que des bonus (`bots_crew = false` : pas d'équipage).
+
+- **Les notes**, comme pour un joueur (`pscope_player.p customUpdateSubBonusStats`) : chaque membre ajoute ses
+  points de virage, d'accélération, de plongée, de résistance, de torpilles et de rechargement à ceux du
+  sous-marin. Les notes restent entre 1 et 10, le rechargement entre 1 et 30.
+- **Les capacités**, aux valeurs du jeu :
+
+  | Capacité | Membre | Pour le bot | Ce que fait le jeu |
+  |---|---|---|---|
+  | `lockOnLong` | 20 | voit et vise à 8 500 au lieu de 7 000 | `player_label.p func_32fc` |
+  | `wideSonar` | 27 | sonar à 20 000 au lieu de 15 000 | `sonar.p func_42d4` |
+  | `maskerConsumptionRate` | 25 | masqueur à 25 d'air au lieu de 33,3 | `periscope_move.p maskerActivate` |
+  | `repair` | 30 | répare 1 % de sa coque toutes les 75 images (60 en v5200) | `pscope_player.p func_14ca8` |
+  | `longMasker` (v5200) | 33 | masqueur de 450 images au lieu de 300 | `maskerActivate` |
+  | `airRepairUp` (v5200) | 34 | air à 0,3 par image en surface au lieu de 0,2 | `periscope_move.p` |
+  | `autoMasker` (v5200) | 36 | masqueur automatique quand une tête chercheuse le verrouille ou fonce sur lui ; il l'ôte au bout de 3 s s'il n'est pas abîmé | `@HomingLockOn` → `@autoMasker` |
+  | `teamRepair` (v5200) | 37 | répare ses coéquipiers à moins de 2 000 | `pscope_player.p func_19744`, `func_1a424` |
+  | `hideSonar` (v5200) | 39 | absent du sonar ennemi sous 40 de coque | `sonar.p func_5d6c` |
+
+  Le serveur ne donne pas aux bots les membres dont la capacité ne sert qu'à un humain : l'écoute du morse
+  ennemi (14), les alliés sur la carte (31) et, en v5200, la mine larguée avec le masqueur (32).
+- **Et pour les autres.** Les capacités d'un joueur s'appliquent aux bots comme aux joueurs :
+  - le sonar large et la longue portée de verrouillage d'un joueur trouvent les bots plus loin (le jeu) ;
+  - la réparation d'équipe d'un joueur répare les bots de son équipe à moins de 2 000 ;
+  - un joueur sous `hideSonar` et sous 40 de coque échappe au sonar des bots.
+
+  Dans l'autre sens, la réparation d'équipe et le sonar masqué d'un bot passent par ses propriétés
+  `teamRepair` et `targetHideSonar`, que le jeu synchronise. Le jeu ne les regardait que sur les copies des
+  sous-marins des autres consoles : le mod étend ces deux tests aux sous-marins pilotés par la console
+  (`pscope_player` 0x1981C et `sonar` 0x6150 en v5200, `0x80000` → `0x80004`). Ainsi, un bot répare aussi le
+  joueur de sa propre console.
+
 Le niveau du serveur (`bots_level`, `server.bots.level`) règle les réflexes et la précision, jamais ce que le
 sous-marin peut faire. Toutes les valeurs sont dans `bots_ia.p` :
 
-| Niveau | Regarde autour | Pause après rechargement | Tir passant au plus à | Voit venir les torpilles | Virages prévus |
-|---|---|---|---|---|---|
-| normal | toutes les 10 images | 40 images | 90 unités de la cible | 35 % | non |
-| difficile (par défaut) | toutes les 6 images | 12 images | 55 unités | 80 % | oui |
-| expert | toutes les 3 images | aucune | 35 unités | toujours | oui |
+| Niveau | Regarde autour | Pause après rechargement | Tir passant au plus à | Voit venir les torpilles | Virages prévus | Manœuvres | Apprend vos esquives |
+|---|---|---|---|---|---|---|---|
+| normal | toutes les 10 images | 40 à 60 images | 90 unités de la cible | 35 % | non | tenir, tourner, profondeur ; 5 à 10 s | non |
+| difficile (par défaut) | toutes les 6 images | 12 à 18 images | 60 unités | 85 % | oui | les six ; 2,5 à 6 s | oui |
+| expert | toutes les 3 images | 0 | 45 unités | toujours | oui | les six ; 1,7 à 4,7 s | oui |
 
 ## Dans la mise à jour v5200
 
@@ -209,7 +288,8 @@ test (`bots_format = "1v1"` : le bot doit couler le joueur, la défaite et le re
 
 ```sh
 make pawncc bots                        # le compilateur Pawn 3.3, puis src/*.p -> mods/en-ligne/*.pasm
-python3 tools/botsim.py                 # duel, close, walls, corner, retreat, dodge, masker, melee, aux trois niveaux
+python3 tools/botsim.py                 # duel, close, walls, corner, canyon, cave, retreat, dodge, masker, habit,
+                                        # melee, spawn, crew, aux trois niveaux
 python3 tools/botsim.py duel --level 3 --pitch-sign -1
 ```
 
@@ -220,17 +300,34 @@ images passées contre la carte. Il signale tout mouvement qu'un joueur ne pourr
 au-delà de 0,4 × `maxTurn`, vitesse au-delà de `belowAccel / linDrag`, torpille partie hors de l'axe du
 sous-marin. Il signale toute faute de la machine (pile, mémoire, instruction inconnue).
 
+Le monde du bac à sable donne aux sous-marins la coque d'un joueur, une capsule de 550 unités de long (cinq
+sphères le long de l'axe). L'ancienne version du bac à sable n'avait qu'une sphère de 110 unités au centre : elle
+ne voyait pas le nez du sous-marin heurter les murs.
+
 Résultats (1 800 images, une minute de jeu) :
 
 | Scénario | normal | difficile | expert |
 |---|---|---|---|
-| duel contre un joueur qui zigzague et change de profondeur | 50 % des tirs touchent | 50 % | 67 % |
-| joueur qui tourne tout près | 100 % | 67 % | 67 % |
+| duel contre un joueur qui zigzague et change de profondeur | 43 % des tirs touchent | 67 % | 100 % |
+| joueur qui tourne tout près | 25 % | 80 % | 80 % |
 | derrière un mur de 6 000 unités | 100 % | 100 % | 100 % |
-| coque basse, un joueur qui fonce sur lui : il recule en tirant | joueur coulé en 11 s | en 10 s | en 11 s |
-| tiré dessus toutes les 3 s | 0 torpille reçue | 0 | 0 |
-| joueur masqué 10 s | perdu de vue | perdu de vue | perdu de vue, 2 tirs au jugé, aucune touche |
-| 4 bots contre 4 bots | 32 touches | 20 touches | 22 touches |
+| canal en zigzag, cible au bout | 100 % | 100 % | 80 % |
+| grotte au plafond bas | 57 % | 100 % | 100 % |
+| joueur qui casse toujours du même côté (`habit`) | 80 % | 80 % | 80 % |
+| coque basse, un joueur qui fonce sur lui : il recule en tirant | joueur coulé en 22 s | en 17 s | en 15 s |
+| joueur masqué 10 s | perdu de vue, 1 tir au jugé | 2 tirs au jugé | 1 tir au jugé, aucune touche |
+| 4 bots contre 4 bots | 19 touches | 22 touches | 22 touches |
+| départ (carte 1, un joueur contre 4 bots) | emplacements 5 à 8, le joueur au 4 | | |
+| équipage (5 membres, dont réparation) | +46 de coque en une minute | | |
+
+Images passées contre la carte, au niveau expert, avec la nouvelle capsule :
+
+| Scénario | ancien pilote | nouveau pilote |
+|---|---|---|
+| lancé à pleine vitesse vers un coin (`corner`) | 30 | 0 |
+| murs et rochers (`walls`) | 3 | 0 |
+| grotte (`cave`) | 11 | 5 |
+| canal (`canyon`) | 0 | 0 |
 
 Sur tous les scénarios et à tous les niveaux, le bac à sable n'a relevé aucun mouvement ni aucun tir impossible pour
 un joueur. Tous les tirs partent dans l'axe du sous-marin, et les vitesses de virage et de pointe restent sous

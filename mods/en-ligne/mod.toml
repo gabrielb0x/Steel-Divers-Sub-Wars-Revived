@@ -363,6 +363,44 @@ from = "bxml/surface_sub_npc_red.bxml"
 select = "collshape"
 copy = { file = "bxml/pscope_ply01.bxml", select = "collshape" }
 
+# Les bots partent d'où partirait un joueur : les points de départ de chaque carte
+# (worlds/scope00_online_stageNN_pN : position et cap ; stageNN : teamSpawnIndex, les équipes partent de deux
+# côtés), recopiés de votre jeu en fichiers de propriétés que le pilote lit (bxml/sdsw_spawn_*, bots_ia.p spawnPlace).
+[[bxml]]
+files = "worlds/scope00_online_stage*_p*.bxml"
+select = "actor"
+extract = "bxml/sdsw_spawn_{stem}.bxml"
+keep = ["position", "bearing"]
+rename = { position = "spawnPosition", bearing = "spawnBearing" }
+floats = true
+
+[[bxml]]
+files = "worlds/scope00_online_stage??.bxml"
+select = "actor[@name='mode_settings']"
+extract = "bxml/sdsw_spawn_{stem}.bxml"
+keep = ["teamSpawnIndex"]
+
+# v5200 : l'équipage d'un bot agit aussi sur le joueur de sa console. Le jeu ne regarde que les copies des
+# sous-marins des autres consoles (type 0x80000) pour la réparation d'équipe (teamRepair, pscope_player
+# func_19744 : un coéquipier qui l'a, à moins de 2 000, répare) et pour le sonar masqué (hideSonar, sonar.p
+# func_5d6c : un ennemi sous 40 de coque n'apparaît pas) ; ces deux tests prennent aussi les sous-marins pilotés
+# par cette console (0x4).
+[[amx]]
+versions = ["v5200"]
+file = "amx/pscope_player.amx"
+address = 0x1981C                       # const.alt 0x80000
+operand = 0
+expect = 0x80000
+value = 0x80004
+
+[[amx]]
+versions = ["v5200"]
+file = "amx/sonar.amx"
+address = 0x6150                        # const.alt 0x80000 (après le test de targetHideSonar)
+operand = 0
+expect = 0x80000
+value = 0x80004
+
 [[amx]]
 file = "amx/hud.amx"
 asm_file = { v0 = "bots_hud.pasm", v5200 = "bots_hud-v5200.pasm" }

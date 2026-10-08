@@ -36,7 +36,9 @@ from urllib.parse import parse_qs, urlparse
 
 import azahar
 import extract_cia
+import bcstm
 import mod
+import music
 import save
 import subs
 import versions
@@ -47,7 +49,8 @@ PAGE = Path(__file__).with_name("webui.html")
 EXTRACTED = ROOT / "extracted"
 MODS_OUT = ROOT / "build" / "mods"
 PREPARED = ROOT / "build" / "azahar"
-MOD_ORDER = ["correctifs", "pseudo", "version", "premium", "missions", "specs", "triche", "vitesse", "en-ligne"]
+MOD_ORDER = ["correctifs", "pseudo", "version", "premium", "missions", "specs", "triche", "vitesse", "musique",
+             "en-ligne"]
 STATE_FILE = "lanceur.json"
 
 
@@ -57,7 +60,8 @@ class UserError(Exception):
 
 # The tools, in import order. The launcher keeps running while the project is updated (git pull, a new
 # version unpacked over it): their code is reloaded when their files change, between two tasks.
-TOOL_MODULES = ["ctr", "ncch", "armasm", "bxml", "amx", "versions", "azahar", "extract_cia", "save", "subs", "mod"]
+TOOL_MODULES = ["ctr", "ncch", "armasm", "bxml", "amx", "versions", "azahar", "extract_cia", "save", "subs", "bcstm",
+                "music", "mod"]
 TOOLS = Path(__file__).resolve().parent
 
 
@@ -168,7 +172,8 @@ class Tasks:
                 except SystemExit as e:              # the tools exit with a message
                     task.error = str(e.code) if e.code not in (None, 0) else None
                 except (UserError, mod.ModError, save.SaveError, subs.SubsError, extract_cia.ExtractError,
-                        OSError, ValueError, KeyError, tomllib.TOMLDecodeError) as e:
+                        music.MusicError, bcstm.BcstmError, OSError, ValueError, KeyError,
+                        tomllib.TOMLDecodeError) as e:
                     task.error = str(e)
                 except Exception as e:                # a bug: keep the traceback for the report
                     task.write(traceback.format_exc())
@@ -791,6 +796,88 @@ def subs_write(update) -> dict:
     return subs_state()
 
 
+# ---- music ---------------------------------------------------------------------------------------
+
+MUSIC_CACHE = ROOT / "build" / "cache" / "musique"        # the game's music decoded, to listen to it
+MAX_UPLOAD = 200 * 1024 * 1024
+
+
+class Binary:
+    """An answer that is not JSON: a file for the page (audio)."""
+
+    def __init__(self, data: bytes, kind: str) -> None:
+        self.data, self.kind = data, kind
+
+
+def music_game() -> versions.GameFiles:
+    version = azahar.game_version()
+    if version not in versions.extracted_versions():
+        version = versions.BASE
+    game = versions.game_files(version)
+    if not game.ready():
+        raise UserError("Il faut d'abord préparer les fichiers du jeu (onglet Jeu).")
+    return game
+
+
+def music_track(game: versions.GameFiles, file: str) -> dict:
+    for track in music.tracks(game):
+        if track["file"] == file:
+            return track
+    raise UserError("musique inconnue")
+
+
+def music_state() -> dict:
+    game = music_game()
+    folder = music.default_dir()
+    mine = music.replaced(folder)
+    out = []
+    for track in music.tracks(game, map_names()):
+        with game.path(f"{music.STREAMS}/{track['file']}").open("rb") as f:
+            head = bcstm.read(f.read(0x1000))                # the header: rate, channels, length
+        out.append(track | {"rate": head.rate, "channels": head.channels, "seconds": round(head.seconds, 1),
+                            "mine": mine.get(track["stem"])})
+    installed = (load_state().get("installed") or {}).get("mods") or []
+    return {"folder": str(folder), "version": game.version, "label": versions.label(game.version), "tracks": out,
+            "count": len(mine), "installed": "musique" in installed}
+
+
+def music_audio(file: str, which: str) -> Binary:
+    game = music_game()
+    track = music_track(game, file)
+    if which == "mine":
+        folder = music.default_dir()
+        if not music.mine(folder, track).exists():
+            raise UserError("pas de musique à vous pour celle-ci")
+        channels, rate = music.leveled(folder, track)          # as the game will play it
+        out = io.BytesIO()
+        bcstm.write_wav(out, channels, rate)
+        return Binary(out.getvalue(), "audio/wav")
+    cached = MUSIC_CACHE / f"{track['stem']}.wav"
+    if not cached.exists():
+        stream = music.original(game, track)
+        cached.parent.mkdir(parents=True, exist_ok=True)
+        part = cached.with_suffix(".part")
+        bcstm.write_wav(part, bcstm.decode(stream), stream.rate)
+        part.replace(cached)
+    return Binary(cached.read_bytes(), "audio/wav")
+
+
+def music_apply(log) -> dict:
+    """Builds and installs the mods installed so far, with the music mod when there is music of yours (and
+    without it when there is none)."""
+    installed = load_state().get("installed") or {}
+    names = [n for n in installed.get("mods") or [] if n not in mod.fixes() and n != "musique"]
+    if music.replaced(music.default_dir()):
+        names.append("musique")
+        print(f"Vos musiques : {len(music.replaced(music.default_dir()))}")
+    else:
+        print("Aucune musique à vous : celles du jeu.")
+    if not names and not installed.get("mods"):
+        print("Aucun mod installé jusqu'ici : seulement les correctifs.")
+    params = {str(k): str(v) for k, v in (installed.get("params") or {}).items() if k != "sdsw_version"}
+    return build_mods(names, params, True, log)
+
+
 # ---- HTTP ----------------------------------------------------------------------------------------
 
 class Handler(BaseHTTPRequestHandler):
@@ -838,7 +925,13 @@ class Handler(BaseHTTPRequestHandler):
             return
         query = {k: v[-1] for k, v in parse_qs(url.query).items()}
         body = {}
-        if method == "POST":
+        if method == "POST" and self.headers.get("Content-Type", "").startswith("application/octet-stream"):
+            length = int(self.headers.get("Content-Length") or 0)
+            if length > MAX_UPLOAD:
+                self._json(413, {"error": "fichier trop gros"})
+                return
+            body = {"raw": self.rfile.read(length)}
+        elif method == "POST":
             length = int(self.headers.get("Content-Length") or 0)
             if length:
                 try:
@@ -847,10 +940,15 @@ class Handler(BaseHTTPRequestHandler):
                     self._json(400, {"error": "requête illisible"})
                     return
         try:
-            self._json(200, self.server.api(method, url.path[5:], query, body))
+            result = self.server.api(method, url.path[5:], query, body)
+            if isinstance(result, Binary):
+                self._send(200, result.data, result.kind)
+            else:
+                self._json(200, result)
         except UserError as e:
             self._json(400, {"error": str(e)})
-        except (save.SaveError, subs.SubsError, extract_cia.ExtractError, mod.ModError) as e:
+        except (save.SaveError, subs.SubsError, extract_cia.ExtractError, mod.ModError, music.MusicError,
+                bcstm.BcstmError) as e:
             self._json(400, {"error": str(e)})
         except Exception as e:
             traceback.print_exc()
@@ -983,6 +1081,38 @@ class LauncherServer(ThreadingHTTPServer):
             result = save_server_config(body)
             result["restart"] = self.game_server.running
             return result
+        if key == "GET music":
+            return music_state()
+        if key == "GET music/audio":
+            return music_audio(str(query.get("file", "")), str(query.get("which", "original")))
+        if key == "POST music/upload":
+            game = music_game()
+            track = music_track(game, str(query.get("file", "")))
+            try:
+                rate, count = int(query.get("rate", 0)), int(query.get("channels", 0))
+            except ValueError:
+                raise UserError("fréquence ou canaux illisibles") from None
+            music.store_pcm(music.default_dir(), game, track, body.get("raw") or b"", rate, count,
+                            str(query.get("name", "musique"))[:120], query.get("normalize", "1") == "1")
+            return music_state()
+        if key == "POST music/reset":
+            if body.get("all"):
+                music.remove(music.default_dir())
+            else:
+                music.remove(music.default_dir(), music_track(music_game(), str(body.get("file", ""))))
+            return music_state()
+        if key == "POST music/match":
+            game = music_game()
+            track = None if body.get("all") else music_track(game, str(body.get("file", "")))
+            music.set_match(music.default_dir(), game, track, bool(body.get("on", True)))
+            return music_state()
+        if key == "POST music/apply":
+            return self.tasks.start("Appliquer les musiques dans l'émulateur", music_apply).json()
+        if key == "POST music/folder":
+            folder = music.default_dir()
+            folder.mkdir(parents=True, exist_ok=True)
+            open_folder(folder)
+            return {}
         if key == "POST open":
             open_folder(Path(body.get("path", "")))
             return {}

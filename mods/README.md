@@ -205,6 +205,7 @@ restent écrits à la main, dans des commentaires `/* asm … */` de la source. 
 | `premium` | v0, v5200 | version complète, tous les sous-marins (23, 39 avec la mise à jour), motifs et équipage débloqués, sans l'eShop ([détails](../docs/premium.md)) |
 | `missions` | v0, v5200 | les 21 missions du mode solo jouables tout de suite, sans toucher à la sauvegarde |
 | `en-ligne` | v0, v5200 | jeu en ligne sur un serveur [Sub Wars Open Sourced](../server/README.md), avec ses bots pour un joueur seul et des bots qui jouent comme des joueurs ([bots.md](../docs/bots.md)), son anti-triche, la durée des batailles réglée par le serveur et un dialogue qui dit quel serveur est utilisé |
+| `musique` | v0, v5200 | vos musiques (MP3, WAV… converties par l'onglet Musique du lanceur, ou `tools/music.py`) à la place de celles du jeu ; rien ne change en ligne |
 | `specs` | v0, v5200 | vos propres caractéristiques de sous-marins (`tools/subs.py`) ; en ligne, comptées comme triche |
 | `mention-titre` | toutes | « © 2026 Nintendo Lawyers » et « Open Sourced by gabrielb0x. » sous le titre (options `ligne1`, `ligne2`) |
 | `triche` | v0, v5200 | invincible, torpilles et air infinis, tir sans délai, rechargement rapide, masqueur gratuit, moteur gonflé |
@@ -309,6 +310,36 @@ plongée, de résistance et de plongée (1 à 10, que le jeu traduit par ses tab
 rechargement, cadence de tir, modèle de torpille, places d'équipage, air du masqueur, et quelques réglages fins de
 la physique. `tools/subs.py check` dit ce qui diffère du jeu ; les valeurs que le jeu ne supporte pas sont
 refusées. Prévu pour le jeu hors ligne : en ligne, le serveur le traite comme la triche.
+
+## Changer la musique
+
+*Avancement estimé : 80 % — conversion et écoute vérifiées dans le lanceur (MP3 décodé par le navigateur), flux
+relus par `tools/bcstm.py` ; reste à l'entendre dans Azahar.*
+
+Le plus simple : l'onglet **Musique** du lanceur. Chaque musique du jeu y est nommée (écran titre, missions,
+chaque carte en ligne, au calme et au combat…) : « ▶ Jeu » la fait écouter, « Remplacer… » prend un fichier
+audio (MP3, WAV, OGG, FLAC, M4A…, ce que le navigateur sait lire), « ▶ La vôtre » fait écouter le résultat,
+« Remettre » rend celle du jeu, « Remettre les musiques d'origine » les rend toutes. « Appliquer dans
+l'émulateur » réinstalle vos mods avec celui-ci. En ligne de commande :
+
+```sh
+python3 tools/music.py list                           # les musiques du jeu et ce que vous avez remplacé
+python3 tools/music.py export Title_lr -o titre.wav   # écouter celle du jeu
+python3 tools/music.py set Title_lr ma-musique.wav    # un WAV (le lanceur prend aussi les MP3…)
+python3 tools/music.py reset --all                    # celles du jeu
+.venv/bin/python tools/mod.py build premium musique --install
+```
+
+Le jeu lit ses musiques dans `audiores/stream/*.bcstm` (DSP-ADPCM, 32 728 Hz, en boucle) ; les sons de
+l'archive (`audiores/sound_data.xml`, livré avec le jeu) disent laquelle joue quand. La vôtre est convertie aux
+canaux et à la fréquence de celle qu'elle remplace, et gardée en WAV dans le dossier `musique` du dossier de
+réglages. **Volume égalisé** (par défaut, réglable musique par musique) : le lanceur mesure la sonie de la musique
+d'origine et de la vôtre (puissance moyenne par blocs de 400 ms, en laissant de côté les silences et les passages
+calmes, comme les LUFS de la norme EBU R 128, sans leur filtre), puis monte ou baisse la vôtre de l'écart. Les
+crêtes qui dépasseraient sont arrondies par un limiteur doux plutôt que coupées : pas de saut de volume entre
+une musique du jeu et la vôtre. L'onglet affiche l'ajustement (« ajusté de −4,5 dB »). Le mod l'écrit en flux PCM16 (que le lecteur
+du jeu lit comme ses flux DSP-ADPCM ; le jeu a lui-même un flux PCM8, dont `tools/bcstm.py` reproduit la
+structure à l'octet près), qui boucle depuis le début. La musique ne change que chez vous : rien en ligne.
 
 ## Tricher
 

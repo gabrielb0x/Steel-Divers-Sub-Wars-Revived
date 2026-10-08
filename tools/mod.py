@@ -29,9 +29,15 @@ mod.toml:
   from = "bxml/surface_sub_npc_blue.bxml"   # optional: file is a new file, a copy of this one
   copy = { file = "bxml/pscope_ply01.bxml", select = "collshape" }   # optional: set the attributes of
                                     # that node (before set)
+  extract = "bxml/x/{stem}.bxml"    # optional: instead of editing them, a new file per file (files = ...):
+                                    # a properties file (<actor .../>) with the attributes of the node selected
+  keep = ["position", "bearing"]    # (all, or these), renamed by rename = {...}; floats = true: numbers as f32
 
   [[subs]]                          # the characteristics of the submarines from a player's file
   file = "${fichier}"               # (tools/subs.py; "auto": sous-marins.toml of the settings folder)
+
+  [[music]]                         # your music in place of the game's (tools/music.py: WAV files named
+  dir = "${dossier}"                # after the streams they replace; "auto": « musique » of the settings folder)
 
   [[amx]]                           # a Pawn script (amx/*.amx), addresses of decomp/scripts/asm/*.asm
   file = "amx/periscope_move.amx"
@@ -113,6 +119,7 @@ from pathlib import Path
 
 import armasm
 import azahar
+import bcstm
 import shbin
 import versions
 from amxasm import AmxImage, AsmError
@@ -192,6 +199,33 @@ def edit_bxml(files: dict[str, ET.Element], file: str, select: str, values: dict
             for name, value in list(node.attrib.items()):
                 node.set(name, scaled(value, scale))
     return len(nodes)
+
+
+def extract_bxml(files: dict[str, ET.Element], entry: dict) -> list[str]:
+    """extract = "bxml/.../{stem}.bxml": per file of the game, a properties file of the mod (read by
+    actorReadProperties) holding attributes of a node of that file. Returns the new files."""
+    made = []
+    rename = entry.get("rename", {})
+    keep = entry.get("keep")
+    for file in bxml_files(entry):
+        root = load_bxml(files, file)
+        select = entry.get("select", ".")
+        node = root if select in (".", "") else root.find(select)
+        if node is None:
+            raise ModError(f"{file}: nothing matches {select!r}")
+        dest = entry["extract"].replace("{stem}", Path(file).stem)
+        if dest in files or GAME.exists(dest):
+            raise ModError(f"{dest}: the game already has this file")
+        out = ET.Element("actor")
+        for name, value in node.attrib.items():
+            if keep is not None and name not in keep:
+                continue
+            if entry.get("floats") and infer_type(value) in (TYPE_INTS, TYPE_FLOATS):
+                value = " ".join(float_text(float(t)) for t in value.split())
+            out.set(rename.get(name, name), value)
+        files[dest] = out
+        made.append(dest)
+    return made
 
 
 def scaled(text: str, factor: float) -> str:
@@ -676,6 +710,9 @@ def build(names: list[str], out_root: Path, overrides: dict[str, str] | None = N
                         scale = float(fill(str(entry["scale"]), params))
                     except ValueError as e:
                         raise ModError(f"scale = {entry['scale']!r}: not a number") from e
+                if "extract" in entry:
+                    edited.update(extract_bxml(files, entry))
+                    continue
                 if "from" in entry:
                     new_bxml(files, entry["file"], entry["from"])
                 values = copied_attributes(files, entry["copy"]) if "copy" in entry else {}
@@ -695,6 +732,15 @@ def build(names: list[str], out_root: Path, overrides: dict[str, str] | None = N
                     edit_bxml(files, file, ".", values)
                     edited.add(file)
                 print(f"[+] caractéristiques de {len(edits)} sous-marin(s) modifiées")
+        for entry in mod.get("music", []):
+            if enabled(entry, params):
+                import music
+                try:
+                    found = music.streams(music.folder_of(fill(entry.get("dir", "auto"), params)), GAME)
+                except (music.MusicError, bcstm.BcstmError) as e:
+                    raise ModError(str(e)) from e
+                binaries.update({file: bytearray(data) for file, data in found.items()})
+                print(f"[+] {len(found)} musique(s) remplacée(s)")
         for entry in mod.get("amx", []):
             if enabled(entry, params):
                 edit_amx(scripts, entry, params, MODS / name)

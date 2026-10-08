@@ -1,4 +1,4 @@
-"""Tests of the players' tools that need no game file: ARM assembler, save format, recipes, shaders.
+"""Tests of the players' tools that need no game file: ARM assembler, save format, recipes, shaders, music.
 
     python3 -m unittest discover -s tools/tests
 """
@@ -20,8 +20,11 @@ from unittest import mock
 TOOLS = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(TOOLS))
 
+import array                                  # noqa: E402
 import azahar                                  # noqa: E402
+import bcstm                                   # noqa: E402
 import mod                                     # noqa: E402
+import music                                   # noqa: E402
 import shbin                                   # noqa: E402
 import versions                                # noqa: E402
 from amx import disassemble                    # noqa: E402
@@ -612,6 +615,132 @@ class Recipes(unittest.TestCase):
         self.assertEqual(mod.fixes(), ["correctifs", "pseudo", "version"])
         recipe = tomllib.loads((TOOLS.parent / "mods" / "correctifs" / "mod.toml").read_text(encoding="utf-8"))
         self.assertEqual({e["instruction"] for e in recipe["shader"]}, {0x061, 0x084})
+
+
+class Music(unittest.TestCase):
+    """BCSTM streams (tools/bcstm.py), your music in their place (tools/music.py, mods/musique)."""
+
+    def test_pcm_round_trip(self):
+        left = array.array("h", (i * 7 % 65536 - 32768 for i in range(10000)))
+        right = array.array("h", (-v - 1 for v in left))
+        raw = bcstm.write([left, right], 32728, loop=True, loop_start=0)
+        self.assertEqual(raw[:4], b"CSTM")
+        self.assertEqual(struct.unpack_from("<I", raw, 0x0C)[0], len(raw))
+        stream = bcstm.read(raw)
+        self.assertEqual((stream.codec, stream.channels, stream.rate, stream.samples, stream.loop),
+                         (bcstm.PCM16, 2, 32728, 10000, True))
+        self.assertEqual((stream.blocks, stream.block_samples, stream.last_samples), (3, 4096, 10000 - 8192))
+        self.assertEqual(bcstm.decode(stream), [left, right])
+
+    def test_pcm8_layout_of_the_game(self):
+        """The game's own PCM8 stream (audiores_SeaBattle/stream/null_s.b.32.c4.pcm8.bcstm): 256 bytes, INFO at
+        0x40 (0x80 bytes), DATA at 0xC0 (0x40)."""
+        raw = bcstm.write([array.array("h", [0])], 32000, loop=False, codec=bcstm.PCM8)
+        self.assertEqual(len(raw), 256)
+        self.assertEqual(struct.unpack_from("<HxxiI", raw, 0x14), (0x4000, 0x40, 0x80))
+        self.assertEqual(struct.unpack_from("<HxxiI", raw, 0x20), (0x4002, 0xC0, 0x40))
+        self.assertEqual(raw[0x60:0x64], bytes([0, 0, 1, 0]))     # PCM8, no loop, 1 channel
+
+    def test_dsp_adpcm(self):
+        """A frame: header (predictor 0, scale 2^0), 14 nibbles; with no history the samples are the nibbles."""
+        frame = bytes([0x00, 0x12, 0x34, 0x56, 0x7F, 0x89, 0xAB, 0xCD])
+        stream = bcstm.Stream(codec=bcstm.DSP_ADPCM, rate=32728, channels=1, samples=14, loop=False, blocks=1,
+                              block_size=8192, last_size=8, last_samples=14, last_padded=32,
+                              adpcm=[{"coefs": [2048, 0] + [0] * 14, "ps": 0, "yn1": 0, "yn2": 0}],
+                              data=frame + bytes(24))
+        # coefficient 1 = 2048: each sample adds the previous one (s = n + yn1)
+        nibbles = [1, 2, 3, 4, 5, 6, 7, -1, -8, -7, -6, -5, -4, -3]
+        expected, total = [], 0
+        for n in nibbles:
+            total += n
+            expected.append(total)
+        self.assertEqual(list(bcstm.decode(stream)[0]), expected)
+
+    def test_your_music(self):
+        with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder)
+            game = root / "extracted"
+            streams = game / "romfs" / "audiores" / "stream"
+            streams.mkdir(parents=True)
+            (game / "code.bin").write_bytes(bytes(16))
+            (game / "romfs" / "audiores" / "sound_data.xml").write_text(
+                '<Sounds><StreamSound ID="01000000" Name="Bgm_TITLE" FileID="00000000" />'
+                '<StreamSound ID="0100002F" Name="Bgm_MultiPlay3_Battle" FileID="00000001" /></Sounds>'
+                '<InternalFile ID="00000000" Name="stream/Title.bcstm" />'
+                '<InternalFile ID="00000001" Name="stream/Fleet.bcstm" />', encoding="utf-8")
+            silence = array.array("h", bytes(2 * 3000))
+            (streams / "Title.bcstm").write_bytes(bcstm.write([silence, silence], 32728, loop_start=100))
+            (streams / "Fleet.bcstm").write_bytes(bcstm.write([silence], 22050))
+            with mock.patch.object(versions, "EXTRACTED", game):
+                files = versions.game_files("v0")
+                tracks = music.tracks(files, {"3": "Récif"})
+                self.assertEqual([(t["file"], t["label"]) for t in tracks],
+                                 [("Title.bcstm", "Écran titre"), ("Fleet.bcstm", "En ligne : Récif, combat")])
+                mine = root / "musique"
+                tone = array.array("h", (int(8000 * ((i // 20) % 2 * 2 - 1)) for i in range(44100)))
+                pcm = array.array("h", (v for pair in zip(tone, tone) for v in pair)).tobytes()
+                music.store_pcm(mine, files, tracks[1], pcm, 44100, 2, "essai.mp3")
+                self.assertEqual(list(music.replaced(mine)), ["Fleet"])
+                self.assertEqual(music.replaced(mine)["Fleet"]["source"], "essai.mp3")
+                built = music.streams(mine, files)
+                stream = bcstm.read(built["audiores/stream/Fleet.bcstm"])
+                # the original's channels and rate (mono, 22050), PCM16, looping from the start
+                self.assertEqual((stream.codec, stream.channels, stream.rate, stream.loop, stream.loop_start),
+                                 (bcstm.PCM16, 1, 22050, True, 0))
+                self.assertAlmostEqual(stream.seconds, 1.0, places=2)
+                self.assertEqual(music.remove(mine), 1)
+                self.assertEqual(music.replaced(mine), {})
+                self.assertEqual(music.streams(mine, files), {})
+
+    def test_loudness_matched(self):
+        """Your music is made as loud as the original it replaces (and back as it was when asked)."""
+        with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder)
+            game = root / "extracted"
+            streams = game / "romfs" / "audiores" / "stream"
+            streams.mkdir(parents=True)
+            (game / "code.bin").write_bytes(bytes(16))
+            (game / "romfs" / "audiores" / "sound_data.xml").write_text(
+                '<StreamSound ID="01000000" Name="Bgm_TITLE" FileID="00000000" />'
+                '<InternalFile ID="00000000" Name="stream/Title.bcstm" />', encoding="utf-8")
+            loud = array.array("h", (int(12000 * ((i // 37) % 2 * 2 - 1)) for i in range(32728 * 3)))
+            (streams / "Title.bcstm").write_bytes(bcstm.write([loud, loud], 32728))
+            quiet = array.array("h", (v // 8 for v in loud))
+            with mock.patch.object(versions, "EXTRACTED", game):
+                files = versions.game_files("v0")
+                track = music.tracks(files)[0]
+                mine = root / "musique"
+                done = music.store(mine, files, track, [quiet, quiet], 32728, "doux.wav")
+                self.assertAlmostEqual(done["target"] - done["loudness"], 18.06, places=1)    # 20 log10(8)
+                stream = bcstm.read(music.streams(mine, files)["audiores/stream/Title.bcstm"])
+                self.assertAlmostEqual(music.loudness(bcstm.decode(stream), 32728), done["target"], places=1)
+                music.set_match(mine, files, None, False)
+                stream = bcstm.read(music.streams(mine, files)["audiores/stream/Title.bcstm"])
+                self.assertAlmostEqual(music.loudness(bcstm.decode(stream), 32728), done["loudness"], places=1)
+
+    def test_extract_recipe(self):
+        """[[bxml]] extract: a properties file per file of the game, with some of its attributes."""
+        with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder)
+            game = root / "extracted"
+            worlds = game / "romfs" / "worlds"
+            worlds.mkdir(parents=True)
+            (game / "code.bin").write_bytes(bytes(16))
+            (worlds / "map_p1.bxml").write_bytes(mod.from_xml(
+                '<world><_actor name="player" position="0 0 0"/>'
+                '<actor name="player" script="pscope_player" position="15000 -300 15000" bearing="-135"/></world>'))
+            (root / "mods" / "x").mkdir(parents=True)
+            (root / "mods" / "x" / "mod.toml").write_text(
+                '[[bxml]]\nfiles = "worlds/map_p*.bxml"\nselect = "actor"\nextract = "bxml/s_{stem}.bxml"\n'
+                'keep = ["position", "bearing"]\nrename = { position = "spawnPosition" }\nfloats = true\n',
+                encoding="utf-8")
+            with mock.patch.object(mod, "MODS", root / "mods"), mock.patch.object(versions, "EXTRACTED", game), \
+                    mock.patch.object(mod, "project_version", return_value="v0.1"):
+                built = mod.build(["x"], root / "out", with_fixes=False, version="v0")
+            out = built / azahar.TITLE_ID / "romfs" / "bxml" / "s_map_p1.bxml"
+            node = ET.fromstring(mod.Bxml(out.read_bytes()).to_xml())
+            self.assertEqual(node.tag, "actor")
+            self.assertEqual(node.attrib, {"spawnPosition": "15000.0 -300.0 15000.0", "bearing": "-135.0"})
 
 
 HOLD_PORTS = """

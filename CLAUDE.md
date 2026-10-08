@@ -30,6 +30,7 @@ tools/mod.py build <name>... [--install] [--cxi] [--version v5200]   mods/<name>
                     -> Azahar load/mods/00040000000D7E00/ (for the version each emulator runs; sdsw.json marker)
 tools/azahar.py install-update | uninstall-update | where    the update on the emulators' SD card
 tools/save.py, tools/subs.py                        save editor (Azahar save), submarine characteristics (mod "specs")
+tools/music.py, tools/bcstm.py                      your music in place of the game's BCSTM streams (mod "musique")
 tools/shbin.py <file.shbin> [--check]               PICA200 shader disassembler; --check: loops Azahar's JIT runs wrong
 make pawncc bots     build/pawncc (Pawn 3.3, built with -D_I32_MAX/_I32_MIN: else cellmin = 0 on 64 bits), then
                      tools/pawn2pasm.py mods/en-ligne/src/*.p -> mods/en-ligne/*.pasm (Pawn source of the bots' AI)
@@ -39,7 +40,7 @@ python3 -m unittest discover -s tools/tests         tests of the players' tools 
 cd server && python3 -m sdsw_server        online server (realms "emulateur" and "pc", serveur.toml); tests: python3 -m unittest discover -s tests -t .
 ```
 
-Players' tools (subwars.py, mod.py, save.py, subs.py, extract_cia.py) must run with Python 3.11 alone on
+Players' tools (subwars.py, mod.py, save.py, subs.py, music.py, bcstm.py, extract_cia.py) must run with Python 3.11 alone on
 Windows/macOS/Linux: no pip package (tools/ncch.py reads NCCH/RomFS, tools/armasm.py assembles the recipes' ARM;
 its encodings are checked against keystone in tools/tests). Only the RE pipeline uses the venv (capstone).
 

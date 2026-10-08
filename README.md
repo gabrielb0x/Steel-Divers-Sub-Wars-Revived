@@ -34,10 +34,11 @@ Il faut [Python 3.11 ou plus récent](https://www.python.org/downloads/) (rien d
    « v0.1.34 » : la version du projet et son nombre de commits, pour savoir quelle construction on joue). Les
    mods sont construits pour la version du jeu que fait tourner l'émulateur (v0 ou v5200) ; chacun indique
    avec quelles versions il marche.
-5. Onglets **Sauvegarde** (tout débloquer, médailles, drapeau premium), **Sous-marins** (caractéristiques) et
+5. Onglets **Sauvegarde** (tout débloquer, médailles, drapeau premium), **Sous-marins** (caractéristiques),
+   **Musique** (écouter les musiques du jeu, les remplacer par vos MP3 ou WAV, remettre celles d'origine) et
    **Serveur** (héberger des parties en ligne).
 
-Les mêmes outils existent en ligne de commande : `tools/mod.py`, `tools/save.py`, `tools/subs.py`
+Les mêmes outils existent en ligne de commande : `tools/mod.py`, `tools/save.py`, `tools/subs.py`, `tools/music.py`
 ([mods/README.md](mods/README.md)). Ils fonctionnent sous Windows, macOS et Linux avec Python seul.
 
 ## État actuel

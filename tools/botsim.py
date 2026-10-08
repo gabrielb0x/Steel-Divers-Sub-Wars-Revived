@@ -425,7 +425,27 @@ class Amx:
 
 # ---- the world ---------------------------------------------------------------------------------------
 
+WORLDS = ROOT / "extracted" / "xml" / "worlds"
+
+
+def spawn_props(stem: str) -> dict[str, str]:
+    """bxml/sdsw_spawn_<stem> as mods/en-ligne/mod.toml makes it from the map's own files: the spawn point of a
+    slot (spawnPosition, spawnBearing), the map's teamSpawnIndex."""
+    path = WORLDS / f"{stem}.xml"
+    if not path.exists():
+        return {}
+    root = ET.parse(path).getroot()
+    if "_p" in stem:
+        node = root.find("actor")
+        floats = lambda t: " ".join(f"{float(x):.1f}" for x in t.split())
+        return {"spawnPosition": floats(node.get("position", "0 0 0")), "spawnBearing": floats(node.get("bearing", "0"))}
+    node = root.find("actor[@name='mode_settings']")
+    return {"teamSpawnIndex": node.get("teamSpawnIndex", "0")} if node is not None else {}
+
+
 def props_of(name: str) -> dict[str, str]:
+    if name.startswith("sdsw_spawn_"):
+        return spawn_props(name[len("sdsw_spawn_"):])
     path = BXML / f"{name}.xml"
     if not path.exists():
         return {}
@@ -522,6 +542,8 @@ class World:
         self.shots: list[tuple[int, int, str]] = []
         self.net: list[tuple] = []
         self.wall_frames: dict[int, int] = {}
+        self.nodes: list[int] = [1]                       # the consoles: this one
+        self.loads: list[str] = []
         self.off_axis: list[float] = []
 
     # rays and contacts against the map
@@ -634,6 +656,26 @@ class Sim:
                 actor.kind = "torpedo"
                 actor.props["_name"] = name
                 actor.type = 8
+            return 1
+
+        def find_actor(amx, p):
+            name = amx.string(p[0])
+            for a in w.actors.values():
+                if a.alive and a.props.get("_name") == name:
+                    return a.id
+            return 0
+
+        def world_load(amx, p):
+            name = amx.string(p[0])
+            path = WORLDS / f"{name}.xml"
+            if not path.exists():
+                return 0
+            for node in ET.parse(path).getroot().findall("actor"):
+                a = Actor(w, "data", [0.0, 0.0, 0.0])
+                a.visible = False
+                a.props.update(node.attrib)
+                a.props["_name"] = node.get("name", "")
+            w.loads.append(name)
             return 1
 
         def find(amx, p):
@@ -753,6 +795,7 @@ class Sim:
             "floatrnd": lambda amx, p: f2c(w.rng.randrange(10000) / 10000.0),
             "random": lambda amx, p: w.rng.randrange(max(p[0], 1)),
             "min": lambda amx, p: min(s32(p[0]), s32(p[1])), "max": lambda amx, p: max(s32(p[0]), s32(p[1])),
+            "clamp": lambda amx, p: min(max(s32(p[0]), s32(p[1])), s32(p[2])),
             "floatvecsubto": vec_sub,
             "floatvecsub": lambda amx, p: amx.put_vec(p[0], [a - b for a, b in zip(amx.vec(p[0]), amx.vec(p[1]))]),
             "floatveclength": lambda amx, p: f2c(math.sqrt(sum(x * x for x in amx.vec(p[0])))),
@@ -799,6 +842,10 @@ class Sim:
             "actorGetSyncController": lambda amx, p: 1,
             "actorGetSyncID": lambda amx, p: (w.actors.get(p[0]) or amx.owner).id + 100,
             "netGetNodeId": lambda amx, p: 1,
+            "netGetNodeCount": lambda amx, p: len(w.nodes),
+            "netGetNodeIdFromIdx": lambda amx, p: w.nodes[p[0]] if 0 <= p[0] < len(w.nodes) else -1,
+            "worldFindActor": find_actor,
+            "worldLoad": world_load,
             "sysCallPublic": call_public,
             "netCallPublic": net_call,
             "actorSetModel": lambda amx, p: 1, "actorSetModelColor": lambda amx, p: 1,
@@ -873,6 +920,10 @@ class Bot:
         if not self.call("pw_botPilot"):
             raise AmxFault("the pilot gave the sub back to the game while afloat")
         a.pos = m.vec(G["pos"])
+        a.life = c2f(m.rd(G["life"]))                    # its repair (crew) changes it too
+        if not hasattr(self, "start"):                    # the first frame: it goes to its spawn point
+            self.start = (list(a.pos), a.rot[1])
+            return
         # what a player's sub can do (pscope_player.p func_12184): turn rate <= 0.4 * maxTurn of the sub,
         # forward speed <= accel / linDrag, backwards at half power
         turn = abs((a.rot[1] - before_yaw + math.pi) % (2 * math.pi) - math.pi)
@@ -884,12 +935,15 @@ class Bot:
 class Player:
     """A scripted player: weaves around a path at a player's speed, changing depth."""
 
-    def __init__(self, world: World, pos, team: int, node: int, speed=9.0, turn=0.02, weave=True) -> None:
+    def __init__(self, world: World, pos, team: int, node: int, speed=9.0, turn=0.02, weave=True,
+                 habit: float = 0.0) -> None:
         self.actor = a = Actor(world, "player", pos, 0.0)
         a.type = 0x40002
         a.life = 100.0
         a.props.update({"teamColor": str(team), "nodeid": str(node), "life": "100.0"})
         self.speed, self.turn, self.weave = speed, turn, weave
+        self.habit = habit                                # a player who always breaks the same way: its turn rate
+        self.dodging = 0
         self.world = world
 
     def frame(self) -> None:
@@ -898,7 +952,18 @@ class Player:
         if a.life <= 0.01:
             a.alive = False
             return
-        if self.weave:
+        if self.habit:
+            # cruises straight across, and breaks hard the same way 15 frames after a torpedo comes (a human's
+            # reaction), as a player who always dodges right
+            if any(t.alive and t.kind == "torpedo" and t.age == 1 for t in w.actors.values()):
+                self.dodging = 75
+            if self.dodging:
+                self.dodging -= 1
+                if self.dodging < 60:
+                    a.rot[1] += self.habit
+            else:
+                a.rot[1] += 0.004 * math.sin(w.frame / 90.0)
+        elif self.weave:
             phase = (w.frame // 150) % 4
             a.rot[1] += (self.turn if phase in (0, 1) else -self.turn) * (1 if phase != 3 else 0.3)
             target_y = -400.0 if (w.frame // 300) % 2 else -700.0
@@ -979,10 +1044,15 @@ def contacts(world: World, bots: list[Bot], sim: Sim) -> None:
         if not a.alive:
             continue
         events = []
+        # the hull: a capsule 550 long and 60 wide (pscope_ply01 collshape), as five spheres along its axis
+        axis = [math.sin(a.rot[1]), 0.0, math.cos(a.rot[1])]
+        hull = [[a.pos[k] + axis[k] * 275.0 * t for k in range(3)] for t in (-1.0, -0.5, 0.0, 0.5, 1.0)]
         for box in world.boxes:
-            hit = box.push_out(a.pos, 110.0)
-            if hit:
-                events.append((1, hit[1], hit[0]))
+            for point in hull:
+                hit = box.push_out(point, 75.0)
+                if hit:
+                    events.append((1, hit[1], hit[0]))
+                    break
         if a.pos[1] < world.floor + 110.0:
             events.append((1, [a.pos[0], world.floor, a.pos[2]], [0.0, 1.0, 0.0]))
         for o in world.actors.values():                   # containers (surface_item: a 170 sphere)
@@ -1058,6 +1128,32 @@ def scenario(name: str, level: int, seed: int, verbose: bool, pitch_sign: float 
             item.type = 0x100
             item.props["itemNum"] = str(kind)
         world.hurt_at = (5, bots[0], 50.0)
+    elif name == "canyon":                    # a zigzag channel 1600 wide (800 where it turns), the player at its far end
+        for k, (x0, x1) in enumerate(((-800.0, 800.0), (-400.0, 1200.0), (-1200.0, 400.0), (-800.0, 800.0))):
+            z0 = -6000.0 + 3000.0 * k
+            world.boxes.append(Box([-9000.0, -2000.0, z0], [x0, 0.0, z0 + 3000.0]))
+            world.boxes.append(Box([x1, -2000.0, z0], [9000.0, 0.0, z0 + 3000.0]))
+        bots.append(Bot(world, sim, image, [0.0, -600.0, -5500.0], 0.0, 1, 1, 5))
+        players.append(Player(world, [0.0, -600.0, 5000.0], 2, 2, speed=0.0, weave=False))
+    elif name == "cave":                      # a low ceiling over the way to the player
+        world.boxes.append(Box([-4000.0, -900.0, -1500.0], [4000.0, 0.0, 1500.0]))
+        world.boxes.append(Box([-1500.0, -2000.0, -400.0], [1500.0, -1500.0, 400.0]))
+        bots.append(Bot(world, sim, image, [0.0, -500.0, -4500.0], 0.0, 1, 1, 9))
+        players.append(Player(world, [0.0, -1200.0, 4500.0], 2, 2, speed=4.0, weave=False))
+        players[0].actor.rot[1] = math.pi
+    elif name == "habit":                     # a player who always breaks right when fired at
+        bots.append(Bot(world, sim, image, [0.0, -500.0, -3500.0], 0.0, 1, 1, 3))
+        players.append(Player(world, [-3000.0, -500.0, 0.0], 2, 2, speed=8.0, weave=False, habit=-0.025))
+        players[0].actor.rot[1] = math.pi / 2
+    elif name == "spawn":                     # map 1, 1 player against 4 bots: where do they start?
+        world.globals.update({"player.stage": 10, "network.randomstartloc": 3, "player.1.team": 1,
+                              "server.bots": 1, "server.bots.mine": 1, "server.bots.other": 4})
+        for k in range(4):
+            bots.append(Bot(world, sim, image, [0.0, -500.0, 0.0], 0.0, 2, k + 1, k + 2))
+    elif name == "crew":                      # a bot with a crew: ratings, sonar, masker, repair
+        world.globals["server.bots.crew1"] = sum((c + 1) << (6 * i) for i, c in enumerate((24, 27, 30, 25, 20)))
+        bots.append(Bot(world, sim, image, [0.0, -500.0, 0.0], 0.0, 1, 1, 16))
+        world.hurt_at = (5, bots[0], 60.0)
     elif name == "melee":                     # four bots against four bots
         for k in range(4):
             bots.append(Bot(world, sim, image, [k * 900.0 - 1350.0, -500.0, -4000.0], 0.0, 1, k + 1, k * 5 + 1))
@@ -1099,7 +1195,7 @@ def scenario(name: str, level: int, seed: int, verbose: bool, pitch_sign: float 
                                  f"life {a.life:.0f}")
         alive_teams = {a.props.get("teamColor") for a in world.actors.values()
                        if a.alive and a.kind in ("bot", "player")}
-        if len(alive_teams) < 2 and name not in ("corner", "items"):
+        if len(alive_teams) < 2 and name not in ("corner", "items", "spawn", "crew"):
             break
     return world, bots, players
 
@@ -1112,14 +1208,27 @@ def report(name: str, level: int, world: World, bots, players) -> list[str]:
     for b in bots:
         a = b.actor
         stats = props_of(f"pscope_ply{b.sub:02d}_stats")
-        turn = float(props_of("table_maxturn")[f"maxTurn_{stats['maxTurn']}"]) * 0.4
-        top = float(props_of("table_below_accel")[f"belowAccel_{stats['belowAccel']}"]) / 0.038
+        turn_rating, accel_rating = int(stats["maxTurn"]), int(stats["belowAccel"])
+        packed = world.globals.get(f"server.bots.crew{a.props.get('botIndex')}", 0)
+        crew = [((packed >> (6 * i)) & 63) - 1 for i in range(min(5, int(stats.get("crewCount", 1))))]
+        members = {n.get("name"): n.attrib for n in ET.parse(WORLDS / "crew_stats.xml").getroot()}
+        for c in (c for c in crew if c >= 0):             # its crew's ratings (pscope_player customUpdateSubBonusStats)
+            turn_rating += int(members[f"crew_{c:02d}"].get("maxTurn", 0))
+            accel_rating += int(members[f"crew_{c:02d}"].get("belowAccel", 0))
+        turn_rating, accel_rating = min(max(turn_rating, 1), 10), min(max(accel_rating, 1), 10)
+        turn = float(props_of("table_maxturn")[f"maxTurn_{turn_rating}"]) * 0.4
+        top = float(props_of("table_below_accel")[f"belowAccel_{accel_rating}"]) / 0.038
         flag = "" if getattr(b, "max_turn", 0) <= turn * 1.02 and getattr(b, "max_speed", 0) <= top * 1.05 + 5.0 \
             else "  NOT A PLAYER'S MOVE"
         lines.append(f"    bot {a.id} team {a.props['teamColor']}: life {max(a.life, 0):.0f}, "
                      f"{world.wall_frames.get(a.id, 0)} frames against the map, steps {b.amx.steps}, "
                      f"turn {getattr(b, 'max_turn', 0):.4f}/{turn:.4f}, speed {getattr(b, 'max_speed', 0):.1f}/"
                      f"{top:.1f}{flag}")
+        if any(c >= 0 for c in crew):
+            lines.append(f"      crew {[c for c in crew if c >= 0]} (crew_stats loaded: {'crew_stats' in world.loads})")
+        if name in ("spawn", "crew"):
+            (x, y, z), yaw = getattr(b, "start", ((0, 0, 0), 0))
+            lines.append(f"      started at ({x:.0f}, {y:.0f}, {z:.0f}), heading {math.degrees(yaw):.0f}°")
     off = [x for x in world.off_axis if x > 0.002]
     if off:
         lines.append(f"    {len(off)} torpedoes off the sub's axis (up to {max(off):.3f} rad)  NOT A PLAYER'S SHOT")
@@ -1138,7 +1247,8 @@ def report(name: str, level: int, world: World, bots, players) -> list[str]:
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
     parser.add_argument("scenarios", nargs="*",
-                        default=["duel", "close", "walls", "corner", "retreat", "dodge", "masker", "melee"])
+                        default=["duel", "close", "walls", "corner", "canyon", "cave", "retreat", "dodge", "masker",
+                                 "habit", "melee", "spawn", "crew"])
     parser.add_argument("--level", type=int, action="append")
     parser.add_argument("--seed", type=int, default=1)
     parser.add_argument("--frames", type=int, default=1800)

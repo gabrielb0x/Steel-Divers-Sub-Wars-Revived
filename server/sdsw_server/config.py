@@ -66,6 +66,8 @@ REALM_OPTIONS = (
            choices=("normal", "difficile", "expert")),
     Option("bots_countdown", "int", 10, "Compte à rebours", "secondes avant la bataille contre les bots",
            low=6, high=120),
+    Option("bots_crew", "bool", True, "Équipage des bots",
+           "chaque bot prend un équipage, comme un joueur (meilleur au niveau expert) : ses notes et ses capacités"),
 )
 
 

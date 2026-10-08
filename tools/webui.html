@@ -6,123 +6,266 @@
 <title>Sub Wars Open Sourced</title>
 <style>
 :root {
-  --bg: #f3f6f9; --panel: #ffffff; --ink: #14212e; --muted: #5b6b7a; --line: #d8e0e8;
-  --accent: #0b6e8a; --accent-ink: #ffffff; --accent-soft: #e2f1f5; --ok: #1d7a46; --warn: #a1620a;
-  --bad: #b3261e; --chip: #eef2f6; --gold: #b8860b; --shadow: 0 1px 2px rgba(20, 33, 46, .08);
+  --bg: #eef2f6; --bg2: #e6ecf2; --panel: #ffffff; --panel2: #f7f9fb; --ink: #0f1b27; --muted: #5d6c7b;
+  --line: #dde4eb; --line2: #cfd8e1;
+  --accent: #0a7c9c; --accent2: #0e9bbf; --accent-ink: #ffffff; --accent-soft: #e1f2f7;
+  --ok: #16834c; --ok-soft: #e2f5ea; --warn: #a3620b; --warn-soft: #fbf0dd; --bad: #c0302a; --bad-soft: #fbe6e4;
+  --chip: #eef2f6; --gold: #b8860b;
+  --shadow: 0 1px 2px rgba(15, 27, 39, .05), 0 8px 24px -12px rgba(15, 27, 39, .18);
+  --r-sm: 10px; --r: 14px; --r-lg: 20px; --r-xl: 26px;
 }
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
-    --bg: #0d1620; --panel: #14202c; --ink: #e3ebf2; --muted: #93a4b4; --line: #26384a;
-    --accent: #3fb3cf; --accent-ink: #062029; --accent-soft: #15303b; --ok: #4cc382; --warn: #e2a33b;
-    --bad: #ff7a70; --chip: #1c2b39; --gold: #e6c04d; --shadow: none;
+    --bg: #0a121a; --bg2: #0d1720; --panel: #111c27; --panel2: #15212e; --ink: #e6eef5; --muted: #8fa2b4;
+    --line: #1f2f3e; --line2: #2a3d4f;
+    --accent: #38b6d6; --accent2: #5cc8e3; --accent-ink: #04202a; --accent-soft: #11303c;
+    --ok: #4cc382; --ok-soft: #12301f; --warn: #e5a640; --warn-soft: #33270f; --bad: #ff7b71; --bad-soft: #3a1714;
+    --chip: #172431; --gold: #e6c04d;
+    --shadow: 0 1px 2px rgba(0, 0, 0, .3), 0 10px 30px -14px rgba(0, 0, 0, .6);
   }
 }
 * { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; }
 body { margin: 0; background: var(--bg); color: var(--ink);
-  font: 15px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, Ubuntu, sans-serif; }
-header { background: var(--panel); border-bottom: 1px solid var(--line); padding: 14px 20px 0; }
-header h1 { margin: 0; font-size: 20px; letter-spacing: .2px; }
-header p { margin: 2px 0 10px; color: var(--muted); font-size: 13px; }
-.chips { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 10px; }
-.chip { background: var(--chip); border-radius: 999px; padding: 2px 10px; font-size: 12.5px; color: var(--muted); }
-.chip.ok { color: var(--ok); } .chip.warn { color: var(--warn); }
-nav { display: flex; gap: 2px; flex-wrap: wrap; }
-nav button { border: 0; background: none; color: var(--muted); padding: 9px 14px; font: inherit; cursor: pointer;
-  border-bottom: 3px solid transparent; }
-nav button.active { color: var(--ink); border-bottom-color: var(--accent); font-weight: 600; }
-main { max-width: 1100px; margin: 0 auto; padding: 18px 16px 60px; }
-section.tab { display: none; } section.tab.active { display: block; }
-.card { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 16px 18px;
-  margin-bottom: 14px; box-shadow: var(--shadow); }
-.card h2 { margin: 0 0 6px; font-size: 16px; }
-.card h3 { margin: 14px 0 6px; font-size: 14px; }
-.muted { color: var(--muted); } .small { font-size: 13px; }
+  font: 500 15px/1.55 "Inter", "Segoe UI Variable Text", "Segoe UI", system-ui, -apple-system, Roboto, Ubuntu, "Helvetica Neue", sans-serif;
+  -webkit-font-smoothing: antialiased; }
+svg.i { width: 18px; height: 18px; flex: none; stroke: currentColor; fill: none; stroke-width: 2.2;
+  stroke-linecap: round; stroke-linejoin: round; vertical-align: -3px; }
+svg.i.fill { fill: currentColor; stroke: none; }
+b, strong { font-weight: 750; }
+
+/* header */
+header { background: var(--panel); border-bottom: 1px solid var(--line); position: sticky; top: 0; z-index: 5;
+  backdrop-filter: saturate(1.4) blur(8px); }
+.top { max-width: 1120px; margin: 0 auto; padding: 16px 20px 0; }
+.brand { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
+.logo { width: 46px; height: 46px; border-radius: 14px; display: grid; place-items: center; color: #fff;
+  background: linear-gradient(140deg, var(--accent2), var(--accent) 60%, #075a72); box-shadow: 0 6px 18px -8px var(--accent); }
+.logo svg.i { width: 26px; height: 26px; stroke-width: 2; }
+header h1 { margin: 0; font-size: 21px; font-weight: 850; letter-spacing: -.3px; line-height: 1.15; }
+header p { margin: 2px 0 0; color: var(--muted); font-size: 13px; font-weight: 600; }
+.brand .titles { flex: 1; min-width: 220px; }
+.chips { display: flex; gap: 6px; flex-wrap: wrap; }
+.chip { display: inline-flex; align-items: center; gap: 6px; background: var(--chip); border-radius: 999px;
+  padding: 4px 11px; font-size: 12.5px; font-weight: 700; color: var(--muted); }
+.chip::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: currentColor; opacity: .85; }
+.chip.ok { color: var(--ok); background: var(--ok-soft); } .chip.warn { color: var(--warn); background: var(--warn-soft); }
+#restart { margin-top: 10px; padding: 8px 12px; border-radius: var(--r-sm); background: var(--warn-soft); color: var(--warn); font-weight: 700; }
+nav { display: flex; gap: 4px; overflow-x: auto; padding: 14px 0 12px; scrollbar-width: none; }
+nav::-webkit-scrollbar { display: none; }
+nav button { display: inline-flex; align-items: center; gap: 8px; border: 0; background: none; color: var(--muted);
+  padding: 9px 15px; font: inherit; font-weight: 750; font-size: 14.5px; cursor: pointer; border-radius: 12px;
+  white-space: nowrap; transition: background .15s, color .15s; }
+nav button:hover { background: var(--chip); color: var(--ink); }
+nav button.active { background: var(--accent-soft); color: var(--accent); }
+
+/* layout */
+main { max-width: 1120px; margin: 0 auto; padding: 22px 20px 70px; }
+section.tab { display: none; } section.tab.active { display: block; animation: rise .22s ease-out; }
+@keyframes rise { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+.card { background: var(--panel); border: 1px solid var(--line); border-radius: var(--r-lg); padding: 20px 22px;
+  margin-bottom: 16px; box-shadow: var(--shadow); }
+.card h2 { margin: 0 0 8px; font-size: 17px; font-weight: 850; letter-spacing: -.2px; display: flex; align-items: center; gap: 10px; }
+.card h2 .badge { width: 34px; height: 34px; border-radius: 11px; display: grid; place-items: center;
+  background: var(--accent-soft); color: var(--accent); }
+.card h3 { margin: 18px 0 6px; font-size: 14.5px; font-weight: 800; }
+.card p { margin: 6px 0 10px; }
+.muted { color: var(--muted); } .small { font-size: 13.5px; }
 .row { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
-.grid2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 14px; }
-button.btn { border: 1px solid var(--line); background: var(--panel); color: var(--ink); border-radius: 7px;
-  padding: 7px 13px; font: inherit; cursor: pointer; }
-button.btn:hover { border-color: var(--accent); }
-button.btn.primary { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); font-weight: 600; }
-button.btn.danger { color: var(--bad); }
-button.btn:disabled { opacity: .5; cursor: default; }
-input[type=text], input[type=number], select { font: inherit; color: var(--ink); background: var(--bg);
-  border: 1px solid var(--line); border-radius: 6px; padding: 5px 8px; }
-input[type=number] { width: 90px; }
-a { color: var(--accent); }
+.grid2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 16px; }
+a { color: var(--accent); font-weight: 700; text-decoration: none; } a:hover { text-decoration: underline; }
+
+/* buttons, inputs */
+.btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; border: 1px solid var(--line2);
+  background: var(--panel); color: var(--ink); border-radius: 12px; padding: 9px 15px; font: inherit;
+  font-weight: 750; font-size: 14px; cursor: pointer; text-decoration: none; transition: border-color .15s, background .15s, transform .05s, box-shadow .15s; }
+.btn:hover { border-color: var(--accent); background: var(--panel2); }
+.btn:active { transform: translateY(1px); }
+.btn.primary { background: var(--accent); color: var(--accent-ink); border-color: var(--accent);
+  box-shadow: 0 6px 16px -8px var(--accent); }
+.btn.primary:hover { background: var(--accent2); border-color: var(--accent2); }
+.btn.danger { color: var(--bad); }
+.btn.danger:hover { border-color: var(--bad); background: var(--bad-soft); }
+.btn.ghost { border-color: transparent; background: transparent; }
+.btn.ghost:hover { background: var(--chip); }
+.btn.icon { padding: 9px; width: 40px; height: 40px; border-radius: 12px; }
+.btn.round { border-radius: 999px; }
+.btn:disabled, .btn.disabled { opacity: .45; cursor: default; pointer-events: none; }
+input[type=text], input[type=number], select { font: inherit; font-weight: 600; color: var(--ink); background: var(--panel2);
+  border: 1px solid var(--line2); border-radius: 11px; padding: 8px 11px; transition: border-color .15s, box-shadow .15s; }
+input[type=text]:focus, input[type=number]:focus, select:focus { outline: none; border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-soft); }
+input[type=number] { width: 96px; }
+input[type=checkbox] { accent-color: var(--accent); width: 17px; height: 17px; }
 select { max-width: 100%; }
-code, .mono { font-family: ui-monospace, "Cascadia Mono", Menlo, Consolas, monospace; font-size: 12.5px; }
-code { background: var(--chip); padding: 1px 5px; border-radius: 4px; word-break: break-all; }
-.status { display: flex; gap: 8px; align-items: baseline; }
-.dot { width: 9px; height: 9px; border-radius: 50%; display: inline-block; background: var(--muted); flex: none; }
-.dot.ok { background: var(--ok); } .dot.warn { background: var(--warn); } .dot.bad { background: var(--bad); }
-.mod { border: 1px solid var(--line); border-radius: 9px; padding: 12px 14px; margin-bottom: 10px; }
+.search { position: relative; display: inline-flex; align-items: center; }
+.search svg.i { position: absolute; left: 11px; color: var(--muted); pointer-events: none; }
+.search input { padding-left: 36px; min-width: 260px; }
+code, .mono { font-family: ui-monospace, "Cascadia Mono", "JetBrains Mono", Menlo, Consolas, monospace; font-size: 12.5px; }
+code { background: var(--chip); padding: 2px 6px; border-radius: 6px; word-break: break-all; font-weight: 600; }
+
+/* switch */
+.switch { position: relative; display: inline-flex; align-items: center; gap: 10px; cursor: pointer; font-weight: 700; font-size: 13.5px; }
+.switch input { position: absolute; opacity: 0; width: 0; height: 0; }
+.switch .track-ui { width: 40px; height: 23px; border-radius: 999px; background: var(--line2); position: relative; flex: none; transition: background .15s; }
+.switch .track-ui::after { content: ""; position: absolute; top: 3px; left: 3px; width: 17px; height: 17px; border-radius: 50%;
+  background: #fff; box-shadow: 0 1px 3px rgba(0,0,0,.25); transition: transform .18s; }
+.switch input:checked + .track-ui { background: var(--accent); }
+.switch input:checked + .track-ui::after { transform: translateX(17px); }
+.switch input:focus-visible + .track-ui { box-shadow: 0 0 0 3px var(--accent-soft); }
+
+/* status */
+.status { display: flex; gap: 10px; align-items: baseline; font-weight: 600; }
+.dot { width: 10px; height: 10px; border-radius: 50%; display: inline-block; background: var(--muted); flex: none; }
+.dot.ok { background: var(--ok); box-shadow: 0 0 0 4px var(--ok-soft); } .dot.warn { background: var(--warn); box-shadow: 0 0 0 4px var(--warn-soft); }
+.dot.bad { background: var(--bad); box-shadow: 0 0 0 4px var(--bad-soft); }
+
+/* mods */
+.mod { border: 1.5px solid var(--line); border-radius: var(--r); padding: 15px 17px; margin-bottom: 12px; transition: border-color .15s, background .15s; }
 .mod.on { border-color: var(--accent); background: var(--accent-soft); }
-.mod label.title { font-weight: 600; display: flex; gap: 9px; align-items: center; cursor: pointer; }
-.mod .params { margin: 8px 0 0 28px; display: grid; gap: 6px; }
-.mod .params label { display: flex; gap: 8px; align-items: center; font-size: 13.5px; }
-.tag { font-size: 11.5px; border-radius: 4px; padding: 0 6px; background: var(--chip); color: var(--muted); }
-.tag.cheat { color: var(--warn); }
-.tag.ok { color: var(--ok); } .tag.off { color: var(--muted); text-decoration: line-through; }
-.mod.unavailable { opacity: .65; }
-.note { font-size: 13px; margin: 6px 0 0 28px; color: var(--warn); }
-.subs { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 6px; }
-.sub { border: 1px solid var(--line); border-radius: 6px; padding: 4px 8px; font-size: 13px; }
-.sub.on { border-color: var(--ok); } .sub.off { color: var(--muted); }
-table { border-collapse: collapse; width: 100%; }
-th, td { text-align: left; padding: 5px 8px; border-bottom: 1px solid var(--line); font-size: 13.5px; }
-th { color: var(--muted); font-weight: 600; font-size: 12.5px; }
+.mod label.title { font-weight: 800; font-size: 15.5px; display: flex; gap: 10px; align-items: center; cursor: pointer; flex-wrap: wrap; }
+.mod .params { margin: 10px 0 0 28px; display: grid; gap: 8px; }
+.mod .params label { display: flex; gap: 8px; align-items: center; font-size: 13.5px; font-weight: 600; flex-wrap: wrap; }
+.tag { font-size: 11.5px; font-weight: 750; border-radius: 999px; padding: 2px 9px; background: var(--chip); color: var(--muted); }
+.tag.cheat { color: var(--warn); background: var(--warn-soft); }
+.tag.ok { color: var(--ok); background: var(--ok-soft); } .tag.off { color: var(--muted); text-decoration: line-through; }
+.mod.unavailable { opacity: .6; }
+.note { font-size: 13px; margin: 8px 0 0 28px; color: var(--warn); font-weight: 600; }
+.subs { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 8px; }
+.sub { border: 1px solid var(--line); border-radius: 11px; padding: 6px 10px; font-size: 13px; font-weight: 600; }
+.sub.on { border-color: var(--ok); color: var(--ok); background: var(--ok-soft); } .sub.off { color: var(--muted); }
+
+/* tables */
+table { border-collapse: separate; border-spacing: 0; width: 100%; }
+th, td { text-align: left; padding: 9px 10px; border-bottom: 1px solid var(--line); font-size: 13.5px; }
+tr:last-child td { border-bottom: 0; }
+th { color: var(--muted); font-weight: 800; font-size: 12px; text-transform: uppercase; letter-spacing: .4px; }
 td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
-tr.pick { cursor: pointer; } tr.pick:hover td { background: var(--accent-soft); }
+tr.pick { cursor: pointer; } tr.pick:hover td { background: var(--panel2); }
 tr.sel td { background: var(--accent-soft); }
-.changed { color: var(--accent); font-weight: 700; }
-.medal { font-weight: 700; } .medal.m2 { color: var(--gold); } .medal.m1 { color: var(--ok); } .medal.m0 { color: var(--muted); }
-.fields { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 8px 16px; }
-.field label { display: block; font-size: 13px; color: var(--muted); }
-.field .hint { font-size: 12px; color: var(--muted); }
-.log { background: #0b1117; color: #cfe3ee; border-radius: 8px; padding: 10px 12px; height: 260px; overflow: auto;
-  white-space: pre-wrap; font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 12.5px; }
+tr.sel td:first-child { border-radius: 10px 0 0 10px; } tr.sel td:last-child { border-radius: 0 10px 10px 0; }
+.changed { color: var(--accent); font-weight: 800; }
+.medal { font-weight: 800; } .medal.m2 { color: var(--gold); } .medal.m1 { color: var(--ok); } .medal.m0 { color: var(--muted); }
+.fields { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 12px 18px; }
+.field label { display: block; font-size: 13px; color: var(--muted); font-weight: 750; margin-bottom: 3px; }
+.field .hint { font-size: 12px; color: var(--muted); margin-top: 3px; }
+.log { background: #08111a; color: #cfe3ee; border-radius: var(--r); padding: 12px 14px; height: 260px; overflow: auto;
+  white-space: pre-wrap; font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 12.5px; border: 1px solid #13222f; }
+
+/* dialogs, toast */
 .overlay { position: fixed; inset: 0; background: rgba(5, 12, 18, .55); display: none; align-items: center;
-  justify-content: center; padding: 16px; z-index: 10; }
+  justify-content: center; padding: 16px; z-index: 10; backdrop-filter: blur(3px); }
 .overlay.show { display: flex; }
-.dialog { background: var(--panel); border-radius: 12px; width: min(760px, 100%); max-height: 90vh; overflow: auto;
-  padding: 18px; border: 1px solid var(--line); }
-.dialog h2 { margin-top: 0; font-size: 17px; }
-.files { max-height: 50vh; overflow: auto; border: 1px solid var(--line); border-radius: 8px; }
-.files div { padding: 6px 10px; border-bottom: 1px solid var(--line); cursor: pointer; display: flex; gap: 8px; }
+.dialog { background: var(--panel); border-radius: var(--r-xl); width: min(760px, 100%); max-height: 90vh; overflow: auto;
+  padding: 22px; border: 1px solid var(--line); box-shadow: 0 30px 80px -20px rgba(0,0,0,.45); }
+.dialog h2 { margin-top: 0; font-size: 18px; font-weight: 850; display: flex; align-items: center; gap: 10px; }
+.files { max-height: 50vh; overflow: auto; border: 1px solid var(--line); border-radius: var(--r); }
+.files div { padding: 8px 12px; border-bottom: 1px solid var(--line); cursor: pointer; display: flex; gap: 8px; font-weight: 600; }
 .files div:hover { background: var(--accent-soft); }
 .files .other { color: var(--muted); }
-.toast { position: fixed; right: 16px; bottom: 16px; max-width: 420px; background: var(--panel); border: 1px solid var(--line);
-  border-left: 4px solid var(--accent); border-radius: 8px; padding: 10px 14px; box-shadow: 0 4px 18px rgba(0,0,0,.18);
-  display: none; z-index: 20; }
-.toast.err { border-left-color: var(--bad); } .toast.show { display: block; }
-.spin { display: inline-block; width: 14px; height: 14px; border: 2px solid var(--line); border-top-color: var(--accent);
-  border-radius: 50%; animation: spin .8s linear infinite; vertical-align: -2px; }
+.toast { position: fixed; right: 18px; bottom: 18px; max-width: 440px; background: var(--panel); border: 1px solid var(--line);
+  border-left: 5px solid var(--accent); border-radius: var(--r); padding: 12px 16px; box-shadow: 0 12px 36px -10px rgba(0,0,0,.35);
+  display: none; z-index: 20; font-weight: 650; }
+.toast.err { border-left-color: var(--bad); } .toast.show { display: block; animation: rise .2s ease-out; }
+.spin { display: inline-block; width: 15px; height: 15px; border: 2.5px solid var(--line2); border-top-color: var(--accent);
+  border-radius: 50%; animation: spin .8s linear infinite; vertical-align: -2px; flex: none; }
 @keyframes spin { to { transform: rotate(360deg); } }
-details summary { cursor: pointer; color: var(--muted); margin: 8px 0; }
-ol.steps { margin: 6px 0 0; padding-left: 20px; } ol.steps li { margin-bottom: 4px; }
+details summary { cursor: pointer; color: var(--muted); margin: 10px 0; font-weight: 750; }
+ol.steps { margin: 6px 0 0; padding-left: 20px; } ol.steps li { margin-bottom: 6px; }
+
+/* music */
+.music-head { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; justify-content: space-between; }
+.stats { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 12px; }
+.stat { background: var(--panel2); border: 1px solid var(--line); border-radius: var(--r); padding: 10px 14px; min-width: 150px; }
+.stat b { display: block; font-size: 20px; font-weight: 850; letter-spacing: -.3px; }
+.stat span { font-size: 12.5px; color: var(--muted); font-weight: 700; }
+.player { position: sticky; top: 132px; z-index: 3; display: flex; gap: 14px; align-items: center; flex-wrap: wrap; }
+.player .now { flex: 1; min-width: 200px; }
+.player .now b { display: block; font-size: 15px; }
+.player .now span { font-size: 12.5px; color: var(--muted); font-weight: 650; }
+.player audio { flex: 2; min-width: 240px; height: 40px; }
+.player .disc { width: 46px; height: 46px; border-radius: 14px; display: grid; place-items: center; background: var(--accent-soft); color: var(--accent); }
+.player .disc.on { background: var(--accent); color: var(--accent-ink); }
+.player .disc.on svg { animation: spin 3s linear infinite; }
+.tracks { display: grid; gap: 10px; }
+.trackrow { display: grid; grid-template-columns: 1fr auto; gap: 10px 16px; align-items: center; background: var(--panel);
+  border: 1px solid var(--line); border-radius: var(--r); padding: 12px 14px 12px 16px; transition: border-color .15s, box-shadow .15s; }
+.trackrow:hover { border-color: var(--line2); box-shadow: var(--shadow); }
+.trackrow.mine { border-color: var(--accent); background: linear-gradient(90deg, var(--accent-soft), var(--panel) 70%); }
+.trackrow .name { font-weight: 800; font-size: 14.5px; }
+.trackrow .meta { font-size: 12.5px; color: var(--muted); font-weight: 600; display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin-top: 2px; }
+.trackrow .yours { margin-top: 8px; display: flex; gap: 10px; flex-wrap: wrap; align-items: center; font-size: 13px; font-weight: 700; }
+.trackrow .yours .src { display: inline-flex; gap: 6px; align-items: center; color: var(--accent); }
+.trackrow .actions { display: flex; gap: 6px; flex-wrap: wrap; justify-content: flex-end; }
+.pill { display: inline-flex; align-items: center; gap: 5px; font-size: 11.5px; font-weight: 800; border-radius: 999px;
+  padding: 2px 9px; background: var(--chip); color: var(--muted); }
+.pill.ok { background: var(--ok-soft); color: var(--ok); } .pill.warn { background: var(--warn-soft); color: var(--warn); }
+.pill.accent { background: var(--accent-soft); color: var(--accent); }
+@media (max-width: 720px) {
+  .trackrow { grid-template-columns: 1fr; } .trackrow .actions { justify-content: flex-start; }
+  .player { top: 118px; } .search input { min-width: 0; width: 100%; } .search { width: 100%; }
+  main { padding: 16px 12px 60px; } .card { padding: 16px; border-radius: 18px; }
+}
 </style>
 </head>
 <body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <symbol id="i-sub" viewBox="0 0 24 24"><path d="M3 14.5c0-2.5 3.6-4 9-4s9 1.5 9 4-3.6 4-9 4-9-1.5-9-4Z"/><path d="M9 10.7V8.5h5v2.2"/><path d="M12 8.5V5h2.5"/><circle cx="8" cy="14.5" r=".6"/><circle cx="12" cy="14.5" r=".6"/><circle cx="16" cy="14.5" r=".6"/></symbol>
+  <symbol id="i-game" viewBox="0 0 24 24"><rect x="2.5" y="7" width="19" height="11" rx="5"/><path d="M7.5 10.5v4M5.5 12.5h4"/><circle cx="15.5" cy="11.5" r=".9"/><circle cx="18" cy="13.5" r=".9"/></symbol>
+  <symbol id="i-mods" viewBox="0 0 24 24"><path d="m12 3 9 5-9 5-9-5 9-5Z"/><path d="m3 13 9 5 9-5"/><path d="m3 17.5 9 5 9-5" opacity=".55"/></symbol>
+  <symbol id="i-save" viewBox="0 0 24 24"><path d="M5 3h11l4 4v12a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V5a2 2 0 0 1 1-2Z"/><path d="M8 3v5h7V3"/><rect x="7.5" y="13" width="9" height="6" rx="1.2"/></symbol>
+  <symbol id="i-music" viewBox="0 0 24 24"><path d="M9 18V5.5l11-2V16"/><circle cx="6.5" cy="18" r="2.5"/><circle cx="17.5" cy="16" r="2.5"/></symbol>
+  <symbol id="i-server" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="7" rx="2.5"/><rect x="3" y="13" width="18" height="7" rx="2.5"/><path d="M7 7.5h.01M7 16.5h.01M11 7.5h6M11 16.5h6"/></symbol>
+  <symbol id="i-help" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9.5"/><path d="M9.3 9.3a2.8 2.8 0 1 1 3.8 2.6c-.7.3-1.1.9-1.1 1.6v.5M12 17.2h.01"/></symbol>
+  <symbol id="i-play" viewBox="0 0 24 24"><path d="M7 4.5v15l12.5-7.5L7 4.5Z" fill="currentColor"/></symbol>
+  <symbol id="i-upload" viewBox="0 0 24 24"><path d="M12 15V4M7.5 8.5 12 4l4.5 4.5"/><path d="M4 14v3.5A2.5 2.5 0 0 0 6.5 20h11a2.5 2.5 0 0 0 2.5-2.5V14"/></symbol>
+  <symbol id="i-undo" viewBox="0 0 24 24"><path d="M3.5 12a8.5 8.5 0 1 0 2.6-6.1L3.5 8.5"/><path d="M3.5 3.5v5h5"/></symbol>
+  <symbol id="i-folder" viewBox="0 0 24 24"><path d="M3 7.5A2.5 2.5 0 0 1 5.5 5H9l2 2.5h7.5A2.5 2.5 0 0 1 21 10v7.5a2.5 2.5 0 0 1-2.5 2.5h-13A2.5 2.5 0 0 1 3 17.5v-10Z"/></symbol>
+  <symbol id="i-check" viewBox="0 0 24 24"><path d="m4.5 12.5 5 5 10-11"/></symbol>
+  <symbol id="i-download" viewBox="0 0 24 24"><path d="M12 4v11M7.5 10.5 12 15l4.5-4.5"/><path d="M4 14v3.5A2.5 2.5 0 0 0 6.5 20h11a2.5 2.5 0 0 0 2.5-2.5V14"/></symbol>
+  <symbol id="i-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="6.5"/><path d="m16 16 4.5 4.5"/></symbol>
+  <symbol id="i-volume" viewBox="0 0 24 24"><path d="M4 9.5h3.5L12 5.5v13l-4.5-4H4v-5Z"/><path d="M15.5 9a4.3 4.3 0 0 1 0 6M18.5 6.5a8 8 0 0 1 0 11"/></symbol>
+  <symbol id="i-wave" viewBox="0 0 24 24"><path d="M3 12h2M7 8v8M11 5v14M15 9v6M19 7v10M21 12h0"/></symbol>
+  <symbol id="i-power" viewBox="0 0 24 24"><path d="M12 3v9"/><path d="M6.6 6.6a8 8 0 1 0 10.8 0"/></symbol>
+  <symbol id="i-refresh" viewBox="0 0 24 24"><path d="M20 12a8 8 0 1 1-2.4-5.7L20 8.5"/><path d="M20 3.5v5h-5"/></symbol>
+  <symbol id="i-x" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6 6 18"/></symbol>
+  <symbol id="i-trash" viewBox="0 0 24 24"><path d="M4 7h16M9.5 7V4.5h5V7M6 7l1 12.5A1.6 1.6 0 0 0 8.6 21h6.8a1.6 1.6 0 0 0 1.6-1.5L18 7"/></symbol>
+  <symbol id="i-box" viewBox="0 0 24 24"><path d="m12 3 8 4.5v9L12 21l-8-4.5v-9L12 3Z"/><path d="m4 7.5 8 4.5 8-4.5M12 12v9"/></symbol>
+  <symbol id="i-chip" viewBox="0 0 24 24"><rect x="6" y="6" width="12" height="12" rx="2.5"/><path d="M9.5 3v3M14.5 3v3M9.5 18v3M14.5 18v3M3 9.5h3M3 14.5h3M18 9.5h3M18 14.5h3"/></symbol>
+  <symbol id="i-link" viewBox="0 0 24 24"><path d="M10 14a4.5 4.5 0 0 0 6.4 0l3-3a4.5 4.5 0 0 0-6.4-6.4l-1 1"/><path d="M14 10a4.5 4.5 0 0 0-6.4 0l-3 3a4.5 4.5 0 0 0 6.4 6.4l1-1"/></symbol>
+  <symbol id="i-save2" viewBox="0 0 24 24"><path d="m4.5 12.5 5 5 10-11"/></symbol>
+  <symbol id="i-sliders" viewBox="0 0 24 24"><path d="M5 20v-6M5 10V4M12 20v-9M12 7V4M19 20v-4M19 12V4"/><path d="M2.5 14h5M9.5 7h5M16.5 16h5"/></symbol>
+  <symbol id="i-copy" viewBox="0 0 24 24"><rect x="8" y="8" width="12" height="12" rx="2.5"/><path d="M16 8V6.5A2.5 2.5 0 0 0 13.5 4h-7A2.5 2.5 0 0 0 4 6.5v7A2.5 2.5 0 0 0 6.5 16H8"/></symbol>
+  <symbol id="i-test" viewBox="0 0 24 24"><path d="M4.5 12a7.5 7.5 0 0 1 15 0M8 12a4 4 0 0 1 8 0"/><circle cx="12" cy="12" r="1.2"/><path d="M12 13.2V20"/></symbol>
+</svg>
 <header>
-  <h1>Steel Diver: Sub Wars — Open Sourced</h1>
-  <p>Le lanceur : votre jeu, ses mods, votre sauvegarde. Tout reste sur cet ordinateur.</p>
-  <div class="chips" id="chips"></div>
-  <div id="restart" class="small" style="display:none;color:var(--warn);margin-bottom:8px">Le lanceur a été mis à
-    jour : fermez la fenêtre où il tourne et relancez <code>subwars.py</code>.</div>
-  <nav id="nav">
-    <button data-tab="jeu" class="active">Jeu</button>
-    <button data-tab="mods">Mods</button>
-    <button data-tab="sauvegarde">Sauvegarde</button>
-    <button data-tab="sousmarins">Sous-marins</button>
-    <button data-tab="serveur">Serveur</button>
-    <button data-tab="aide">Aide</button>
-  </nav>
+  <div class="top">
+    <div class="brand">
+      <div class="logo"><svg class="i"><use href="#i-sub"/></svg></div>
+      <div class="titles">
+        <h1>Steel Diver: Sub Wars — Open Sourced</h1>
+        <p>Le lanceur : votre jeu, ses mods, votre sauvegarde. Tout reste sur cet ordinateur.</p>
+      </div>
+      <div class="chips" id="chips"></div>
+    </div>
+    <div id="restart" class="small" style="display:none">Le lanceur a été mis à jour : fermez la fenêtre où il tourne
+      et relancez <code>subwars.py</code>.</div>
+    <nav id="nav">
+      <button data-tab="jeu" data-icon="game" class="active">Jeu</button>
+      <button data-tab="mods" data-icon="mods">Mods</button>
+      <button data-tab="sauvegarde" data-icon="save">Sauvegarde</button>
+      <button data-tab="sousmarins" data-icon="sub">Sous-marins</button>
+      <button data-tab="musique" data-icon="music">Musique</button>
+      <button data-tab="serveur" data-icon="server">Serveur</button>
+      <button data-tab="aide" data-icon="help">Aide</button>
+    </nav>
+  </div>
 </header>
 <main>
 
 <section class="tab active" id="tab-jeu">
   <div class="card">
-    <h2>1. Les fichiers du jeu</h2>
+    <h2><span class="badge"><svg class="i"><use href="#i-game"/></svg></span>1. Les fichiers du jeu</h2>
     <div class="status" id="game-status"></div>
     <div class="status" id="update-status" style="margin-top:4px"></div>
     <p class="small muted">Il faut <b>votre</b> copie de Steel Diver: Sub Wars, version européenne
@@ -131,32 +274,32 @@ ol.steps { margin: 6px 0 0; padding-left: 20px; } ol.steps li { margin-bottom: 4
       envoyé nulle part. Sa <b>mise à jour v5200</b> (<code>0004000E000D7E00</code>, facultative : 16 sous-marins et
       3 cartes de plus) se prépare en même temps si son <code>.cia</code> déchiffré est dans <code>cia/</code>.</p>
     <div class="row">
-      <button class="btn primary" id="btn-extract-auto">Trouver le jeu et le préparer</button>
-      <button class="btn" id="btn-extract-pick">Choisir le fichier…</button>
+      <button class="btn primary" id="btn-extract-auto" data-icon="search">Trouver le jeu et le préparer</button>
+      <button class="btn" id="btn-extract-pick" data-icon="folder">Choisir le fichier…</button>
     </div>
   </div>
   <div class="card">
-    <h2>2. L'émulateur</h2>
+    <h2><span class="badge"><svg class="i"><use href="#i-chip"/></svg></span>2. L'émulateur</h2>
     <div class="status" id="emu-status"></div>
     <p class="small muted">Azahar refuse le <code>.cia</code> de l'eShop entier (son manuel est resté chiffré) :
       le lanceur en fait une copie du jeu seul, à installer (Fichier &gt; Installer un CIA), ou un <code>.cxi</code>
       à ouvrir directement (Fichier &gt; Charger un fichier). Inutile avec un <code>.cxi</code> ou un <code>.3ds</code>.
       Les mods vont dans chaque émulateur trouvé : Azahar, et ceux de la même famille (Lime3DS, Citra, Borked3DS).</p>
     <div class="row">
-      <button class="btn" id="btn-prepare">Préparer le jeu pour Azahar</button>
-      <button class="btn" id="btn-open-prepared">Ouvrir le dossier</button>
+      <button class="btn" id="btn-prepare" data-icon="box">Préparer le jeu pour Azahar</button>
+      <button class="btn" id="btn-open-prepared" data-icon="folder">Ouvrir le dossier</button>
     </div>
     <h3>La mise à jour dans l'émulateur</h3>
     <p class="small muted">Installée, elle remplace le code du jeu, qu'il soit installé ou ouvert depuis son
       <code>.cxi</code> : les mods sont alors construits pour elle. Les mods déjà installés pour l'autre version sont
       retirés (ils empêcheraient le jeu de démarrer) : réinstallez-les ensuite.</p>
     <div class="row">
-      <button class="btn" id="btn-update-install">Installer la mise à jour</button>
-      <button class="btn danger" id="btn-update-uninstall">Retirer la mise à jour</button>
+      <button class="btn" id="btn-update-install" data-icon="download">Installer la mise à jour</button>
+      <button class="btn danger" id="btn-update-uninstall" data-icon="trash">Retirer la mise à jour</button>
     </div>
   </div>
   <div class="card">
-    <h2>3. Les mods</h2>
+    <h2><span class="badge"><svg class="i"><use href="#i-mods"/></svg></span>3. Les mods</h2>
     <p class="small">Premium sans l'eShop, triche, caractéristiques des sous-marins, jeu en ligne :
       <a href="#" data-goto="mods">onglet Mods</a>. Votre sauvegarde : <a href="#" data-goto="sauvegarde">onglet Sauvegarde</a>.</p>
   </div>
@@ -164,7 +307,7 @@ ol.steps { margin: 6px 0 0; padding-left: 20px; } ol.steps li { margin-bottom: 4
 
 <section class="tab" id="tab-mods">
   <div class="card">
-    <h2>Mods</h2>
+    <h2><span class="badge"><svg class="i"><use href="#i-mods"/></svg></span>Mods</h2>
     <p class="small muted">Cochez les mods voulus puis « Installer » : ils sont construits à partir de votre jeu et
       copiés dans l'émulateur (<code>load/mods/00040000000D7E00/</code>, dans chaque émulateur trouvé). Il n'en
       charge qu'un dossier : tous les mods cochés y vont ensemble. Relancez le jeu ensuite.</p>
@@ -173,78 +316,110 @@ ol.steps { margin: 6px 0 0; padding-left: 20px; } ol.steps li { margin-bottom: 4
   </div>
   <div id="mod-list"></div>
   <div class="card row">
-    <button class="btn primary" id="btn-install">Installer dans l'émulateur</button>
-    <button class="btn" id="btn-build">Construire sans installer</button>
-    <button class="btn danger" id="btn-uninstall">Retirer les mods de l'émulateur</button>
+    <button class="btn primary" id="btn-install" data-icon="download">Installer dans l'émulateur</button>
+    <button class="btn" id="btn-build" data-icon="box">Construire sans installer</button>
+    <button class="btn danger" id="btn-uninstall" data-icon="trash">Retirer les mods de l'émulateur</button>
   </div>
 </section>
 
 <section class="tab" id="tab-sauvegarde">
   <div class="card">
-    <h2>Sauvegarde</h2>
+    <h2><span class="badge"><svg class="i"><use href="#i-save"/></svg></span>Sauvegarde</h2>
     <p class="small"><b>Fermez le jeu dans l'émulateur avant de modifier la sauvegarde</b> : il garde ses valeurs en
       mémoire et réécrirait l'ancienne. Une copie de sécurité est faite avant chaque modification.</p>
     <div class="row"><label>Fichier : <select id="save-file"></select></label>
-      <button class="btn" id="btn-save-reload">Relire</button></div>
+      <button class="btn" id="btn-save-reload" data-icon="refresh">Relire</button></div>
   </div>
   <div id="save-view"></div>
 </section>
 
 <section class="tab" id="tab-sousmarins">
   <div class="card">
-    <h2>Caractéristiques des sous-marins</h2>
+    <h2><span class="badge"><svg class="i"><use href="#i-sub"/></svg></span>Caractéristiques des sous-marins</h2>
     <p class="small muted">Vos valeurs vont dans votre fichier (<code id="subs-file"></code>), puis le mod
       <b>Caractéristiques</b> (onglet Mods) les applique au jeu. Les valeurs que le jeu ne supporte pas sont refusées.
       Prévu pour jouer hors ligne : en ligne, le serveur le traite comme de la triche.</p>
-    <div class="row"><button class="btn" id="btn-subs-reset-all">Tout remettre comme dans le jeu</button>
-      <button class="btn" data-goto="mods">Aller aux mods</button></div>
+    <div class="row"><button class="btn" id="btn-subs-reset-all" data-icon="undo">Tout remettre comme dans le jeu</button>
+      <button class="btn" data-goto="mods" data-icon="mods">Aller aux mods</button></div>
   </div>
   <div class="card" id="sub-editor"><p class="muted">Choisissez un sous-marin dans la liste.</p></div>
   <div class="card" style="overflow-x:auto"><table id="subs-table"></table></div>
 </section>
 
+<section class="tab" id="tab-musique">
+  <div class="card">
+    <div class="music-head">
+      <h2><span class="badge"><svg class="i"><use href="#i-music"/></svg></span>Musique du jeu</h2>
+      <div class="row">
+        <button class="btn primary" id="btn-music-apply" data-icon="download">Appliquer dans l'émulateur</button>
+        <button class="btn danger" id="btn-music-reset-all" data-icon="undo">Remettre les musiques d'origine</button>
+        <button class="btn icon ghost" id="btn-music-folder" data-icon="folder" title="Ouvrir le dossier de vos musiques"></button>
+      </div>
+    </div>
+    <p class="small muted">Écoutez une musique du jeu, puis remplacez-la par la vôtre : MP3, WAV, OGG, FLAC, M4A… Le
+      lanceur la convertit (canaux et fréquence de l'original, en boucle) et la garde dans votre dossier de réglages.
+      « Appliquer dans l'émulateur » réinstalle vos mods avec le mod <b>Musique</b> ; relancez ensuite le jeu. Rien ne
+      change en ligne : les autres joueurs gardent leur musique.</p>
+    <div class="row" style="justify-content:space-between">
+      <label class="switch" title="Mesure la sonie de la musique d'origine et de la vôtre, puis ajuste la vôtre pour qu'elle sonne aussi fort (sans saturer)">
+        <input type="checkbox" id="music-normalize" checked><span class="track-ui"></span>
+        Égaliser le volume sur la musique d'origine (nouvelles musiques)</label>
+      <div class="search"><svg class="i"><use href="#i-search"/></svg>
+        <input type="text" id="music-filter" placeholder="Chercher : titre, mission, carte…"></div>
+    </div>
+    <div class="stats" id="music-stats"></div>
+    <div id="music-status" class="small" style="margin-top:10px"></div>
+  </div>
+  <div class="card player" id="music-player-card">
+    <div class="disc" id="music-disc"><svg class="i"><use href="#i-music"/></svg></div>
+    <div class="now"><b id="music-now">Rien en écoute</b><span id="music-now-sub">Choisissez « Écouter » sur une musique.</span></div>
+    <audio id="music-player" controls preload="none"></audio>
+  </div>
+  <div class="tracks" id="music-table"></div>
+</section>
+
 <section class="tab" id="tab-serveur">
   <div class="card">
-    <h2>Serveur en ligne</h2>
+    <h2><span class="badge"><svg class="i"><use href="#i-server"/></svg></span>Serveur en ligne</h2>
     <p class="small muted">Pour jouer en ligne entre amis, un joueur lance le serveur sur son ordinateur et chacun
       installe le mod <b>Jeu en ligne</b> avec son adresse. Le serveur demande à la box d'ouvrir ses ports (UPnP) :
       les amis peuvent jouer depuis chez eux, par Internet.</p>
     <div class="status" id="srv-status"></div>
     <div class="row" style="margin-top:8px">
-      <button class="btn primary" id="btn-srv-start">Lancer le serveur</button>
-      <button class="btn" id="btn-srv-stop">Arrêter</button>
-      <button class="btn" id="btn-srv-config">Ouvrir sa configuration</button>
+      <button class="btn primary" id="btn-srv-start" data-icon="power">Lancer le serveur</button>
+      <button class="btn" id="btn-srv-stop" data-icon="x">Arrêter</button>
+      <button class="btn" id="btn-srv-config" data-icon="folder">Ouvrir sa configuration</button>
     </div>
   </div>
   <div class="card" id="srv-public"></div>
   <div class="card">
-    <h2>Configuration du serveur</h2>
+    <h2><span class="badge"><svg class="i"><use href="#i-sliders"/></svg></span>Configuration du serveur</h2>
     <p class="small muted">Les options de <code>serveur.toml</code>. « Enregistrer » les écrit dans le fichier (ses
       commentaires restent) ; un serveur qui tourne les prend en compte quand on le relance.</p>
     <div id="srv-config"><p class="muted small">Chargement…</p></div>
     <div class="row" style="margin-top:10px">
-      <button class="btn primary" id="btn-srv-config-save">Enregistrer</button>
-      <button class="btn" id="btn-srv-config-reload">Annuler les changements</button>
+      <button class="btn primary" id="btn-srv-config-save" data-icon="check">Enregistrer</button>
+      <button class="btn" id="btn-srv-config-reload" data-icon="undo">Annuler les changements</button>
     </div>
   </div>
   <div class="card">
-    <h2>Rejoindre le serveur d'un ami</h2>
+    <h2><span class="badge"><svg class="i"><use href="#i-link"/></svg></span>Rejoindre le serveur d'un ami</h2>
     <p class="small muted">Entrez l'adresse qu'il vous donne (IP ou nom, avec <code>:port</code> s'il n'utilise
       pas 61000). « Tester » vérifie depuis cet ordinateur que son serveur répond ; puis installez le mod
       <b>Jeu en ligne</b> avec cette adresse.</p>
     <div class="row">
       <input type="text" id="srv-test-address" placeholder="ex. 203.0.113.7 ou monserveur.duckdns.org" size="34">
-      <button class="btn" id="btn-srv-test">Tester</button>
-      <button class="btn primary" id="btn-srv-use">Utiliser pour le mod Jeu en ligne</button>
+      <button class="btn" id="btn-srv-test" data-icon="test">Tester</button>
+      <button class="btn primary" id="btn-srv-use" data-icon="link">Utiliser pour le mod Jeu en ligne</button>
     </div>
     <div id="srv-test-result" class="small" style="margin-top:8px"></div>
   </div>
-  <div class="card"><h2>Journal</h2><div class="log" id="srv-log"></div></div>
+  <div class="card"><h2><span class="badge"><svg class="i"><use href="#i-wave"/></svg></span>Journal</h2><div class="log" id="srv-log"></div></div>
 </section>
 
 <section class="tab" id="tab-aide">
   <div class="card">
-    <h2>En bref</h2>
+    <h2><span class="badge"><svg class="i"><use href="#i-help"/></svg></span>En bref</h2>
     <ol class="steps">
       <li><b>Jeu</b> : le lanceur trouve votre copie du jeu et en extrait les fichiers dont les mods ont besoin.</li>
       <li><b>L'émulateur</b> (Azahar, ou Lime3DS, Citra, Borked3DS) : installez le <code>.cia</code> préparé, ou
@@ -252,6 +427,8 @@ ol.steps { margin: 6px 0 0; padding-left: 20px; } ol.steps li { margin-bottom: 4
       <li><b>Mods</b> : cochez <i>Premium</i> (version complète et les 23 sous-marins), et si vous voulez la
         <i>Triche</i>, vos <i>Caractéristiques</i>, le <i>Jeu en ligne</i>. Installez, relancez le jeu.</li>
       <li><b>Sauvegarde</b> : tout débloquer, des médailles d'or, retirer le drapeau premium d'une ancienne sauvegarde.</li>
+      <li><b>Musique</b> : écoutez les musiques du jeu et remplacez celles que vous voulez par les vôtres (MP3, WAV…) ;
+        un bouton remet celles d'origine.</li>
     </ol>
     <h3>Questions</h3>
     <p class="small"><b>Le premium sans l'eShop ?</b> Tout le contenu premium est déjà dans le jeu gratuit ; l'achat
@@ -278,17 +455,17 @@ ol.steps { margin: 6px 0 0; padding-left: 20px; } ol.steps li { margin-bottom: 4
   <h2 id="task-title"></h2>
   <div class="log" id="task-log"></div>
   <p id="task-end" class="small"></p>
-  <div class="row"><button class="btn primary" id="task-close" disabled>Fermer</button></div>
+  <div class="row"><button class="btn primary" id="task-close" data-icon="check" disabled>Fermer</button></div>
 </div></div>
 
 <div class="overlay" id="files-overlay"><div class="dialog">
   <h2>Choisir le fichier du jeu</h2>
   <div class="row" style="margin-bottom:8px"><input type="text" id="files-path" style="flex:1">
-    <button class="btn" id="files-go">Aller</button></div>
+    <button class="btn" id="files-go" data-icon="search">Aller</button></div>
   <div class="row small" id="files-shortcuts" style="margin-bottom:8px"></div>
   <div class="files" id="files-list"></div>
   <p class="small muted">Les fichiers marqués ★ sont Steel Diver: Sub Wars (Europe).</p>
-  <div class="row"><button class="btn" id="files-cancel">Annuler</button></div>
+  <div class="row"><button class="btn" id="files-cancel" data-icon="x">Annuler</button></div>
 </div></div>
 
 <div class="toast" id="toast"></div>
@@ -311,9 +488,21 @@ async function api(path, options = {}) {
   return data;
 }
 const $ = (sel, root = document) => root.querySelector(sel);
+const SVG = "http://www.w3.org/2000/svg";
+function icon(name, cls = "") {
+  const svg = document.createElementNS(SVG, "svg");
+  svg.setAttribute("class", "i " + cls);
+  svg.setAttribute("aria-hidden", "true");
+  const use = document.createElementNS(SVG, "use");
+  use.setAttribute("href", "#i-" + name);
+  svg.append(use);
+  return svg;
+}
 function el(tag, attrs = {}, ...children) {
   const node = document.createElement(tag);
+  if (attrs.icon) node.append(icon(attrs.icon));
   for (const [k, v] of Object.entries(attrs)) {
+    if (k === "icon") continue;
     if (k === "class") node.className = v;
     else if (k.startsWith("on")) node.addEventListener(k.slice(2), v);
     else if (v !== false && v !== null && v !== undefined) node.setAttribute(k, v === true ? "" : v);
@@ -340,6 +529,7 @@ function showTab(name) {
   document.querySelectorAll("section.tab").forEach(s => s.classList.toggle("active", s.id === "tab-" + name));
   if (name === "sauvegarde") loadSave();
   if (name === "sousmarins") loadSubs();
+  if (name === "musique") loadMusic();
   if (name === "serveur") { loadServer(); loadServerConfig(); }
   history.replaceState(null, "", "#" + name);
 }
@@ -363,14 +553,14 @@ async function refresh() {
   const stale = emu.emulators.filter(e => e.stale);
   const chips = $("#chips");
   chips.replaceChildren(
-    el("span", {class: "chip " + (g.ready ? "ok" : "warn")}, g.ready ? "● Jeu prêt" : "● Jeu à préparer"),
+    el("span", {class: "chip " + (g.ready ? "ok" : "warn")}, g.ready ? "Jeu prêt" : "Jeu à préparer"),
     el("span", {class: "chip " + (emu.dirs.length ? "ok" : "warn")}, emu.dirs.length
-      ? "● " + [...new Set(emu.names.map(n => n.replace(/ \(.*\)$/, "")))].join(", ") + " trouvé" + (emu.names.length > 1 ? "s" : "")
-      : "● Émulateur introuvable"),
-    ...emu.versions.map(v => el("span", {class: "chip ok"}, "● Jeu en " + versionLabel(v))),
+      ? [...new Set(emu.names.map(n => n.replace(/ \(.*\)$/, "")))].join(", ") + " trouvé" + (emu.names.length > 1 ? "s" : "")
+      : "Émulateur introuvable"),
+    ...emu.versions.map(v => el("span", {class: "chip ok"}, "Jeu en " + versionLabel(v))),
     el("span", {class: "chip " + (stale.length ? "warn" : emu.mods_installed ? "ok" : "")},
-       stale.length ? "● Mods à réinstaller (construits pour " + stale[0].mods_version + ")"
-       : emu.mods_installed ? "● Mods installés" + (emu.installed ? " : " + emu.installed.mods.join(", ") : "") : "● Aucun mod installé"));
+       stale.length ? "Mods à réinstaller (construits pour " + stale[0].mods_version + ")"
+       : emu.mods_installed ? "Mods installés" + (emu.installed ? " : " + emu.installed.mods.join(", ") : "") : "Aucun mod installé"));
   $("#game-status").replaceChildren(el("span", {class: "dot " + (g.ready ? "ok" : "warn")}),
     el("span", {}, g.ready ? `Prêts (${g.product}, depuis ${g.source_name}).`
       : g.found ? "Pas encore préparés. Jeu trouvé : " : "Pas encore préparés, et le jeu n'a pas été trouvé automatiquement.",
@@ -391,7 +581,7 @@ async function refresh() {
   const installedSomewhere = emu.emulators.some(e => e.version !== "v0");
   $("#btn-update-install").disabled = !up.found || up.encrypted || !up.cia || !emu.dirs.length
     || emu.emulators.every(e => e.version === up.version);
-  $("#btn-update-install").textContent = up.version ? `Installer la mise à jour ${up.version}` : "Installer la mise à jour";
+  $("#btn-update-install").replaceChildren(icon("download"), up.version ? `Installer la mise à jour ${up.version}` : "Installer la mise à jour");
   $("#btn-update-uninstall").disabled = !installedSomewhere;
   $("#restart").style.display = state.restart ? "block" : "none";
   renderMods();
@@ -449,12 +639,12 @@ async function browse(dir) {
     $("#files-overlay").classList.add("show");
     $("#files-path").value = data.dir;
     $("#files-shortcuts").replaceChildren(...data.shortcuts.map(s =>
-      el("button", {class: "btn", onclick: () => browse(s.path)}, s.name)));
+      el("button", {class: "btn", icon: "folder", onclick: () => browse(s.path)}, s.name)));
     const list = $("#files-list");
     list.replaceChildren();
-    if (data.parent) list.append(el("div", {onclick: () => browse(data.parent)}, "⬑ ..", el("span", {class: "muted"}, " dossier parent")));
+    if (data.parent) list.append(el("div", {onclick: () => browse(data.parent), icon: "undo"}, "..", el("span", {class: "muted"}, " dossier parent")));
     for (const e of data.entries) {
-      if (e.type === "dir") list.append(el("div", {onclick: () => browse(e.path)}, "📁 " + e.name));
+      if (e.type === "dir") list.append(el("div", {onclick: () => browse(e.path), icon: "folder"}, e.name));
       else list.append(el("div", {class: e.type === "game" ? "" : "other",
         onclick: () => { $("#files-overlay").classList.remove("show"); runTask("game/extract", {path: e.path}); }},
         (e.type === "game" ? "★ " : "· ") + e.name, el("span", {class: "muted small"}, ` ${(e.size / 1048576).toFixed(1)} Mo`)));
@@ -624,7 +814,7 @@ function renderSave(s) {
     el("div", {class: "card"},
       el("h2", {}, "Modifier"),
       el("div", {class: "row"},
-        el("button", {class: "btn primary", onclick: () => saveAction("save/unlock", {what: ["subs", "patterns", "crew", "missions"]},
+        el("button", {class: "btn primary", icon: "check", onclick: () => saveAction("save/unlock", {what: ["subs", "patterns", "crew", "missions"]},
           "Débloquer tous les sous-marins, motifs, membres d'équipage et missions ?")}, "Tout débloquer"),
         el("button", {class: "btn", onclick: () => saveAction("save/unlock", {what: ["subs"]})}, "Sous-marins"),
         el("button", {class: "btn", onclick: () => saveAction("save/unlock", {what: ["patterns"]})}, "Motifs"),
@@ -636,10 +826,10 @@ function renderSave(s) {
         el("div", {class: "row"},
           el("input", {type: "text", id: "set-name", placeholder: "save.sub.typenum", size: 30}),
           el("input", {type: "text", id: "set-value", placeholder: "valeur (1,0,1 pour un tableau)", size: 26}),
-          el("button", {class: "btn", onclick: () => saveAction("save/set", {name: $("#set-name").value, value: $("#set-value").value})}, "Écrire")),
+          el("button", {class: "btn", icon: "check", onclick: () => saveAction("save/set", {name: $("#set-name").value, value: $("#set-value").value})}, "Écrire")),
         el("div", {class: "row", style: "margin-top:8px"},
-          el("button", {class: "btn", onclick: exportSave}, "Exporter en JSON"),
-          el("label", {class: "btn"}, "Importer un JSON…", el("input", {type: "file", accept: ".json", style: "display:none", onchange: importSave}))),
+          el("button", {class: "btn", icon: "download", onclick: exportSave}, "Exporter en JSON"),
+          el("label", {class: "btn", icon: "upload"}, "Importer un JSON…", el("input", {type: "file", accept: ".json", style: "display:none", onchange: importSave}))),
         el("p", {class: "small muted"}, `${s.values} valeurs. Fichier : `, el("code", {}, s.file)))));
 }
 async function exportSave() {
@@ -695,14 +885,14 @@ function renderSubEditor() {
     el("details", {}, el("summary", {}, "Réglages fins de la physique"),
       el("div", {class: "fields"}, ...subsData.fields.filter(f => f.advanced).map(field))),
     el("div", {class: "row", style: "margin-top:12px"},
-      el("button", {class: "btn primary", onclick: () => guarded(async () => {
+      el("button", {class: "btn primary", icon: "check", onclick: () => guarded(async () => {
         const values = {};
         for (const [k, input] of Object.entries(inputs)) values[k] = Number(input.value);
         subsData = await api("subs/set", {body: {n: s.n, values}});
         toast(`${s.name} enregistré. Installez le mod « Caractéristiques » pour l'appliquer.`);
         renderSubs();
       })}, "Enregistrer"),
-      el("button", {class: "btn", onclick: () => guarded(async () => {
+      el("button", {class: "btn", icon: "undo", onclick: () => guarded(async () => {
         subsData = await api("subs/reset", {body: {n: s.n}}); renderSubs(); })}, "Valeurs du jeu")));
 }
 $("#btn-subs-reset-all").addEventListener("click", () => guarded(async () => {
@@ -710,11 +900,178 @@ $("#btn-subs-reset-all").addEventListener("click", () => guarded(async () => {
   subsData = await api("subs/reset", {body: {}}); renderSubs();
 }));
 
+// ---- music -----------------------------------------------------------------------------------------
+let musicData = null, musicUrl = null, musicBusy = null;
+async function loadMusic() {
+  await guarded(async () => { musicData = await api("music"); renderMusic(); });
+}
+function duration(seconds) {
+  if (seconds === null || seconds === undefined) return "—";
+  const s = Math.round(seconds);
+  return Math.floor(s / 60) + ":" + String(s % 60).padStart(2, "0");
+}
+function db(value) { return (value > 0 ? "+" : value < 0 ? "−" : "±") + Math.abs(value).toFixed(1).replace(".", ",") + " dB"; }
+function renderMusic() {
+  const m = musicData;
+  const mine = m.tracks.filter(t => t.mine);
+  const matched = mine.filter(t => t.mine.match).length;
+  $("#music-stats").replaceChildren(
+    el("div", {class: "stat"}, el("b", {}, String(m.tracks.length)), el("span", {}, "musiques dans le jeu")),
+    el("div", {class: "stat"}, el("b", {}, String(m.count)), el("span", {}, "remplacées par les vôtres")),
+    el("div", {class: "stat"}, el("b", {}, m.count ? `${matched}/${m.count}` : "—"), el("span", {}, "au volume de l'original")),
+    el("div", {class: "stat"}, el("b", {}, m.installed ? "Oui" : "Non"), el("span", {}, "dans l'émulateur")));
+  $("#music-status").replaceChildren(
+    m.count && !m.installed ? el("div", {class: "pill warn", icon: "download"}, "Pas encore dans l'émulateur : « Appliquer dans l'émulateur »")
+      : !m.count && m.installed ? el("div", {class: "pill warn", icon: "download"}, "L'émulateur a encore vos musiques : « Appliquer » remet celles du jeu")
+      : "",
+    el("div", {class: "muted", style: "margin-top:6px"}, `Jeu en ${m.label}. Vos musiques : `, el("code", {}, m.folder)));
+  const filter = $("#music-filter").value.trim().toLowerCase();
+  const list = $("#music-table");
+  list.replaceChildren();
+  for (const t of m.tracks) {
+    if (filter && !(t.label + " " + t.file + " " + t.sounds.join(" ") + " " + (t.mine ? t.mine.source : "")).toLowerCase().includes(filter))
+      continue;
+    const busy = musicBusy === t.file;
+    const input = el("input", {type: "file", accept: "audio/*,.mp3,.wav,.ogg,.oga,.flac,.m4a,.aac,.opus,.webm", style: "display:none",
+      onchange: e => { const f = e.target.files[0]; e.target.value = ""; if (f) replaceMusic(t, f); }});
+    const meta = el("div", {class: "meta"}, el("span", {class: "mono"}, t.file),
+      el("span", {class: "pill"}, t.channels === 2 ? "stéréo" : "mono"), el("span", {class: "pill"}, `${t.rate} Hz`),
+      el("span", {class: "pill"}, duration(t.seconds)));
+    let yours = "";
+    if (busy) {
+      yours = el("div", {class: "yours"}, el("span", {class: "spin"}), "Conversion et analyse du volume…");
+    } else if (t.mine) {
+      const box = el("input", {type: "checkbox"});
+      box.checked = t.mine.match;
+      box.addEventListener("change", () => guarded(async () => {
+        musicData = await api("music/match", {body: {file: t.file, on: box.checked}});
+        renderMusic();
+        toast(box.checked ? `${t.label} : volume égalisé sur l'original.` : `${t.label} : volume de votre fichier gardé tel quel.`);
+      }));
+      const gain = t.mine.gain;
+      yours = el("div", {class: "yours"},
+        el("span", {class: "src", icon: "music"}, t.mine.source),
+        el("span", {class: "pill"}, duration(t.mine.seconds)),
+        el("label", {class: "switch", title: "Ajuster votre musique pour qu'elle sonne aussi fort que celle du jeu"},
+          box, el("span", {class: "track-ui"}), "Volume égalisé"),
+        gain === null || gain === undefined ? ""
+          : el("span", {class: "pill " + (t.mine.match ? "accent" : ""), icon: "volume",
+               title: `Sonie : la vôtre ${t.mine.loudness} dB, l'original ${t.mine.target} dB`},
+               t.mine.match ? `ajusté de ${db(gain)}` : `écart ${db(-gain)}`));
+    }
+    list.append(el("div", {class: "trackrow" + (t.mine ? " mine" : "")},
+      el("div", {}, el("div", {class: "name"}, t.label), meta, yours),
+      el("div", {class: "actions"},
+        el("button", {class: "btn", title: "Écouter la musique du jeu", icon: "play", onclick: () => playMusic(t, "original")}, "Jeu"),
+        t.mine ? el("button", {class: "btn", title: "Écouter la vôtre, telle que le jeu la jouera", icon: "play", onclick: () => playMusic(t, "mine")}, "La vôtre") : "",
+        el("label", {class: "btn" + (busy ? " disabled" : ""), icon: "upload"}, t.mine ? "Changer" : "Remplacer", input),
+        t.mine ? el("button", {class: "btn icon danger", title: "Remettre la musique du jeu", icon: "undo", onclick: () => guarded(async () => {
+          musicData = await api("music/reset", {body: {file: t.file}}); renderMusic();
+          toast(`${t.label} : musique du jeu remise. « Appliquer dans l'émulateur » pour l'entendre en jeu.`);
+        })}) : "")));
+  }
+  if (!list.children.length) list.append(el("div", {class: "card muted"}, "Aucune musique ne correspond à la recherche."));
+}
+async function playMusic(t, which) {
+  await guarded(async () => {
+    $("#music-now").replaceChildren(el("span", {class: "spin"}), " Préparation…");
+    $("#music-now-sub").textContent = t.label;
+    const response = await fetch(`/api/music/audio?file=${encodeURIComponent(t.file)}&which=${which}`, {headers: {"X-Token": TOKEN}});
+    if (!response.ok) {
+      const data = await response.json().catch(() => ({}));
+      $("#music-now").textContent = "Rien en écoute";
+      $("#music-now-sub").textContent = "";
+      throw new Error(data.error || response.statusText);
+    }
+    const blob = await response.blob();
+    if (musicUrl) URL.revokeObjectURL(musicUrl);
+    musicUrl = URL.createObjectURL(blob);
+    const player = $("#music-player");
+    player.src = musicUrl;
+    $("#music-now").textContent = t.label;
+    $("#music-now-sub").textContent = which === "mine" ? "Votre musique : " + t.mine.source + (t.mine.match ? " (volume égalisé)" : "")
+      : "Musique du jeu : " + t.file;
+    await player.play().catch(() => {});
+  });
+}
+// The browser decodes the file (MP3, WAV, OGG, FLAC, AAC...) and resamples it to the rate and channels of the
+// music it replaces; the launcher gets 16-bit samples, levels them and keeps them as a WAV.
+async function decodeFor(file, t) {
+  const Context = window.AudioContext || window.webkitAudioContext;
+  if (!Context || !window.OfflineAudioContext) throw new Error("ce navigateur ne sait pas décoder l'audio : utilisez tools/music.py avec un WAV");
+  const context = new Context();
+  let audio;
+  try {
+    audio = await context.decodeAudioData(await file.arrayBuffer());
+  } catch (e) {
+    throw new Error(`${file.name} : format que ce navigateur ne sait pas lire (essayez un MP3 ou un WAV)`);
+  } finally {
+    context.close();
+  }
+  if (audio.duration > 15 * 60) throw new Error(`${file.name} : plus de 15 minutes, c'est trop long`);
+  const length = Math.max(1, Math.ceil(audio.duration * t.rate));
+  const offline = new OfflineAudioContext(t.channels, length, t.rate);
+  const source = offline.createBufferSource();
+  source.buffer = audio;
+  source.connect(offline.destination);
+  source.start();
+  const rendered = await offline.startRendering();
+  const channels = [];
+  for (let c = 0; c < t.channels; c++) channels.push(rendered.getChannelData(c));
+  const pcm = new Int16Array(length * t.channels);
+  for (let i = 0, k = 0; i < length; i++)
+    for (let c = 0; c < t.channels; c++, k++) {
+      const v = Math.max(-1, Math.min(1, channels[c][i]));
+      pcm[k] = v < 0 ? v * 32768 : v * 32767;
+    }
+  return pcm;
+}
+async function replaceMusic(t, file) {
+  musicBusy = t.file;
+  renderMusic();
+  try {
+    await guarded(async () => {
+      const pcm = await decodeFor(file, t);
+      const query = new URLSearchParams({file: t.file, rate: t.rate, channels: t.channels, name: file.name,
+        normalize: $("#music-normalize").checked ? "1" : "0"});
+      const response = await fetch("/api/music/upload?" + query, {method: "POST",
+        headers: {"X-Token": TOKEN, "Content-Type": "application/octet-stream"}, body: pcm.buffer});
+      const data = await response.json().catch(() => ({error: "réponse illisible"}));
+      if (!response.ok) throw new Error(data.error || response.statusText);
+      musicData = data;
+      const done = musicData.tracks.find(x => x.file === t.file);
+      const g = done && done.mine && done.mine.match && done.mine.gain !== null ? ` Volume ajusté de ${db(done.mine.gain)}.` : "";
+      toast(`${t.label} : « ${file.name} » prête.${g} « La vôtre » pour l'écouter, puis « Appliquer dans l'émulateur ».`);
+    });
+  } finally {
+    musicBusy = null;
+    renderMusic();
+  }
+}
+$("#music-player").addEventListener("play", () => $("#music-disc").classList.add("on"));
+$("#music-player").addEventListener("pause", () => $("#music-disc").classList.remove("on"));
+$("#music-player").addEventListener("ended", () => $("#music-disc").classList.remove("on"));
+$("#music-filter").addEventListener("input", () => { if (musicData) renderMusic(); });
+$("#btn-music-apply").addEventListener("click", () => guarded(async () => {
+  const task = await api("music/apply", {body: {}});
+  await followTask(task);
+  loadMusic();
+}));
+$("#btn-music-reset-all").addEventListener("click", () => guarded(async () => {
+  if (!musicData || !musicData.count) { toast("Toutes les musiques sont déjà celles du jeu."); if (musicData && musicData.installed && confirm("L'émulateur a encore vos musiques. Les retirer maintenant ?")) $("#btn-music-apply").click(); return; }
+  if (!confirm(`Remettre les musiques d'origine ? Vos ${musicData.count} musique(s) seront retirées du dossier de réglages.`)) return;
+  musicData = await api("music/reset", {body: {all: true}});
+  renderMusic();
+  if (musicData.installed && confirm("Remettre aussi tout de suite les musiques d'origine dans l'émulateur ?")) $("#btn-music-apply").click();
+  else toast("Musiques d'origine remises. « Appliquer dans l'émulateur » pour les retrouver en jeu.");
+}));
+$("#btn-music-folder").addEventListener("click", () => guarded(() => api("music/folder", {body: {}})));
+
 // ---- server ----------------------------------------------------------------------------------------
 let serverTimer = null;
 const CHEATS = {separes: "ils ne jouent qu'entre eux", autorises: "acceptés avec tout le monde", refuses: "refusés"};
 function copyButton(text) {
-  return el("button", {class: "btn", onclick: () => guarded(async () => {
+  return el("button", {class: "btn", icon: "copy", onclick: () => guarded(async () => {
     await navigator.clipboard.writeText(text); toast("Copié : " + text); })}, "Copier");
 }
 async function loadServer() {
@@ -726,7 +1083,8 @@ async function loadServer() {
       el("span", {}, s.running ? "Le serveur tourne."
         : other ? `Un serveur lancé ailleurs tourne déjà (PID ${other.pid}) : « Relancer ici » l'arrête et en lance un nouveau.`
         : "Le serveur est arrêté."));
-    $("#btn-srv-start").textContent = s.running ? "Relancer le serveur" : other ? "Relancer ici" : "Lancer le serveur";
+    $("#btn-srv-start").replaceChildren(icon(s.running || other ? "refresh" : "power"),
+      s.running ? "Relancer le serveur" : other ? "Relancer ici" : "Lancer le serveur");
     renderPublic(s);
     const log = $("#srv-log");
     const atBottom = log.scrollTop + log.clientHeight >= log.scrollHeight - 4;
@@ -895,6 +1253,7 @@ $("#btn-srv-use").addEventListener("click", () => {
 });
 
 // ---- start -----------------------------------------------------------------------------------------
+document.querySelectorAll("[data-icon]").forEach(node => node.prepend(icon(node.dataset.icon)));
 guarded(async () => {
   await refresh();
   const tab = location.hash.slice(1);

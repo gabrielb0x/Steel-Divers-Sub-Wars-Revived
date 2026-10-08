@@ -14,7 +14,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from sdsw_server import testclient
+from sdsw_server import matchmaking, testclient
 from sdsw_server.crypto import RC4, derive_user_key, kerberos_decrypt, kerberos_encrypt, KerberosError
 from sdsw_server.ddl import MatchmakeSession, criterion_matches
 from sdsw_server.matchmaking import BotSettings
@@ -237,7 +237,7 @@ class Bots(unittest.TestCase):
         first, second, values = self.run_bots(test, mine=1, other=4, map=5, level="expert", countdown=15)
         self.assertEqual(first, [])
         self.assertEqual(len(second), 1)
-        bots = {k: v for k, v in values.items() if k[12:15] in ("nam", "sub") or k.startswith("server.bots.lv")}
+        bots = {k: v for k, v in values.items() if k[12:15] in ("nam", "sub", "cre") or k.startswith("server.bots.lv")}
         others = {k: v for k, v in values.items() if k not in bots and k.startswith("server.bots")}
         self.assertEqual(others, {"server.bots": 1, "server.bots.mine": 1, "server.bots.other": 4,
                                   "server.bots.stage": 14, "server.bots.level": 3, "server.bots.countdown": 15000,
@@ -245,6 +245,13 @@ class Bots(unittest.TestCase):
         names = [values[f"server.bots.name{k}"] for k in range(1, 8)]
         self.assertEqual(len(set(names)), 7)                       # seven players, all different
         self.assertTrue(all(1 <= values[f"server.bots.sub{k}"] <= 23 for k in range(1, 8)))
+        for k in range(1, 8):                                       # an expert's crew: 4 or 5 members that only add
+            packed = values[f"server.bots.crew{k}"]
+            crew = [((packed >> (6 * i)) & 63) - 1 for i in range(5)]
+            members = [c for c in crew if c >= 0]
+            self.assertIn(len(members), (4, 5))
+            self.assertEqual(len(set(members)), len(members))
+            self.assertTrue(all(c in matchmaking.CREW_STRONG and c < 32 for c in members), members)
 
     def test_two_players_no_bots(self):
         async def test(realm, port, clock):

@@ -67,6 +67,10 @@ Chaque royaume a ses options de partie dans `serveur.toml` (le lanceur les affic
     chercheuse, masqueur et repli quand leur coque est basse : `mods/en-ligne/src/bots_ia.p`), le niveau
     règle leurs réflexes et leur précision (expert : visée parfaite) ; vaut pour tous les bots des parties
     en ligne ;
+  * `bots_crew` : `true` (par défaut), chaque bot prend un équipage comme un joueur (jusqu'à 5 membres, autant
+    que son sous-marin en accepte), qui change ses notes et lui donne ses capacités (portée de verrouillage,
+    sonar large, masqueur moins cher ou plus long, réparation…) ; au niveau expert, des membres qui
+    n'ont que des bonus ([bots.md](../docs/bots.md#léquipage)) ;
   * `bots_names` : les noms des bots (au moins 7, 10 caractères au plus), tirés au hasard à chaque partie.
 
   Comment le serveur parle au jeu : par des notifications NEX à lui (types 999001 et 999002) que le mod

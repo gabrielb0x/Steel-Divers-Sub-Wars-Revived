@@ -18,6 +18,16 @@
  * fires homing torpedoes at targets that evade, and when its hull is low it backs away still firing, then
  * hides under its masker and flees. The torpedoes are the players' (surface_torpedo_lv0N,
  * surface_torpedo_p_homing), whose hits bots_torpille.pasm sends to their target like a player's.
+ *
+ * It starts where a player would (the spawn points of the map, bxml/sdsw_spawn_*: the slots the players leave
+ * free), steers by its whole hull (a capsule 550 long: it looks ahead from its nose and slows down for walls in
+ * time), and does not fight the same way twice: each bot has its own temper (distance, aggression, side, depth),
+ * changes maneuver every few seconds (holds, circles, closes in, breaks off, changes depth, stops short), aims
+ * at where the target goes if it keeps turning, goes straight, or dodges the way it has dodged so far (learned
+ * during the battle and the session, per player), and dodges torpedoes in a direction of its own choosing. It
+ * takes a crew as a player does (server.bots.crew<k>): the crew changes the ratings of its submarine and gives
+ * it their abilities (lock-on and sonar range, cheaper or longer masker, repair, air; with the update, the
+ * team's repair, hiding from the sonar when hurt, the masker that starts by itself when a homing torpedo locks).
  */
 
 // @target amx/surface_sub.amx
@@ -47,16 +57,21 @@
 new const SEE_EVERY[] =   { 0,  10,     6,         3 };          // frames between two looks around
 new const FIRE_PAUSE[] =  { 0,  40,     12,        0 };          // frames added to the reload
 new const Float:MISS_ALLOWED[] = { 0.0, 90.0, 60.0, 45.0 };     // how far off the target a shot may pass
-new const Float:DODGE[] = { 0.0, 0.35, 0.8, 1.0 };               // chance to see a torpedo coming
+new const Float:DODGE[] = { 0.0, 0.35, 0.85, 1.0 };              // chance to see a torpedo coming
+new const MANEUVER_MIN[] = { 0, 150,    75,        50 };          // frames of a maneuver, at least
+new const MANEUVER_SPAN[] = { 0, 150,   110,       90 };          // and at most this much more
+new const LEARNS[] =      { 0,  0,      1,         1 };           // learns how each player dodges
 
 const Float:TORPEDO_ACCEL = 1.2;     // surface_torpedo.p main: func_2ef4(..., 1.2, ...)
 const Float:TORPEDO_KEEP = 0.99;     // 1 - friction (0.01, func_1488)
 const Float:LIN_DRAG = 0.038;        // linDrag of every pscope_plyNN_stats
 const Float:DIVE_DRAG = 0.16;        // diveDrag
 const Float:SURFACE = -70.0;         // highest point: under the waterline
-const Float:HULL = 70.0;
+const Float:HULL = 70.0;             // half the height of a sub, what a torpedo can miss by vertically
+const Float:NOSE = 300.0;            // from the middle of the sub to its nose (capsule 550 long, 60 wide)
+const Float:BEAM = 70.0;             // half its width, and some
 const Float:NO_CLIMB = 1000.0;
-const BOT_NODE = 0x7b070000;         // the bot k is node BOT_NODE + k for the game (bots_partie.p)             // half the height of a sub, what a torpedo can miss by vertically
+const BOT_NODE = 0x7b070000;         // the bot k is node BOT_NODE + k for the game (bots_partie.p)
 
 new lvl;                             // 0: the game's own bot (offline, or not a computer sub)
 new started;
@@ -159,8 +174,53 @@ new Float:lostVel[3];
 new blindShots;
 new evadeTime;
 new Float:evadeYaw;
+new Float:evadeThrottle = 1.0;
+
+// its temper, drawn when it starts: two bots never fight alike, nor one bot twice
+new Float:pRange = 1.0;              // the distance it likes, times the usual
+new Float:pAggro = 0.5;              // 0..1: how much it presses in
+new pSide = 1;                       // the side it circles by, first
+new Float:pDepth;                    // above (+) or below the target
+new flank;                           // -1, 0, 1: the side it comes from when its teammates fight the same target
+// the maneuver of the moment (combat)
+const M_HOLD = 0;                    // face it at its distance
+const M_CIRCLE = 1;                  // round it, then turn in to fire
+const M_CLOSE = 2;                   // closer, then fire
+const M_BREAK = 3;                   // away, then back
+const M_DEPTH = 4;                   // another depth
+const M_STOP = 5;                    // stops short (a shot led on its speed goes ahead of it)
+new maneuver;
+new maneuverUntil;
+new Float:maneuverThrottle = 0.4;
+new Float:depthShift;                // the depth it takes between two shots
+new autoMaskerAt = -10000;           // when the crew's masker came on (autoMasker)
+// how it leads a shot: 0 the target keeps turning, 1 it goes straight, 2 it dodges as it has so far
+new predictMode;
+new Float:iOmega;                    // turn rate of the prediction (intercept), then...
+new Float:iOmega2;                   // ...after the target's reaction (mode 2)
+new Float:iReact = 1000.0;
+new Float:learnOmega;                // the way the target turns when fired at (rad a frame, toward its left > 0)
+new learnCount;
+new learnOf = -1;                    // the target it learnt it from
+new watchShot = -1;                  // a shot it watches the target dodge: the frame it was fired
+
+// its crew (server.bots.crew<k>): what the crew_stats of the game give a player
+new Float:seeRange = 7000.0;         // lockOnLong: 8500
+new Float:sonarRange = 15000.0;      // wideSonar: 20000
+new crewRepair;
+#if SDSW_VERSION >= 5200
+new crewTeamRepair;
+new crewHideSonar;
+new mateRepairs;                     // a teammate with the team's repair within 2000
+#endif
+new crewAutoMasker;
+new crewLongMasker;
+new crewAirUp;
+new crewCount;
+new crewMembers[5] = { -1, -1, -1, -1, -1 };
 
 forward Float:torpedoRange();
+forward bool:hullClear(Float:yaw, Float:look);
 forward Float:missNow(&frames);
 
 /* ---- what the hooks call (asm at the end) ----------------------------------------------------- */
@@ -352,6 +412,20 @@ start()
     }
     torpedoes = torpedoMax;
     homing = 0;                                         // a player has none: they are picked up
+    spawnPlace();
+    // its temper: the distance it keeps, how much it presses, its side, its depth
+    pRange = 0.85 + frandom() * 0.4;
+    pAggro = frandom();
+    pSide = frandom() < 0.5 ? -1 : 1;
+    pDepth = (frandom() - 0.5) * 500.0;
+    flank = (botIndex ? botIndex : me) % 3 - 1;
+    predictMode = random(2);
+#if SDSW_VERSION >= 5200
+    // seen by the others (synced by surface_sub): its repair for the teammates near it (pscope_player
+    // func_19744), hidden from the enemies' sonar when hurt (sonar.p func_5d6c)
+    actorSetPropInt("teamRepair", crewTeamRepair, 0);
+    actorSetPropInt("targetHideSonar", crewHideSonar, 0);
+#endif
     yawWant = g_1cc8;
     yawSteer = g_1cc8;
     depthWant = fmin(g_1ca0[1], -300.0);
@@ -360,6 +434,79 @@ start()
     actorSetCollisionCheck(COLL_MAP | COLL_TORPEDO | COLL_ITEM | COLL_SUB | COLL_REMOTE, 0);
     floatveczero(vel);
     floatveczero(push);
+}
+
+/* Where a player would start: the game puts each player at the spawn point <map>_p<slot> of the map
+ * (mode_periscope inputProperties), slot (node index + network.randomstartloc) % 8 + 1, or on the maps
+ * whose teams start apart (teamSpawnIndex, func_540c), (randomstartloc + rank in its team) % 4 + 1, + 4 for
+ * the second team. The bots take the slots after the players', as more players would. The points come from
+ * the map's own files (bxml/sdsw_spawn_<map>_p<slot>: their position and bearing, made by mod.toml). */
+spawnPlace()
+{
+    new stage = sysGetGlobal("player.stage") - 9;      // online stages 10.. are the maps 1..
+    if (stage < 1 || stage > 99)
+        return;
+    new name[64];
+    new a = worldNewActor();
+    strformat(name, sizeof name, false, "sdsw_spawn_scope00_online_stage%02d", stage);
+    if (!actorReadProperties(name, a)) {
+        actorKill(a);
+        return;
+    }
+    new teams = 0;
+    actorGetPropInt("teamSpawnIndex", teams, a);
+    new shift = sysGetGlobal("network.randomstartloc");
+    new nodes = netGetNodeCount();
+    // its rank among the bots: of its team (j), of all (n)
+    new j = 0;
+    new n = 0;
+    new players1 = playersOf(1);
+    new players2 = playersOf(2);
+    if (botIndex) {
+        // the server's bots: those of the players' team (the one with more players) first, k = 1...
+        new playersTeam = players2 > players1 ? 2 : 1;
+        new mine = clamp(sysGetGlobal("server.bots.mine") - (playersTeam == 1 ? players1 : players2), 0, 4);
+        n = botIndex - 1;
+        j = myTeam == playersTeam ? n : n - mine;
+    } else {
+        // the game's: npcNum 0-2 blue, 3-5 red, a team with players only (mode_periscope @setNpc)
+        new npc = 0;
+        actorGetPropInt("npcNum", npc, 0);
+        j = npc % 3;
+        n = myTeam == 1 ? j : (players1 ? max(4 - players1, 0) : 0) + j;
+    }
+    new slot;
+    if (teams)
+        slot = (shift + (myTeam == 1 ? players1 : players2) + j) % 4 + 1 + (myTeam == 1 ? 0 : 4);
+    else
+        slot = (shift + nodes + n) % 8 + 1;
+    strformat(name, sizeof name, false, "sdsw_spawn_scope00_online_stage%02d_p%d", stage, slot);
+    new Float:p[3] = { 0.0, 1.0, 0.0 };
+    new Float:bearing = 0.0;
+    if (actorReadProperties(name, a) && actorGetPropVector("spawnPosition", p, a) && p[1] < 1.0) {
+        actorGetPropReal("spawnBearing", bearing, a);
+        g_1ca0 = p;
+        if (g_1ca0[1] > SURFACE - 200.0)
+            g_1ca0[1] = SURFACE - 200.0;                // a player's sub starts at the surface; it dives at once
+        g_1cc8 = wrapAngle(bearing * PI / 180.0);
+        actorSetPosition(g_1ca0, 0);
+        actorSetYaw(g_1cc8, 0);
+    }
+    actorKill(a);
+}
+
+/* Players of a team in the battle (player.<node>.team). */
+playersOf(team)
+{
+    new count = 0;
+    new name[48];
+    new nodes = netGetNodeCount();
+    for (new i = 0; i < nodes; i++) {
+        strformat(name, sizeof name, false, "player.%x.team", netGetNodeIdFromIdx(i));
+        if (sysGetGlobal(name) == team)
+            count++;
+    }
+    return count;
 }
 
 /* A team's size in a battle against the server's bots: its players, or the size the server set
@@ -472,6 +619,24 @@ readSubmarine()
     actorGetPropReal("torpedoFireBrakeRate", brakeRate, a);
     actorGetPropReal("diveDrag", diveDrag, a);
     actorGetPropVector("torpedoSpawnPoint", tubeLocal, a);
+    crewCount = 1;
+    actorGetPropInt("crewCount", crewCount, a);
+    // its crew, as a player's (pscope_player.p customUpdateSubBonusStats): each member adds to the ratings
+    if (k) {
+        strformat(name, sizeof name, false, "server.bots.crew%d", k);
+        new packed = sysGetGlobal(name);                // up to 5 members, 6 bits each: member + 1, 0 none
+        for (new i = 0; i < 5 && i < crewCount; i++) {
+            new member = ((packed >> (6 * i)) & 63) - 1;
+            crewMembers[i] = member;
+            if (member >= 0)
+                addCrew(member, turnRating, accelRating, diveRating, damageRating, replenish);
+        }
+    }
+    turnRating = clamp(turnRating, 1, 10);
+    accelRating = clamp(accelRating, 1, 10);
+    diveRating = clamp(diveRating, 1, 10);
+    damageRating = clamp(damageRating, 1, 10);
+    replenish = clamp(replenish, 1, 30);
     actorReadProperties("table_maxturn", a);
     strformat(name, sizeof name, false, "maxTurn_%d", turnRating);
     actorGetPropReal(name, maxTurn, a);
@@ -501,6 +666,48 @@ readSubmarine()
     diveDrag = fclamp(diveDrag, 0.1, 0.3);
     brakeRate = fclamp(brakeRate, 0.9, 1.0);
     g_1c78 = accel / LIN_DRAG;
+}
+
+/* A member of the crew (worlds/crew_stats: the actors crew_NN the player's script loads, pscope_player.p
+ * func_47b0): its ratings, and its ability. */
+addCrew(member, &turnRating, &accelRating, &diveRating, &damageRating, &replenish)
+{
+    new name[16];
+    strformat(name, sizeof name, false, "crew_%02d", member);
+    new c = worldFindActor(name);
+    if (!c) {
+        worldLoad("crew_stats", 255);
+        c = worldFindActor(name);
+        if (!c)
+            return;
+    }
+    turnRating += crewValue("maxTurn", c);
+    accelRating += crewValue("belowAccel", c);
+    diveRating += crewValue("diveRate", c);
+    damageRating += crewValue("damageRate", c);
+    torpedoMax += crewValue("torpedoMax", c);
+    replenish += crewValue("torpedoReplenishTime", c);
+    if (crewValue("lockOnLong", c))
+        seeRange = 8500.0;                              // player_label.p func_32fc: 8500 instead of 7000
+    if (crewValue("wideSonar", c))
+        sonarRange = 20000.0;                           // sonar.p func_42d4: 20000 instead of 15000
+    if (crewValue("maskerConsumptionRate", c))
+        maskerCost = 25.0;                              // periscope_move.p maskerActivate: 25 of air
+    crewRepair |= crewValue("repair", c);
+#if SDSW_VERSION >= 5200
+    crewLongMasker |= crewValue("longMasker", c);      // 450 frames instead of 300
+    crewAirUp |= crewValue("airRepairUp", c);          // 0.3 of air a frame at the surface instead of 0.2
+    crewAutoMasker |= crewValue("autoMasker", c);      // on when a homing torpedo locks on it
+    crewTeamRepair |= crewValue("teamRepair", c);      // repairs its teammates within 2000
+    crewHideSonar |= crewValue("hideSonar", c);        // not on the enemies' sonar under 40 of hull
+#endif
+}
+
+crewValue(const property[], c)
+{
+    new v = 0;
+    actorGetPropInt(property, v, c);
+    return v;
 }
 
 timers()
@@ -533,8 +740,21 @@ timers()
         backOutTime--;
     if (maskerTime && --maskerTime == 0)
         maskerOff();
+    if (maskerTime && frame - autoMaskerAt == 90 && g_1c68 >= lifeMax * 0.4)
+        maskerOff();                                    // the homing torpedo lost it: back to the fight
     if (g_1ca0[1] > -30.0 && air < 100.0)
-        air = air + 0.2;                                // as a player: air comes back at the surface only
+        air = fmin(air + (crewAirUp ? 0.3 : 0.2), 100.0);   // as a player: air comes back at the surface only
+    // repair (crew): a hundredth of its hull every 75 frames (v0 pscope_player func_14ca8; v5200 func_1a248:
+    // every 60), or a teammate's repair within 2000 (v5200 func_1a424: every 75)
+#if SDSW_VERSION >= 5200
+    new Float:repair = crewRepair ? 60.0 : (mateRepairs ? 75.0 : 0.0);
+#else
+    new Float:repair = crewRepair ? 75.0 : 0.0;
+#endif
+    if (repair > 0.0 && g_1c68 < lifeMax) {
+        g_1c68 = fmin(g_1c68 + lifeMax / 100.0 / repair, lifeMax);
+        lifeBefore = g_1c68;
+    }
     if (g_1c68 < lifeBefore - 0.5)
         hurtTime = 120;
     // hit: seen a moment through its masker, as a player (pscope_player.p func_a758: custom flag 6, which
@@ -575,8 +795,6 @@ isMasked(actor)
 /* What a player sees (player_label.p func_32fc, func_305c): an enemy within 7000 with nothing of the map in
  * between, not under its masker; or one its sonar found less than 300 frames ago, within 15000 (setSonarTime).
  * Nothing else: no seeing through walls, no map of every sub. */
-const Float:SEE_RANGE = 7000.0;
-const Float:SONAR_RANGE = 15000.0;
 const SONAR_SHOWS = 300;             // frames a sonar contact shows (player_label.p @setSonarTime)
 const SONAR_EVERY = 120;             // frames between two pings (sonar.p func_414c)
 
@@ -603,7 +821,7 @@ ping()
     sysCallPublic(UID_SONAR, "@addFound", me);
     sysCallPublic(UID_PLAYER_LABEL, "@setSonarTime", me);
     new found[16];
-    new count = worldFindActors(found, g_1ca0, SONAR_RANGE, COLL_SUB | COLL_REMOTE, sizeof found);
+    new count = worldFindActors(found, g_1ca0, sonarRange, COLL_SUB | COLL_REMOTE, sizeof found);
     contactCount = 0;
     for (new i = 0; i < count && contactCount < sizeof contacts; i++) {
         new a = found[i];
@@ -613,6 +831,15 @@ ping()
         if (actorGetCollisionType(a) & COLL_REMOTE && actorGetPropReal("throttle", throttleOf, a)
             && fabs(throttleOf) < 0.05)
             continue;
+#if SDSW_VERSION >= 5200
+        // hideSonar: an enemy under 40 of hull does not show (sonar.p func_5d6c)
+        new hides = 0;
+        new Float:life = 100.0;
+        new team = 0;
+        if (actorGetPropInt("targetHideSonar", hides, a) && hides == 1 && actorGetPropReal("life", life, a)
+            && life <= 40.0 && actorGetPropInt("teamColor", team, a) && team != myTeam)
+            continue;
+#endif
         contacts[contactCount++] = a;
     }
     contactAt = frame;
@@ -622,8 +849,11 @@ ping()
 lookAround()
 {
     new found[16];
-    new count = worldFindActors(found, g_1ca0, SONAR_RANGE, COLL_SUB | COLL_REMOTE, sizeof found);
+    new count = worldFindActors(found, g_1ca0, sonarRange, COLL_SUB | COLL_REMOTE, sizeof found);
     new best = -1;
+#if SDSW_VERSION >= 5200
+    mateRepairs = 0;
+#endif
     new Float:bestScore = 1000000.0;
     new heard = -1;
     new Float:heardDistance = 1000000.0;
@@ -643,6 +873,13 @@ lookAround()
         if (team == myTeam) {
             if (mateCount < sizeof mates)
                 mates[mateCount++] = a;
+#if SDSW_VERSION >= 5200
+            new repairs = 0;
+            new Float:mp[3];
+            if (actorGetPropInt("teamRepair", repairs, a) && repairs && actorGetPosition(mp, a)
+                && distance(mp, g_1ca0) <= 2000.0)
+                mateRepairs = 1;
+#endif
             continue;
         }
         new Float:p[3];
@@ -655,7 +892,7 @@ lookAround()
         }
         if (isMasked(a))
             continue;                                   // under its masker it cannot be aimed at
-        new bool:seen = d <= SEE_RANGE && clearLine(g_1ca0, p, 200.0);
+        new bool:seen = d <= seeRange && clearLine(g_1ca0, p, 200.0);
         if (!seen && !contact)
             continue;
         // the nearest, the weakest, the one it can shoot at; it keeps its target unless another is much better
@@ -742,15 +979,22 @@ watchTorpedoes()
         floatvecaddscale(r, v, -when);                       // where it passes, from me
         if (floatveclength(r) > 260.0)
             continue;
+        new homingShot = 0;
+        actorGetPropInt("p_homing", homingShot, t);
+        if (homingShot && crewAutoMasker && when < 60.0)
+            homingLocked();                             // a homing torpedo on its way: its crew masks it
         if (frandom() > DODGE[lvl])
             continue;
-        evadeTime = 45;
-        // away from its path, and up or down, away from its depth (a torpedo keeps its depth)
-        if (floatveclength(r) > 40.0)
-            evadeYaw = yawOf(r);
+        evadeTime = 35 + random(30);
+        // away from its path or across it, either side, and up or down (a torpedo keeps its depth), at full
+        // speed or braking hard to let it pass ahead: never the same way twice
+        if (floatveclength(r) > 60.0 && frandom() < 0.7)
+            evadeYaw = wrapAngle(yawOf(r) + (frandom() - 0.5) * 0.6);
         else
             evadeYaw = wrapAngle(yawOf(v) + (frandom() > 0.5 ? 1.5708 : -1.5708));
-        depthWant = g_1ca0[1] + (g_1ca0[1] > p[1] ? 250.0 : -250.0);
+        evadeThrottle = frandom() < 0.75 ? 1.0 : -1.0;
+        new Float:shift = 200.0 + frandom() * 150.0;
+        depthWant = g_1ca0[1] + ((g_1ca0[1] > p[1]) == (frandom() < 0.75) ? shift : -shift);
         return;
     }
 }
@@ -810,6 +1054,43 @@ follow()
         tVisible = _:clearLine(g_1ca0, p, 200.0);
     lastKnown = p;
     lastKnownTime = frame;
+    learn();
+}
+
+/* How its target dodges: the turn it takes 30 frames after a shot (a human sees it and reacts), averaged over
+ * the shots, kept per player for the session (bots.dodge.<node>: every bot of this console learns from the
+ * others), so that a habit of always breaking the same way gets punished. */
+learn()
+{
+    if (!LEARNS[lvl])
+        return;
+    new node = 0;
+    if (learnOf != target) {
+        learnOf = target;
+        learnCount = 0;
+        learnOmega = 0.0;
+        watchShot = -1;
+        if (actorGetPropInt("nodeid", node, target) && node) {
+            new name[32];
+            strformat(name, sizeof name, false, "bots.dodgen.%x", node);
+            learnCount = sysGetGlobal(name);
+            strformat(name, sizeof name, false, "bots.dodge.%x", node);
+            learnOmega = Float:sysGetGlobal(name);
+        }
+    }
+    if (watchShot < 0 || frame - watchShot < 30)
+        return;
+    watchShot = -1;
+    new Float:omega = fclamp(tOmega, -0.05, 0.05);
+    learnOmega = learnCount ? learnOmega * 0.7 + omega * 0.3 : omega;
+    learnCount = min(learnCount + 1, 50);
+    if (actorGetPropInt("nodeid", node, target) && node) {
+        new name[32];
+        strformat(name, sizeof name, false, "bots.dodgen.%x", node);
+        sysSetGlobal(name, learnCount);
+        strformat(name, sizeof name, false, "bots.dodge.%x", node);
+        sysSetGlobal(name, _:learnOmega);
+    }
 }
 
 /* ---- deciding ----------------------------------------------------------------------------------- */
@@ -840,7 +1121,7 @@ decide()
         wander();
         if (evadeTime) {
             yawWant = evadeYaw;
-            throttleWant = 1.0;
+            throttleWant = evadeThrottle;
         }
         return;
     }
@@ -858,8 +1139,10 @@ decide()
     if (flight)
         aimYaw = yawOf(aim);
     new Float:range = torpedoRange();
-    // an agile target is only hit from close: the shorter the torpedo's run, the less it can turn away
-    new Float:wanted = agile() ? 1700.0 : fclamp(range * 0.35, 2200.0, 3000.0);
+    // an agile target is only hit from close: the shorter the torpedo's run, the less it can turn away; each
+    // bot keeps a distance of its own (its temper)
+    new Float:wanted = (agile() ? 1700.0 : fclamp(range * 0.35, 2200.0, 3000.0)) * pRange;
+    new ready = !reload && !maskerTime && flight && (torpedoes || (homing && !homingIn));
 
     if (health < 0.4) {
         // it backs away still firing; under its masker only when the enemy closes in or hits it again
@@ -878,30 +1161,89 @@ decide()
     } else if (!tVisible) {
         yawWant = yawOf(toTarget);                      // round the obstacle (steerClear) to see it
         throttleWant = 1.0;
-    } else if (d > wanted + 700.0) {
-        yawWant = aimYaw;
+    } else if (d > wanted + 700.0 + 700.0 * (1.0 - pAggro)) {
+        // closing in; from its own side when teammates fight the same target
+        yawWant = d > 3500.0 && mateCount ? wrapAngle(aimYaw + 0.45 * float(flank)) : aimYaw;
         throttleWant = 1.0;
     } else if (d < wanted - 1000.0) {
         yawWant = aimYaw;                               // too close: back off, facing it
         throttleWant = -1.0;
     } else {
-        yawWant = aimYaw;
-        throttleWant = 0.35;
+        combat(toTarget, d, wanted, aimYaw, ready);
     }
     if (evadeTime) {
         yawWant = evadeYaw;
-        throttleWant = 1.0;
+        throttleWant = evadeThrottle;
     } else {
         // a torpedo leaves along the sub, whose nose goes down as it dives (pitch -> -0.1 * vertical speed,
         // pscope_player.p func_12184): dive or climb at the speed that points it at the target, which also
-        // brings it to the target's depth
-        depthWant = tPos[1] + tVel[1] * 30.0;
-        if (flight && fabs(aim[1]) < 0.5)
+        // brings it to the target's depth; between two shots, another depth now and then
+        depthWant = tPos[1] + tVel[1] * 30.0 + (ready ? 0.0 : depthShift);
+        if (flight && fabs(aim[1]) < 0.5 && ready)
             climbWant = fclamp(10.0 * aim[1], -diveRate / diveDrag, diveRate / diveDrag);
     }
     if (d < 900.0 && throttleWant > 0.0)
         throttleWant = -1.0;                            // never ram it
     fire(aim, aimPoint, d, flight);
+}
+
+/* In range of its target: the maneuver of the moment, changed every few seconds at random (weighted by its
+ * temper), as a player does not fly the same way twice. Ready to fire and nearly facing it, it turns in. */
+combat(const Float:toTarget[3], Float:d, Float:wanted, Float:aimYaw, ready)
+{
+    if (frame >= maneuverUntil)
+        pickManeuver();
+    new Float:facing = fabs(wrapAngle(aimYaw - g_1cc8));
+    if (ready && (facing < 0.35 || maneuver == M_HOLD || maneuver == M_CLOSE || maneuver == M_STOP)) {
+        yawWant = aimYaw;
+        throttleWant = maneuver == M_STOP ? 0.0 : (maneuver == M_CLOSE && d > wanted * 0.75 ? 0.9 : maneuverThrottle);
+        return;
+    }
+    new Float:bearing = yawOf(toTarget);
+    if (maneuver == M_CIRCLE) {
+        // across its line, a little inward or outward to keep the distance
+        new Float:keep = fclamp((d - wanted) / 1500.0, -0.4, 0.4);
+        yawWant = wrapAngle(bearing + float(pSide) * (1.35 - keep));
+        throttleWant = 0.9;
+    } else if (maneuver == M_CLOSE) {
+        yawWant = aimYaw;
+        throttleWant = d > wanted * 0.75 ? 0.9 : 0.3;
+    } else if (maneuver == M_BREAK) {
+        yawWant = wrapAngle(bearing + PI - float(pSide) * 0.7);
+        throttleWant = 1.0;
+    } else if (maneuver == M_STOP) {
+        yawWant = aimYaw;
+        throttleWant = 0.0;
+    } else {
+        yawWant = aimYaw;
+        throttleWant = maneuverThrottle;
+    }
+}
+
+pickManeuver()
+{
+    new r = random(100);
+    new Float:aggro = pAggro;
+    if (lvl == 1) {
+        maneuver = r < 60 ? M_HOLD : (r < 85 ? M_CIRCLE : M_DEPTH);
+    } else {
+        // an aggressive bot closes in and stops short more, a careful one circles and breaks off
+        new hold = 18;
+        new circle = hold + 30 - floatround(10.0 * aggro);
+        new close = circle + 10 + floatround(15.0 * aggro);
+        new brk = close + 14 - floatround(8.0 * aggro);
+        new depth = brk + 14;
+        maneuver = r < hold ? M_HOLD : (r < circle ? M_CIRCLE : (r < close ? M_CLOSE : (r < brk ? M_BREAK
+                   : (r < depth ? M_DEPTH : M_STOP))));
+    }
+    new frames = MANEUVER_MIN[lvl] + random(MANEUVER_SPAN[lvl]);
+    if (maneuver == M_BREAK || maneuver == M_STOP)
+        frames = frames / 2;
+    maneuverUntil = frame + frames;
+    maneuverThrottle = 0.2 + frandom() * 0.6;
+    if (maneuver == M_CIRCLE && frandom() < 0.45)
+        pSide = -pSide;
+    depthShift = maneuver == M_DEPTH ? (frandom() < 0.5 ? -1.0 : 1.0) * (200.0 + frandom() * 350.0) : pDepth * 0.4;
 }
 
 /* Its target vanished under its masker: it goes where the target was heading (as far as 2 s of it), and may
@@ -919,7 +1261,7 @@ guess()
     throttleWant = floatveclength(to) > 1500.0 ? 0.8 : 0.3;
     if (evadeTime) {
         yawWant = evadeYaw;
-        throttleWant = 1.0;
+        throttleWant = evadeThrottle;
     }
     if (blindShots >= 2 || !torpedoes || torpedoes < torpedoMax / 2 || reload || frandom() > 0.05)
         return;
@@ -928,10 +1270,12 @@ guess()
     new Float:keepVel[3];
     keepPos = tPos;
     keepVel = tVel;
-    new Float:keepOmega = tOmega;
+    new Float:keepOmega = iOmega;
+    new Float:keepOmega2 = iOmega2;
     tPos = p;
     tVel = lostVel;
-    tOmega = 0.0;
+    iOmega = 0.0;
+    iOmega2 = 0.0;
     new frames = 0;
     new Float:miss = missNow(frames);
     if (miss < 120.0 && frames >= 8) {
@@ -953,7 +1297,8 @@ guess()
     }
     tPos = keepPos;
     tVel = keepVel;
-    tOmega = keepOmega;
+    iOmega = keepOmega;
+    iOmega2 = keepOmega2;
 }
 
 /* Without a target: where the battle is, or around. */
@@ -1016,26 +1361,35 @@ Float:torpedoRun(Float:n)
            * (n - (1.0 - floatpower(TORPEDO_KEEP, n)) / (1.0 - TORPEDO_KEEP));
 }
 
-/* Where the target will be in n frames, if it keeps its speed and turn rate (a steady turn is a circle). */
-new Float:iRadius;                   // of the target's turn, 0: straight (set by intercept)
-new Float:iCos;
-new Float:iSin;
-
+/* Where the target will be in n frames: it keeps its speed, and turns at iOmega (a steady turn is a circle),
+ * then at iOmega2 after iReact frames (how it dodges, mode 2). */
 targetAt(Float:n, Float:p[3])
 {
     new Float:t = n + 2.0;                              // the torpedo starts moving a frame or two later
     p = tPos;
-    if (iRadius == 0.0) {
-        p[0] = p[0] + tVel[0] * t;
-        p[2] = p[2] + tVel[2] * t;
-    } else {
-        new Float:h = tHeading + tOmega * t;
-        p[0] = p[0] + iRadius * (iCos - floatcos(h, 0));
-        p[2] = p[2] + iRadius * (floatsin(h, 0) - iSin);
-    }
+    new Float:speed = floatsqroot(tVel[0] * tVel[0] + tVel[2] * tVel[2]);
+    new Float:h = tHeading;
+    arc(p, h, speed, iOmega, fmin(t, iReact));
+    if (t > iReact)
+        arc(p, h, speed, iOmega2, t - iReact);
     p[1] = p[1] + tVel[1] * fmin(t, 25.0);              // a dive does not last: no further than 25 frames
     if (p[1] > SURFACE)
         p[1] = SURFACE;
+}
+
+/* t frames at this speed, turning at omega from heading h (forward: sin h, cos h). */
+arc(Float:p[3], &Float:h, Float:speed, Float:omega, Float:t)
+{
+    if (fabs(omega) < 0.0002) {
+        p[0] = p[0] + floatsin(h, 0) * speed * t;
+        p[2] = p[2] + floatcos(h, 0) * speed * t;
+        return;
+    }
+    new Float:r = speed / omega;
+    new Float:h2 = h + omega * t;
+    p[0] = p[0] + r * (floatcos(h, 0) - floatcos(h2, 0));
+    p[2] = p[2] + r * (floatsin(h2, 0) - floatsin(h, 0));
+    h = h2;
 }
 
 /* Where to shoot so the torpedo meets the target: the run of the torpedo equals the distance to where the
@@ -1045,11 +1399,18 @@ intercept(Float:aim[3], Float:point[3])
 {
     new Float:tube[3];
     tubePosition(tube);
-    iRadius = 0.0;
-    if (lvl >= 2 && fabs(tOmega) >= 0.0002) {
-        iRadius = floatsqroot(tVel[0] * tVel[0] + tVel[2] * tVel[2]) / tOmega;
-        iCos = floatcos(tHeading, 0);
-        iSin = floatsin(tHeading, 0);
+    // how it leads the shot (predictMode, drawn after each shot): the target keeps turning, goes straight, or
+    // turns the way it dodged the last shots, after a human's reaction (15 frames)
+    iOmega = 0.0;
+    iOmega2 = 0.0;
+    iReact = 1000.0;
+    if (lvl >= 2 && predictMode != 1) {
+        iOmega = tOmega;
+        iOmega2 = tOmega;
+        if (predictMode == 2 && learnCount >= 2) {
+            iOmega2 = learnOmega;
+            iReact = 15.0;
+        }
     }
     new Float:low = 0.0;
     new Float:high = 240.0;
@@ -1187,10 +1548,21 @@ fire(Float:aim[3], Float:point[3], Float:d, flight)
         launch(tube, name);
         actorSetPropReal("bearing", yaw, lastTorpedo);
         torpedoes--;
+        // how will it dodge this one? (the turn it takes 30 frames from now: follow)
+        if (LEARNS[lvl] && watchShot < 0)
+            watchShot = frame;
     } else {
         return;
     }
-    reload = fireInterval + 15 + FIRE_PAUSE[lvl];
+    // the next shot is led another way, at random: the target cannot learn one way of dodging
+    new r = random(100);
+    if (lvl < 2)
+        predictMode = 1;
+    else if (learnCount >= 2 && LEARNS[lvl])
+        predictMode = r < 40 ? 2 : (r < 75 ? 0 : 1);
+    else
+        predictMode = r < 65 ? 0 : 1;
+    reload = fireInterval + 15 + FIRE_PAUSE[lvl] + random(1 + FIRE_PAUSE[lvl] / 2);
     homingIn = 135;                                     // a player's weapons wait 120 + 15 frames after a shot
     brakeTime = brakeFrames;                            // a player's sub brakes when it fires
     brake = 1.0;
@@ -1264,9 +1636,29 @@ maskerOn()
         return;                                         // the air of a life: 3 maskers, never more
     maskerUses++;
     air = air - maskerCost;
-    maskerTime = 300;
+    maskerTime = crewLongMasker ? 450 : 300;            // longMasker (v5200 periscope_move maskerActivate)
     actorSetPropInt("masker", 1, 0);
     actorSetPropInt("masker_on", 1, 0);
+}
+
+/* autoMasker (v5200 pscope_player: @HomingLockOn -> periscope_move @autoMasker): a homing torpedo locked on
+ * it, its masker comes on by itself; the torpedo loses it (surface_torpedo_p_homing func_4800). It takes it
+ * off again soon after when it is not hurt, to fight on. */
+homingLocked()
+{
+    if (!crewAutoMasker || maskerTime || maskerIn || air < maskerCost)
+        return;
+    maskerOn();
+    if (maskerTime)
+        autoMaskerAt = frame;
+}
+
+forward @HomingLockOn(on, unused);
+public @HomingLockOn(on, unused)
+{
+    #pragma unused unused
+    if (lvl && started && on)
+        homingLocked();
 }
 
 maskerOff()
@@ -1279,24 +1671,39 @@ maskerOff()
 
 /* ---- steering clear ----------------------------------------------------------------------------- */
 
-/* Rays ahead: the heading nearest the wanted one with nothing in the way; the floor below. */
+/* What steerClear (every 3 frames) found, applied every frame by move(). */
+new Float:throttleCap = 1.0;         // no faster than this: a wall ahead
+new Float:throttleFloor = -1.0;      // no slower: a wall behind
+new Float:ceilingY = 100000.0;       // the rock above, if any
+new Float:slopeDepth = -100000.0;    // a slope coming up ahead: no lower than this...
+new slopeAt = -1000;                 // ...for a second after it was seen
+
+/* Rays ahead: the heading nearest the wanted one with room for the whole hull; the floor below, the rock
+ * above. The sub is a capsule 550 long: its nose is NOSE ahead of its middle, and it needs its turning circle
+ * (its speed over its turn rate, and the time the turn takes to build up) to get clear of a wall. */
 steerClear()
 {
     new Float:down[3];
     floatvecset(down, 0.0, -1.0, 0.0);
     floorY = g_1ca0[1] - worldClipLine(g_1ca0, down, 4000.0, COLL_MAP);
+    new Float:upward[3];
+    floatvecset(upward, 0.0, 1.0, 0.0);
+    new Float:above = worldClipLine(g_1ca0, upward, 1500.0, COLL_MAP);
+    ceilingY = above < 1500.0 ? g_1ca0[1] + above : 100000.0;
 
     new Float:speed = floatsqroot(vel[0] * vel[0] + vel[2] * vel[2]);
-    new Float:look = 500.0 + speed * 50.0;
+    new Float:look = NOSE + 450.0 + speed * 80.0;
     new Float:dir[3];
+    throttleCap = 1.0;
+    throttleFloor = -1.0;
     if (backOutTime) {
         yawSteer = wrapAngle(g_1cc8 + backOutTurn);
         return;
     }
     if (throttleWant < 0.0) {
-        headingOf(dir, g_1cc8 + PI);                // backing: what is behind
-        if (worldClipLine(g_1ca0, dir, 450.0, COLL_MAP) < 450.0)
-            throttleWant = 0.3;
+        headingOf(dir, g_1cc8 + PI);                // backing: what is behind its stern
+        if (worldClipLine(g_1ca0, dir, NOSE + 250.0 + speed * 30.0, COLL_MAP) < NOSE + 250.0 + speed * 30.0)
+            throttleFloor = 0.3;
         yawSteer = yawWant;
         return;
     }
@@ -1321,12 +1728,14 @@ steerClear()
             new Float:yaw = yawWant + offsets[i] * way;
             headingOf(dir, yaw);
             new Float:room = worldClipLine(g_1ca0, dir, look, COLL_MAP);
-            if (room >= look) {
+            if (room >= look && hullClear(yaw, look)) {
                 // also a bit below: a slope coming up
                 dir[1] = -0.35;
                 floatvecnormalize(dir, dir);
-                if (worldClipLine(g_1ca0, dir, look * 0.7, COLL_MAP) < look * 0.7)
-                    depthWant = fmax(depthWant, g_1ca0[1] + 200.0);
+                if (worldClipLine(g_1ca0, dir, look * 0.7, COLL_MAP) < look * 0.7) {
+                    slopeDepth = g_1ca0[1] + 200.0;
+                    slopeAt = frame;
+                }
                 bestYaw = yaw;
                 bestRoom = room;
                 found = 1;
@@ -1341,9 +1750,33 @@ steerClear()
         }
     }
     yawSteer = wrapAngle(bestYaw);
+    // the room in front of its nose, along where it goes now: slow down in time, back off when it is about to
+    // touch (it still turns: at a sub's speed the turn rate does not depend on the speed)
     headingOf(dir, g_1cc8);
-    if (worldClipLine(g_1ca0, dir, 300.0, COLL_MAP) < 300.0 || bestRoom < 250.0)
-        throttleWant = fmin(throttleWant, 0.15);    // a wall right ahead: slow down and turn
+    new Float:ahead = worldClipLine(g_1ca0, dir, look, COLL_MAP);
+    if (ahead < NOSE + 150.0)
+        throttleCap = -0.5;
+    else if (ahead < look)
+        throttleCap = fclamp((ahead - NOSE - 150.0) / (look - NOSE - 150.0), 0.15, 1.0);
+    if (bestRoom < NOSE + 150.0)
+        throttleCap = fmin(throttleCap, 0.15);
+}
+
+/* Room for the hull's width too: two rays along the sides (a ray from the middle misses a corner). */
+bool:hullClear(Float:yaw, Float:look)
+{
+    new Float:dir[3];
+    headingOf(dir, yaw);
+    new Float:across[3];
+    floatvecset(across, dir[2] * BEAM, 0.0, -dir[0] * BEAM);
+    new Float:from[3];
+    from = g_1ca0;
+    floatvecadd(from, across);
+    if (worldClipLine(from, dir, look, COLL_MAP) < look)
+        return false;
+    from = g_1ca0;
+    floatvecsub(from, across);
+    return worldClipLine(from, dir, look, COLL_MAP) >= look;
 }
 
 /* ---- moving: a player's physics ----------------------------------------------------------------- */
@@ -1361,6 +1794,8 @@ move()
     }
     if (backOutTime)
         throttleWant = throttle > 0.0 ? -1.0 : 0.8;
+    else
+        throttleWant = fclamp(throttleWant, throttleFloor, throttleCap);
 
     // throttle, as a player moves the slider: backwards at half power (periscope_move.p), and braked for a
     // moment after each shot (func_18740: torpedoFireBrakeTime frames at torpedoFireBrakeRate)
@@ -1409,7 +1844,9 @@ move()
     forwardSpeed = vel[0] * ahead[0] + vel[2] * ahead[2];
     // ballast toward the wanted depth (-1..1), kept between the floor and the surface: vy -= vy * diveDrag,
     // vy += ballast * diveRate
-    new Float:depth = fclamp(depthWant, fmax(floorY + 140.0, -20000.0), SURFACE - 30.0);
+    if (frame - slopeAt < 30)
+        depthWant = fmax(depthWant, slopeDepth);
+    new Float:depth = fclamp(depthWant, fmax(floorY + 140.0, -20000.0), fmin(SURFACE - 30.0, ceilingY - 160.0));
     new Float:ballast = fclamp((depth - g_1ca0[1]) * 0.01, -1.0, 1.0);
     if (climbWant != NO_CLIMB && g_1ca0[1] + climbWant * 40.0 < SURFACE - 30.0
         && g_1ca0[1] + climbWant * 40.0 > floorY + 140.0)

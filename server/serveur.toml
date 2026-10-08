@@ -39,6 +39,8 @@ status_port = 0                 # page d'état (joueurs en ligne, parties) en HT
 #                   précision ; vaut pour tous les bots des parties en ligne, pas seulement ceux des
 #                   parties à un joueur
 #   bots_countdown  secondes de compte à rebours avant la bataille contre les bots (10)
+#   bots_crew       true : chaque bot prend un équipage, comme un joueur (notes et capacités ; au niveau
+#                   expert, des membres qui n'ont que des bonus) ; false : sans équipage (true)
 # Pour bannir un joueur : son identifiant (journal du serveur : « login pid … ») sur une ligne de
 # <data_dir>/bannis.txt ; le fichier est relu à chaque connexion, sans redémarrer le serveur.
 
