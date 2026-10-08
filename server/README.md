@@ -7,7 +7,7 @@ jouent de console à console (Pia, en P2P) : le serveur ne voit passer que la te
 Écrit en Python (3.11 ou plus récent), **sans aucune dépendance** : la bibliothèque standard suffit. Tout ce qu'il
 implémente vient de la rétro-ingénierie du jeu (EUR v0) ; le détail est dans [../docs/online.md](../docs/online.md).
 
-**Vérifié avec le vrai jeu** : deux instances d'Azahar équipées du mod [`en-ligne`](../mods/en-ligne/mod.toml)
+**Vérifié avec le vrai jeu** : deux instances d'Azahar équipées du mod [`online`](../mods/online/mod.toml)
 se connectent, se retrouvent dans le même salon et lancent une bataille ensemble.
 
 ## Lancer le serveur
@@ -16,7 +16,7 @@ se connectent, se retrouvent dans le même salon et lancent une bataille ensembl
 
 ```sh
 cd server
-python3 -m sdsw_server            # les deux royaumes de serveur.toml + la détection de NAT
+python3 -m sdsw_server            # les deux royaumes de server.toml + la détection de NAT
 python3 -m sdsw_server --realm emulateur -v      # un seul royaume, journal détaillé (-vv : paquets)
 ```
 
@@ -24,11 +24,11 @@ python3 -m sdsw_server --realm emulateur -v      # un seul royaume, journal dét
 
 *Avancement estimé : 90 % — le royaume PC est prêt côté serveur mais attend le portage PC.*
 
-Le fichier [`serveur.toml`](serveur.toml) décrit deux « royaumes » totalement séparés (comptes, salons) :
+Le fichier [`server.toml`](server.toml) décrit deux « royaumes » totalement séparés (comptes, salons) :
 
 | Royaume | Joueurs | Authentification | Serveur sécurisé |
 |---|---|---|---|
-| `emulateur` | Azahar + mod `en-ligne` | UDP 61000 | UDP 61001 |
+| `emulateur` | Azahar + mod `online` | UDP 61000 | UDP 61001 |
 | `pc` | portage PC (à venir) | UDP 61010 | UDP 61011 |
 
 Les deux tournent dans le même processus et partagent la détection de NAT (UDP **10025** et **10125**, ports fixés
@@ -40,17 +40,17 @@ le port qu'il vise change. Pour faire jouer tout le monde ensemble, il suffirait
 
 *Avancement estimé : 70 % — anti-triche et séparation des tricheurs faits ; bots à rendre plus humains (collisions entre eux, combats entre bots, déplacements naturels).*
 
-Chaque royaume a ses options de partie dans `serveur.toml` (le lanceur les affiche et les modifie, onglet
+Chaque royaume a ses options de partie dans `server.toml` (le lanceur les affiche et les modifie, onglet
 **Serveur**, « Configuration du serveur ») :
 
 * **`max_players`** (2 à 8) : nombre de joueurs humains par partie. La console hôte complète chaque équipe à
   4 sous-marins avec les bots du jeu (`mode_periscope` › `@setNpc`) : limiter les humains donne plus de bots.
 * **`duration`** (1 à 30 minutes, 10 par défaut comme le jeu) : durée d'une bataille en ligne. Le serveur
   l'envoie à chaque console quand elle cherche une partie (`server.duration`) et le mod
-  [`en-ligne`](../mods/en-ligne/mod.toml) la met à la place des 600 secondes fixées par le jeu
-  (`mode_periscope` › `inputProperties`) ; un mod en-ligne plus ancien garde 10 minutes. Les batailles contre
+  [`online`](../mods/online/mod.toml) la met à la place des 600 secondes fixées par le jeu
+  (`mode_periscope` › `inputProperties`) ; un mod online plus ancien garde 10 minutes. Les batailles contre
   les bots durent autant (l'ancienne option `bots_duration` est ignorée).
-* **Bots pour un joueur seul** (`bots = true`, avec le mod [`en-ligne`](../mods/en-ligne/mod.toml) à jour) :
+* **Bots pour un joueur seul** (`bots = true`, avec le mod [`online`](../mods/online/mod.toml) à jour) :
   un joueur resté seul dans une partie `bots_delay` secondes (60) joue contre des bots. Le jeu d'origine
   attend sans fin un adversaire ; ici le serveur envoie au jeu les réglages de la partie, et les bots
   **rejoignent le salon comme des joueurs**, un par un (nom, sous-marin, niveau, prêts), puis le compte à
@@ -64,7 +64,7 @@ Chaque royaume a ses options de partie dans `serveur.toml` (le lanceur les affic
     dans votre jeu) ;
   * `bots_level` : `"normal"`, `"difficile"` ou `"expert"` ; les bots pilotent comme des joueurs (physique et
     caractéristiques de leur sous-marin, collisions, visée là où sera la cible, esquive, torpilles à tête
-    chercheuse, masqueur et repli quand leur coque est basse : `mods/en-ligne/src/bots_ia.p`), le niveau
+    chercheuse, masqueur et repli quand leur coque est basse : `mods/online/src/bots_pilot.p`), le niveau
     règle leurs réflexes et leur précision (expert : visée parfaite) ; dans une bataille entre joueurs, les
     sous-marins que le jeu ajoute pour compléter les équipes restent ceux du jeu ;
   * `bots_crew` : `true` (par défaut), chaque bot prend un équipage comme un joueur (jusqu'à 5 membres, autant
@@ -74,9 +74,9 @@ Chaque royaume a ses options de partie dans `serveur.toml` (le lanceur les affic
   * `bots_names` : les noms des bots (au moins 7, 10 caractères au plus), tirés au hasard à chaque partie.
 
   Comment le serveur parle au jeu : par des notifications NEX à lui (types 999001 et 999002) que le mod
-  `en-ligne` transforme en variables de script du jeu (`server.bots.*`) ; détails dans
+  `online` transforme en variables de script du jeu (`server.bots.*`) ; détails dans
   [../docs/online.md](../docs/online.md#8-serveur--jeu--les-variables-du-mod).
-* **`cheats`** : que faire des joueurs dont le mod contient [la triche](../mods/triche/mod.toml) ou des
+* **`cheats`** : que faire des joueurs dont le mod contient [la triche](../mods/cheats/mod.toml) ou des
   [caractéristiques de sous-marins modifiées](../mods/specs/mod.toml) (leur jeton le déclare : drapeaux
   `triche` et `specs`) : `"separes"` (par défaut : ils ne rencontrent que d'autres tricheurs), `"autorises"`
   (ils jouent avec tout le monde) ou `"refuses"` (connexion refusée). Le mod [`premium`](../mods/premium/mod.toml)
@@ -84,7 +84,7 @@ Chaque royaume a ses options de partie dans `serveur.toml` (le lanceur les affic
   est dans le jeu, pas dans le serveur ; un jeu modifié autrement peut toujours mentir, comme dans tout jeu
   en P2P. Pour un serveur où tout le monde triche, mettre `cheats = "autorises"`.
 * **Anti-triche** (sauf avec `cheats = "autorises"`, et pas dans les parties de tricheurs) : le serveur
-  demande au mod `en-ligne` de chaque joueur de surveiller son propre sous-marin en bataille — dégâts
+  demande au mod `online` de chaque joueur de surveiller son propre sous-marin en bataille — dégâts
   annulés sans raison du jeu (invincibilité), torpilles qui ne baissent pas, tirs à moins d'une seconde
   d'intervalle (aucun sous-marin ne tire plus vite que toutes les 2,8 s), vitesse au-delà de 20 unités par
   image pendant 3 secondes (le plus rapide plafonne à 14,2). Au premier signe, le jeu **quitte la bataille**
@@ -101,7 +101,7 @@ Chaque royaume a ses options de partie dans `serveur.toml` (le lanceur les affic
 
 *Avancement estimé : 100 %.*
 
-* **Page d'état** : avec `status_port = 8730` (section `[server]` de `serveur.toml`), le serveur publie en HTTP
+* **Page d'état** : avec `status_port = 8730` (section `[server]` de `server.toml`), le serveur publie en HTTP
   une page (`http://<adresse>:8730/`) et sa version JSON (`/status.json`) : joueurs connectés, comptes,
   options, et les parties en cours (nombre de joueurs, ouverte ou commencée, partie de tricheurs, depuis
   combien de temps). Aucun identifiant de joueur n'y figure. Ouvrir ce port TCP pour la rendre publique.
@@ -192,7 +192,7 @@ Aucune donnée de jeu n'est stockée : le jeu n'utilise pas de classements ni de
 | `sdsw_server/crypto.py` | RC4, chiffrement Kerberos, dérivation de clé |
 | `sdsw_server/realm.py` | serveur d'authentification (TicketGranting) et serveur sécurisé (SecureConnection, NATTraversal, MatchMaking, MatchmakeExtension) |
 | `sdsw_server/matchmaking.py` | salons, notifications, bots pour un joueur seul |
-| `sdsw_server/config.py` | options de `serveur.toml`, lues et réécrites avec leurs commentaires (lanceur) |
+| `sdsw_server/config.py` | options de `server.toml`, lues et réécrites avec leurs commentaires (lanceur) |
 | `sdsw_server/natcheck.py` | détection de NAT de Pia (serveurs « nncs ») |
 | `sdsw_server/internet.py` | adresse publique, redirections de la box, joueurs du réseau du serveur |
 | `sdsw_server/upnp.py`, `stun.py` | clients UPnP (box) et STUN, bibliothèque standard seule |

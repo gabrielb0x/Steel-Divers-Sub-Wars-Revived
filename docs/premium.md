@@ -119,7 +119,7 @@ effacé), le bouton Start affiche l'erreur **098-0101** (`sysShowErrEULA(98101)`
    ne déclenche pas l'erreur 098-0101. Une sauvegarde déjà marquée se répare avec `tools/save.py premium-off`.
 6. Les motifs débloqués par le mod reçoivent leurs couleurs par défaut (`bxml/sub_color_set`), que le jeu ne
    donne qu'aux motifs débloqués par une récompense : une fois par sauvegarde (`save.sdsw.colors`), au titre, ceux
-   dont les trois couleurs sont encore à 0 (`mods/premium/src/couleurs.p`).
+   dont les trois couleurs sont encore à 0 (`mods/premium/src/colours.p`).
 
 Les missions restent à jouer : elles se débloquent avec les médailles. Pour tout ouvrir d'un coup, l'éditeur de
 sauvegarde ([../tools/save.py](../tools/save.py)) sait aussi donner des médailles.
@@ -131,7 +131,7 @@ En ligne, ce mod ne compte pas comme de la triche : il donne ce que les joueurs 
 *Avancement estimé : 90 % — vérifié dans Azahar : équipage complet, sous-marins de la mise à jour débloqués ; reste
 le détail des « remodelages ».*
 
-La mise à jour ([mise-a-jour.md](mise-a-jour.md)) vend davantage :
+La mise à jour ([update-v5200.md](update-v5200.md)) vend davantage :
 
 - **15 sous-marins** à part : les 5 historiques (n° 19 à 23, contenus 1 à 5) et 10 nouveaux (n° 27 à 36 : I-168,
   Type XXI, Blue-Marine, Classe Z, Soryu, USS Nautilus, Classe S, Daphné, Kilo, Victor III ; contenus 6 à 15),

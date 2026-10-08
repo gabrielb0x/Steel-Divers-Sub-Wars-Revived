@@ -40,20 +40,20 @@ ACCESS_KEY = "fb9537fe"             # gameServerLogin -> NgsFacade::Login(..., 0
 SECURE_PID = 2                       # principal id of the secure server in its station URL
 TICKET_LIFETIME = 3600
 
-# Token flags of the builds that change the game in a player's favour: the cheat mod (mods/triche) and
+# Token flags of the builds that change the game in a player's favour: the cheat mod (mods/cheats) and
 # hand-made submarine characteristics (mods/specs). Other flags ("premium": the full version that the
 # eShop used to sell) are only logged.
-CHEAT_FLAGS = frozenset({"triche", "specs"})
-CHEAT_POOL = "triche"                # matchmaking pool of the cheaters, with cheats = "separes"
-CHEAT_POLICIES = ("autorises", "separes", "refuses")
+CHEAT_FLAGS = frozenset({"cheats", "specs", "triche"})     # "triche": the cheat mods' flag before the project went English
+CHEAT_POOL = "cheats"                # matchmaking pool of the cheaters, with cheats = "separate"
+CHEAT_POLICIES = ("allowed", "separate", "refused")
 
-# Anti-cheat of the online mod (mods/en-ligne/anti_triche_*.pasm): when the server does not allow cheats, it
+# Anti-cheat of the online mod (mods/online/anticheat_*.pasm): when the server does not allow cheats, it
 # sets server.anticheat in the players' games; each game then watches its own submarine in battle, leaves
 # the battle at the first cheat it sees (the "kick") and keeps the last kick in its save. It tells the server
 # at each search for a match, in matchmaking attribute 4: 0x100 (a game that watches itself) | what it saw
 # (bits 0-7) | the number of that kick (bits 16-30). Each kick is dealt with once (exclusions.json keeps the
 # number of the last one), so a save that keeps it does not bring a new sanction at every search.
-CHEAT_SEEN = {1: "dégâts annulés", 2: "torpilles infinies", 4: "tirs trop rapprochés", 8: "vitesse impossible"}
+CHEAT_SEEN = {1: "damage cancelled", 2: "infinite torpedoes", 4: "shots too close together", 8: "impossible speed"}
 REPORT_ATTRIBUTE = 4                 # attributes 4 and 5 are reports, not matchmaking criteria
 
 
@@ -75,14 +75,16 @@ class RealmConfig:
     data_dir: Path
     build_name: str = "Sub Wars Open Sourced server"
     max_players: int = 8              # human players per match; the game fills each team up to 4 with AI subs
-    cheats: str = "separes"           # players whose build declares the cheat mod: autorises/separes/refuses
-    anticheat_ban: int = 30           # minutes a player caught cheating is kept out ("refuses") or apart ("separes")
+    cheats: str = "separate"           # players whose build declares the cheat mod: allowed/separate/refused
+    anticheat_ban: int = 30           # minutes a player caught cheating is kept out ("refused") or apart ("separate")
     duration: int = 10                # minutes of an online battle (the game: 10), set in every game (online mod)
     bots: BotSettings = field(default_factory=BotSettings)    # a player alone in a match plays bots
 
     def __post_init__(self) -> None:
         if not 2 <= self.max_players <= 8:
             raise ValueError(f"realm {self.name}: max_players must be between 2 and 8")
+        from .config import canonical
+        self.cheats = canonical(self.cheats)
         if self.cheats not in CHEAT_POLICIES:
             raise ValueError(f"realm {self.name}: cheats must be one of {', '.join(CHEAT_POLICIES)}")
         if not 0 <= self.anticheat_ban <= 7 * 24 * 60:
@@ -176,9 +178,9 @@ class Realm:
         return pid in self._bans
 
     def pool(self, pid: int) -> str:
-        """Matchmaking pool: with cheats "separes", players whose build cheats (or who were caught cheating)
+        """Matchmaking pool: with cheats "separate", players whose build cheats (or who were caught cheating)
         only meet each other."""
-        if self.config.cheats == "separes" and (is_cheater(self.flags.get(pid, ())) or self._caught(pid)):
+        if self.config.cheats == "separate" and (is_cheater(self.flags.get(pid, ())) or self._caught(pid)):
             return CHEAT_POOL
         return ""
 
@@ -202,11 +204,11 @@ class Realm:
 
     def excluded(self, pid: int) -> dict | None:
         """Kept out: caught cheating less than anticheat_ban minutes ago, on a server that refuses cheaters."""
-        return self._caught(pid) if self.config.cheats == "refuses" else None
+        return self._caught(pid) if self.config.cheats == "refused" else None
 
     def caught_cheating(self, pid: int, seen: int, kick: int) -> bool:
         """A game reported its last kick: what it saw of itself, and the number of the kick. A kick not dealt
-        with yet sends the player among the cheaters ("separes") or keeps them out ("refuses") for
+        with yet sends the player among the cheaters ("separate") or keeps them out ("refused") for
         anticheat_ban minutes. Returns whether the kick is new."""
         data = self._exclusions()
         entry = data.get(str(pid))
@@ -220,13 +222,13 @@ class Realm:
             self._exclusions_path.write_text(json.dumps(data, indent=1, ensure_ascii=False) + "\n", encoding="utf-8")
         self.kicks += 1
         self.log.warning("pid %d caught cheating (%s): %s for %d min", pid, ", ".join(reasons),
-                         "with the cheaters" if self.config.cheats == "separes" else "kept out",
+                         "with the cheaters" if self.config.cheats == "separate" else "kept out",
                          self.config.anticheat_ban)
         return True
 
     def anticheat_on(self, pid: int) -> bool:
         """The games of this match watch themselves: cheats are not allowed here."""
-        return self.config.cheats != "autorises" and self.pool(pid) != CHEAT_POOL
+        return self.config.cheats != "allowed" and self.pool(pid) != CHEAT_POOL
 
     # -- tickets -------------------------------------------------------------------------------
 
@@ -310,7 +312,7 @@ class AuthServer(PRUDPServer):
                              ", ".join(exclusion.get("reasons", [])),
                              time.strftime("%H:%M", time.localtime(exclusion["until"])))
             raise RMCError(rmc.RV_ACCOUNT_DISABLED, "excluded")
-        if is_cheater(flags) and self.realm.config.cheats == "refuses":
+        if is_cheater(flags) and self.realm.config.cheats == "refused":
             self.log.warning("%s: pid %d refused, its build cheats (%s)", conn, pid,
                              ", ".join(sorted(flags & CHEAT_FLAGS)))
             raise RMCError(rmc.RV_ACCOUNT_DISABLED, "cheats refused")
@@ -569,7 +571,7 @@ class SecureServer(PRUDPServer):
         with contextlib.suppress(IndexError, ValueError):
             report = int(criteria[0].attributes[REPORT_ATTRIBUTE] or 0)
         seen, kick = report & 0xFF, report >> 16 & 0x7FFF
-        if seen and self.realm.config.cheats != "autorises":
+        if seen and self.realm.config.cheats != "allowed":
             self.realm.caught_cheating(conn.pid, seen, kick)
             if self.realm.excluded(conn.pid):
                 raise RMCError(rmc.RV_ACCOUNT_DISABLED, "caught cheating")

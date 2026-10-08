@@ -12,14 +12,14 @@ instances d'Azahar se connectent, se retrouvent dans un salon et lancent une bat
 
 | Étape | Qui | Protocole |
 |---|---|---|
-| 1. adresse du serveur de jeu, jeton | module « friends » de la console → NASC | remplacé par le mod `en-ligne` |
+| 1. adresse du serveur de jeu, jeton | module « friends » de la console → NASC | remplacé par le mod `online` |
 | 2. authentification | serveur d'authentification (UDP) | PRUDP v1 + RMC `TicketGranting` |
 | 3. connexion sécurisée | serveur sécurisé (UDP) | PRUDP v1 + Kerberos, RMC `SecureConnection` |
 | 4. type de NAT | serveurs « nncs » (UDP 10025/10125) | messages `NATCheckMessage` de 16 octets |
 | 5. recherche de partie | serveur sécurisé | `MatchmakeExtension`, `MatchMaking`, `NATTraversal` |
 | 6. la bataille | de console à console | Pia (P2P) : le serveur n'y participe pas |
 | 7. joueurs éloignés | serveur, box | adresse publique, redirections UPnP, joueurs du réseau du serveur |
-| 8. réglages du serveur | serveur → jeu | notifications à nous, variables de script (mod `en-ligne`) |
+| 8. réglages du serveur | serveur → jeu | notifications à nous, variables de script (mod `online`) |
 
 ## 1. Connexion : `gameServerLogin` et `JobCTRLogin`
 
@@ -41,7 +41,7 @@ instances d'Azahar se connectent, se retrouvent dans un salon et lancent une bat
 **Dans Azahar**, `frd:u` est une émulation incomplète : `RequestGameAuthentication` et `GetGameAuthenticationData`
 y sont des fonctions vides qui « réussissent » sans rien rendre ni signaler l'événement, et le jeu attend jusqu'au
 délai de 60 s. `GetMyFriendKey` (d'où vient le principal ID) rend 0 pour tout le monde. D'où le patch du mod
-[`en-ligne`](../mods/en-ligne/mod.toml), qui remplace `GetMyPrincipalId`, `GetMyPassword` et
+[`online`](../mods/online/mod.toml), qui remplace `GetMyPrincipalId`, `GetMyPassword` et
 `GetGameAuthenticationData` : seule fonction appelante pour les deux dernières, `JobCTRLogin`.
 
 ## 2. Transport : PRUDP version 1
@@ -228,7 +228,7 @@ Le mod accepte donc un nom (DNS dynamique) à la place d'une IP.
 *Avancement estimé : 100 %.*
 
 Le serveur n'a aucun moyen d'agir sur une bataille, qui se joue de console à console. Pour régler les
-parties contre des bots (et plus tard d'autres choses), le mod `en-ligne` réécrit
+parties contre des bots (et plus tard d'autres choses), le mod `online` réécrit
 `MyNotificationEventHandler::ProcessNotificationEvent` (0x00185264, 568 octets dont l'essentiel écrivait des
 journaux retirés de la version finale) : il garde les trois notifications que le jeu retenait (3001, 4xxx,
 109xxx) et en ajoute deux, inconnues du jeu d'origine qui les ignore :
@@ -243,7 +243,7 @@ UTF-8 avec la fonction du jeu (`convertUTF16toUTF8`). Seuls les noms qui commenc
 acceptés : un serveur ne peut toucher ni à la sauvegarde (`save.*`) ni aux variables du jeu. NEX distribue
 les notifications sur le fil principal, pendant `Network::dispatch()`, là où tournent les scripts.
 
-Variables utilisées (`server/sdsw_server/matchmaking.py` et `realm.py`, `mods/en-ligne/*.pasm`) :
+Variables utilisées (`server/sdsw_server/matchmaking.py` et `realm.py`, `mods/online/*.pasm`) :
 
 | Variable | Sens |
 |---|---|
@@ -268,9 +268,9 @@ attributs 4 et 5 ne servent pas à apparier les joueurs.
 *Avancement estimé : 85 % — connexion, recherche de partie et salon vérifiés avec la v5200 dans Azahar ; bots et
 anti-triche portés (bac à sable des bots : `tools/botsim.py --version v5200`), à voir dans l'émulateur.*
 
-La mise à jour ([mise-a-jour.md](mise-a-jour.md)) garde le même identifiant de serveur NEX (`0x000D7C00`), la même
+La mise à jour ([update-v5200.md](update-v5200.md)) garde le même identifiant de serveur NEX (`0x000D7C00`), la même
 clé d'accès (`fb9537fe`) et les mêmes bibliothèques NEX et Pia, à de nouvelles adresses : le même serveur la sert.
-Différences relevées pour le mod `en-ligne` :
+Différences relevées pour le mod `online` :
 
 - les fonctions de `frd` et les étapes de `JobCTRLogin` sont identiques (`GetMyPrincipalId` `0x00222740`,
   `GetMyPassword` `0x002C9224`, `GetGameAuthenticationData` `0x002226CC`) ;
@@ -304,7 +304,7 @@ Différences relevées pour le mod `en-ligne` :
   chaînes par leur texte ; fonctions appariées par leur code, leurs noms de journal et leurs appels) et en déduit
   les adresses de la v5200 ; les sources Pawn se compilent pour elle (`tools/pawn2pasm.py --version v5200`), les
   `.pasm` écrits à la main se traduisent (`tools/amxport.py <script> --pasm`), d'où les `*-v5200.pasm` (`make bots`).
-  Ce que l'outil ne sait pas apparier est écrit à la main dans `mods/en-ligne/v5200.toml` : la boucle principale
+  Ce que l'outil ne sait pas apparier est écrit à la main dans `mods/online/v5200.toml` : la boucle principale
   de `mode_lobby` et celle de `periscope_move` sont devenues des fonctions appelées à chaque image (`doUpdate`),
   le compte à rebours du salon passe de 120 à 60 secondes, `surface_sub` n'appelle plus `func_cb2c` après le
   naufrage, et `mode_periscope` dédouble « partie Internet » (`gIsInternet` `g_10aa0`, et `g_10aa8` : une partie

@@ -3,7 +3,7 @@
 // the peer-to-peer session that follows (Pia).
 //
 // Reconstructed by hand from decomp/raw/source/net/connectionInternet.cpp and the disassembly. Not compilable
-// on its own. What the server must answer is in docs/online.md; mods/en-ligne patches the friends functions
+// on its own. What the server must answer is in docs/online.md; mods/online patches the friends functions
 // that gameServerLogin uses, and rewrites MyNotificationEventHandler::ProcessNotificationEvent.
 //
 // ConnectionInternet is one of the Connection classes (connection.cpp; connectionLocal.cpp is the local
@@ -27,7 +27,7 @@ static MyNotificationEventHandler notifications;    // 0x0038E684 (vtable 0x0037
 
 // The search attributes (0x0052E000, 6 entries of 12 bytes), set by the scripts' inetSetAttribute(n, value)
 // before each search: 0 continent, 1 lobby type, 2 level, 3 version checksum (sysGetVersionChecksum: v0
-// 0xB95D7F2B, v5200 868960903); 4 and 5 unused by the game (mods/en-ligne reports its anti-cheat in 4).
+// 0xB95D7F2B, v5200 868960903); 4 and 5 unused by the game (mods/online reports its anti-cheat in 4).
 struct MatchingAttribute {
 	u8 kind;                                    // 0 none, 1 this value, 2 a range (never set by the game)
 	u32 value, max;
@@ -154,7 +154,7 @@ int ConnectionInternet::maxUnits() { return 8; }         // 0x00184DE8
 
 // 0x00171D00: the friends module logs in to Nintendo's servers, then NgsFacade::Login asks it for the
 // game server's address and a token (JobCTRLogin: GetMyPrincipalId, GetMyPassword, then
-// RequestGameAuthentication / GetGameAuthenticationData: what mods/en-ligne answers itself).
+// RequestGameAuthentication / GetGameAuthenticationData: what mods/online answers itself).
 static bool gameServerLogin(nn::nex::NgsFacade *ngs, u32 gameServerId, const wchar_t *accessKey, u32 timeout)
 {
 	nn::os::Event loggedIn(true);

@@ -49,9 +49,10 @@ PAGE = Path(__file__).with_name("webui.html")
 EXTRACTED = ROOT / "extracted"
 MODS_OUT = ROOT / "build" / "mods"
 PREPARED = ROOT / "build" / "azahar"
-MOD_ORDER = ["correctifs", "pseudo", "version", "premium", "missions", "specs", "triche", "vitesse", "musique",
-             "en-ligne"]
-STATE_FILE = "lanceur.json"
+MOD_ORDER = ["fixes", "nickname", "version", "premium", "missions", "specs", "cheats", "speed", "music",
+             "online"]
+STATE_FILE = "launcher.json"
+OLD_STATE_FILE = "lanceur.json"            # its name before the project went English
 
 
 class UserError(Exception):
@@ -160,7 +161,7 @@ class Tasks:
     def start(self, title: str, work) -> Task:
         with self.lock:
             if self.current and not self.current.done:
-                raise UserError(f"Une tâche est déjà en cours : {self.current.title}")
+                raise UserError(f"A task is already running: {self.current.title}")
             task = Task(title)
             self.current = task
             self.known[task.id] = task
@@ -177,7 +178,7 @@ class Tasks:
                     task.error = str(e)
                 except Exception as e:                # a bug: keep the traceback for the report
                     task.write(traceback.format_exc())
-                    task.error = f"erreur inattendue : {e}"
+                    task.error = f"unexpected error: {e}"
                 finally:
                     task.done = True
         threading.Thread(target=run, daemon=True).start()
@@ -187,7 +188,7 @@ class Tasks:
 # ---- the online server, as a child process --------------------------------------------------------
 
 SERVER_DIR = ROOT / "server"
-SERVER_STATE = SERVER_DIR / "data" / "serveur.json"        # written by the server while it runs
+SERVER_STATE = SERVER_DIR / "data" / "server.json"        # written by the server while it runs
 
 
 def server_command(cmdline: str) -> bool:
@@ -281,13 +282,13 @@ class GameServer:
         """Starts the server, after stopping the one already running: ours (a restart), or one started
         elsewhere (an earlier launcher, a terminal) that holds its ports."""
         if sys.version_info < (3, 11):
-            raise UserError("le serveur demande Python 3.11 ou plus récent")
+            raise UserError("the server needs Python 3.11 or newer")
         self.lines.clear()
         if self.running:
-            self.lines.append("[redémarrage du serveur]")
+            self.lines.append("[restarting the server]")
             self.stop()
         self.stop_others()
-        self.process = subprocess.Popen([sys.executable, "-u", "-m", "sdsw_server", "-c", "serveur.toml",
+        self.process = subprocess.Popen([sys.executable, "-u", "-m", "sdsw_server", "-c", "server.toml",
                                          "--exit-with-stdin"],
                                         cwd=SERVER_DIR, stdin=subprocess.PIPE, stdout=subprocess.PIPE,
                                         stderr=subprocess.STDOUT, text=True, encoding="utf-8", errors="replace",
@@ -306,19 +307,19 @@ class GameServer:
         others = {pid: cmd for pid, cmd in owners.items() if not server_command(cmd)}
         if strict and (others or not owners):
             who = ", ".join(f"{(cmd.split() or ['?'])[0]} (PID {pid})" for pid, cmd in others.items())
-            raise UserError(f"Le port UDP {busy[0]} est pris par un autre programme"
-                            + (f" : {who}. Fermez-le" if who else ", introuvable. Fermez le programme qui l'occupe")
-                            + ", ou changez les ports dans serveur.toml.")
+            raise UserError(f"UDP port {busy[0]} is taken by another program"
+                            + (f": {who}. Close it" if who else ", not found. Close the program that holds it")
+                            + ", or change the ports in server.toml.")
         servers = [pid for pid in owners if pid not in others]
         for pid in servers:
-            self.lines.append(f"[serveur lancé ailleurs (PID {pid}) : arrêté]")
+            self.lines.append(f"[server started elsewhere (PID {pid}): stopped]")
             try:
                 os.kill(pid, signal.SIGTERM)               # Windows: TerminateProcess
             except ProcessLookupError:
                 pass
             except PermissionError:
-                raise UserError(f"Un serveur lancé par un autre utilisateur (PID {pid}) occupe le port UDP "
-                                f"{busy[0]} : arrêtez-le depuis son compte.") from None
+                raise UserError(f"A server started by another user (PID {pid}) holds UDP port "
+                                f"{busy[0]}: stop it from their account.") from None
         self._others = (0.0, {})
         if not servers or self._wait_free(ports, 2 if others else 8):    # others: some ports stay busy
             return
@@ -326,7 +327,7 @@ class GameServer:
             with contextlib.suppress(OSError):
                 os.kill(pid, getattr(signal, "SIGKILL", signal.SIGTERM))
         if not self._wait_free(ports, 4) and strict:
-            raise UserError(f"Le serveur déjà lancé (PID {', '.join(map(str, servers))}) ne s'arrête pas.")
+            raise UserError(f"The server already running (PID {', '.join(map(str, servers))}) does not stop.")
 
     @staticmethod
     def _wait_free(ports: list[int], seconds: float) -> bool:
@@ -351,7 +352,7 @@ class GameServer:
     def _read(self, process: subprocess.Popen) -> None:
         for line in process.stdout:
             self.lines.append(line.rstrip())
-        self.lines.append(f"[serveur arrêté, code {process.wait()}]")
+        self.lines.append(f"[server stopped, code {process.wait()}]")
 
     def stop(self) -> None:
         """Closing its standard input stops the server cleanly (it removes its forwards on the router)."""
@@ -370,7 +371,7 @@ class GameServer:
     @staticmethod
     def config() -> dict:
         try:
-            return tomllib.loads((SERVER_DIR / "serveur.toml").read_text(encoding="utf-8"))
+            return tomllib.loads((SERVER_DIR / "server.toml").read_text(encoding="utf-8"))
         except (OSError, tomllib.TOMLDecodeError):
             return {}
 
@@ -394,11 +395,11 @@ class GameServer:
 
     def json(self) -> dict:
         data = self.config()
-        realms = [{"name": r.get("name"), "auth_port": r.get("auth_port"), "cheats": r.get("cheats", "separes"),
+        realms = [{"name": r.get("name"), "auth_port": r.get("auth_port"), "cheats": r.get("cheats", "separate"),
                    "max_players": r.get("max_players", 8), "duration": r.get("duration", 10),
                    "bots": r.get("bots", True),
                    "bots_delay": r.get("bots_delay", 60), "bots_format": r.get("bots_format", "4v4"),
-                   "bots_level": r.get("bots_level", "difficile")} for r in data.get("realm", [])]
+                   "bots_level": r.get("bots_level", "hard")} for r in data.get("realm", [])]
         settings = data.get("server", {})
         try:
             status_port = int(settings.get("status_port", 0))
@@ -407,7 +408,7 @@ class GameServer:
         others = self.others()
         pids = ({self.process.pid} if self.running else set()) | set(others)
         return {"running": self.running, "lines": list(self.lines)[-200:], "addresses": local_addresses(),
-                "config": str(SERVER_DIR / "serveur.toml"), "realms": realms,
+                "config": str(SERVER_DIR / "server.toml"), "realms": realms,
                 "public_setting": str(settings.get("public_address", "auto")), "upnp": bool(settings.get("upnp")),
                 "others": [{"pid": pid, "command": cmd} for pid, cmd in others.items()],
                 "state": self.state(pids),
@@ -427,9 +428,9 @@ def map_names() -> dict[str, str]:
     with contextlib.suppress(OSError, ValueError, ImportError):
         import xml.etree.ElementTree as ET
         from bxml import Bxml
-        text = EXTRACTED / "v5200" / "romfs" / "text" / "EU_French.bxml"        # the update names its maps too
+        text = EXTRACTED / "v5200" / "romfs" / "text" / "EU_English.bxml"       # the update names its maps too
         if not text.is_file():
-            text = EXTRACTED / "romfs" / "text" / "EU_French.bxml"
+            text = EXTRACTED / "romfs" / "text" / "EU_English.bxml"
         root = ET.fromstring(Bxml(text.read_bytes()).to_xml())
         for node in root.iter("string"):
             key = node.get("key", "")
@@ -440,18 +441,18 @@ def map_names() -> dict[str, str]:
 
 def server_config() -> dict:
     config = server_package()
-    path = SERVER_DIR / "serveur.toml"
+    path = SERVER_DIR / "server.toml"
     try:
         options = config.read(path)
     except (OSError, ValueError) as e:
-        raise UserError(f"serveur.toml illisible : {e}") from e
+        raise UserError(f"server.toml illisible : {e}") from e
     return {"options": options, "schema": config.schema(), "maps": map_names(), "file": str(path)}
 
 
 def save_server_config(changes: dict) -> dict:
     config = server_package()
     try:
-        config.update(SERVER_DIR / "serveur.toml", changes)
+        config.update(SERVER_DIR / "server.toml", changes)
     except config.ConfigError as e:
         raise UserError(str(e)) from e
     return server_config()
@@ -461,9 +462,9 @@ def test_server(address: str) -> dict:
     """From this computer, does a server answer? (what the game does before logging in)"""
     host, _, port = address.strip().partition(":")
     if not host:
-        raise UserError("Indiquez l'adresse du serveur.")
+        raise UserError("Enter the server's address.")
     if len(host) > 31:
-        raise UserError("Adresse trop longue : le mod en ligne en accepte 31 caractères au plus.")
+        raise UserError("Address too long: the online mod takes 31 characters at most.")
     if str(SERVER_DIR) not in sys.path:
         sys.path.insert(0, str(SERVER_DIR))
     from sdsw_server.testclient import probe
@@ -489,13 +490,18 @@ def local_addresses() -> list[str]:
 
 def load_state() -> dict:
     with contextlib.suppress(OSError, ValueError):
-        return json.loads((azahar.config_dir() / STATE_FILE).read_text(encoding="utf-8"))
+        state = json.loads(azahar.settings_file(STATE_FILE, OLD_STATE_FILE).read_text(encoding="utf-8"))
+        installed = state.get("installed")
+        if installed and installed.get("mods"):              # the mods' older (French) names
+            installed["mods"] = [mod.canonical(n) for n in installed["mods"]]
+            installed["params"] = {mod.PARAM_ALIASES.get(k, k): v for k, v in (installed.get("params") or {}).items()}
+        return state
     return {}
 
 
 def store_state(**values) -> None:
     state = load_state() | values
-    path = azahar.config_dir() / STATE_FILE
+    path = azahar.settings_file(STATE_FILE, OLD_STATE_FILE)
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(json.dumps(state, indent=1, ensure_ascii=False) + "\n", encoding="utf-8")
 
@@ -584,19 +590,19 @@ def mods_list() -> list[dict]:
 
 def extract_game(source: Path, log) -> dict:
     if not source.exists():
-        raise UserError(f"{source} : fichier introuvable")
-    print(f"Extraction de {source}…")
+        raise UserError(f"{source}: file not found")
+    print(f"Extracting {source}…")
     manifest = extract_cia.extract(source, log=print)
     if manifest["version"] == versions.BASE:
         store_state(source=str(source))
         update = extract_cia.find_update()
         if update is not None:
-            print(f"Mise à jour trouvée : {update}")
+            print(f"Update found: {update}")
             try:
                 extract_cia.extract(update, log=print)
             except extract_cia.ExtractError as e:          # encrypted: the game itself is ready anyway
                 print(f"[!] {e}")
-    print("Fichiers du jeu prêts.")
+    print("The game's files are ready.")
     return {"product": manifest["product_code"], "version": manifest["version"]}
 
 
@@ -611,34 +617,34 @@ def decrypted_update() -> Path | None:
 
 def prepare_for_azahar(source: Path, log) -> dict:
     if source.suffix.lower() != ".cia":
-        raise UserError("Seul un .cia a besoin d'être préparé : un .cxi ou un .3ds s'ouvre tel quel dans "
-                        "Azahar (Fichier > Charger un fichier).")
+        raise UserError("Only a .cia needs preparing: a .cxi or a .3ds opens as it is in "
+                        "Azahar (File > Load File).")
     PREPARED.mkdir(parents=True, exist_ok=True)
     update = decrypted_update()
-    print("Copie du jeu sans le manuel chiffré (Azahar refuse le CIA de l'eShop entier), et en .cxi"
-          + (", et de la mise à jour seule" if update else "") + "…")
+    print("Copying the game without the encrypted manual (Azahar refuses the whole eShop CIA), and as a .cxi"
+          + (", and the update alone" if update else "") + "…")
     for path in azahar.prepare(source, PREPARED, update):
         print(f"  {path.name}")
-    print(f"Prêt : {PREPARED}")
+    print(f"Ready: {PREPARED}")
     return {"dir": str(PREPARED)}
 
 
 def build_mods(names: list[str], params: dict[str, str], install: bool, log) -> dict:
     names = [name for name in names if name not in mod.fixes()]     # always part of the build
     if not names and not mod.fixes():
-        raise UserError("Choisissez au moins un mod.")
+        raise UserError("Choose at least one mod.")
     if not (EXTRACTED / "code.bin").exists():
-        raise UserError("Il faut d'abord préparer les fichiers du jeu (onglet Jeu).")
+        raise UserError("Prepare the game's files first (Game tab).")
     targets = mod.emulator_versions()                  # the version each emulator runs the game as
     if install and not targets:
-        raise UserError("Aucun émulateur trouvé (Azahar, Lime3DS, Citra, Borked3DS) : lancez-le une fois, "
-                        "puis réessayez.")
+        raise UserError("No emulator found (Azahar, Lime3DS, Citra, Borked3DS): start it once, "
+                        "then try again.")
     targets = targets or {versions.BASE: []}
     problems = []
     for version in targets:
         if version not in versions.extracted_versions():
-            problems.append(f"Le jeu tourne en {versions.label(version)} dans l'émulateur, mais les fichiers de "
-                            "cette version ne sont pas préparés : onglet Jeu, avec la mise à jour déchiffrée dans "
+            problems.append(f"The game runs as {versions.label(version)} in the emulator, but the files of "
+                            "this version are not prepared: Game tab, with the decrypted update in "
                             "cia/.")
         for name in names:
             recipe = mod.load_recipe(name)
@@ -656,13 +662,13 @@ def build_mods(names: list[str], params: dict[str, str], install: bool, log) -> 
                 if dest.exists():
                     shutil.rmtree(dest)
                 shutil.copytree(built / azahar.TITLE_ID, dest)
-                print(f"Installé ({version}) : {dest}")
+                print(f"Installed ({version}): {dest}")
                 result["installed"].append(str(dest))
     if install:
         public = dict(mod.build.options) | {"sdsw_version": mod.build.params["sdsw_version"]}   # the player's options
         store_state(installed={"mods": names or mod.fixes(), "params": public,
                                "date": time.strftime("%Y-%m-%d %H:%M")})
-        print("Lancez (ou relancez) le jeu dans l'émulateur : le mod s'applique au démarrage.")
+        print("Start (or restart) the game in the emulator: the mod applies at start-up.")
     return result
 
 
@@ -687,8 +693,8 @@ def drop_stale_mods(version: str) -> list[str]:
         if marker is not None and marker.get("version", versions.BASE) != version:
             shutil.rmtree(base / "load" / "mods" / azahar.TITLE_ID)
             dropped.append(name)
-            print(f"Mods retirés de {name} : construits pour {marker.get('version', versions.BASE)}, ils ne "
-                  f"marchent pas avec {versions.label(version)}. Réinstallez-les (onglet Mods).")
+            print(f"Mods removed from {name}: built for {marker.get('version', versions.BASE)}, they do not "
+                  f"work with {versions.label(version)}. Install them again (Mods tab).")
     if dropped and not any(azahar.installed_mods(base) is not None for base in azahar.azahar_dirs()):
         store_state(installed=None)
     return dropped
@@ -697,20 +703,20 @@ def drop_stale_mods(version: str) -> list[str]:
 def install_update(log) -> dict:
     update = decrypted_update()
     if update is None:
-        raise UserError("Pas de CIA déchiffré de la mise à jour dans cia/ : mettez-y le vôtre (déchiffré), ou "
-                        "installez-la vous-même dans Azahar (Fichier > Installer un CIA).")
+        raise UserError("No decrypted CIA of the update in cia/: put yours there (decrypted), or "
+                        "install it yourself into Azahar (File > Install CIA).")
     found = azahar.emulator_dirs()
     if not found:
-        raise UserError("Aucun émulateur trouvé (Azahar, Lime3DS, Citra, Borked3DS) : lancez-le une fois.")
+        raise UserError("No emulator found (Azahar, Lime3DS, Citra, Borked3DS): start it once.")
     with update.open("rb") as f:
         version = versions.name(CIA.parse(f).title_version)
     if version not in versions.extracted_versions():
-        print("Extraction de ses fichiers (les mods en ont besoin)…")
+        print("Extracting its files (the mods need them)…")
         extract_cia.extract(update, log=print)
     for name, base in found:
-        print(f"Mise à jour {version} installée pour {name} : {azahar.install_update(update, base)}")
+        print(f"Update {version} installed for {name}: {azahar.install_update(update, base)}")
     drop_stale_mods(version)
-    print("Le jeu, installé ou ouvert depuis son .cxi, démarre maintenant avec la mise à jour.")
+    print("The game, installed or opened from its .cxi, now starts with the update.")
     return {"version": version}
 
 
@@ -718,10 +724,10 @@ def uninstall_update(log) -> dict:
     removed = []
     for name, base in azahar.emulator_dirs():
         for path in azahar.uninstall_update(base):
-            print(f"Mise à jour retirée de {name} : {path}")
+            print(f"Update removed from {name}: {path}")
             removed.append(str(path))
     if not removed:
-        raise UserError("La mise à jour n'est installée dans aucun émulateur.")
+        raise UserError("The update is not installed in any emulator.")
     drop_stale_mods(versions.BASE)
     return {"removed": removed}
 
@@ -798,7 +804,7 @@ def subs_write(update) -> dict:
 
 # ---- music ---------------------------------------------------------------------------------------
 
-MUSIC_CACHE = ROOT / "build" / "cache" / "musique"        # the game's music decoded, to listen to it
+MUSIC_CACHE = ROOT / "build" / "cache" / "music"        # the game's music decoded, to listen to it
 MAX_UPLOAD = 200 * 1024 * 1024
 
 
@@ -815,7 +821,7 @@ def music_game() -> versions.GameFiles:
         version = versions.BASE
     game = versions.game_files(version)
     if not game.ready():
-        raise UserError("Il faut d'abord préparer les fichiers du jeu (onglet Jeu).")
+        raise UserError("Prepare the game's files first (Game tab).")
     return game
 
 
@@ -823,7 +829,7 @@ def music_track(game: versions.GameFiles, file: str) -> dict:
     for track in music.tracks(game):
         if track["file"] == file:
             return track
-    raise UserError("musique inconnue")
+    raise UserError("unknown music")
 
 
 def music_state() -> dict:
@@ -838,7 +844,7 @@ def music_state() -> dict:
                             "mine": mine.get(track["stem"])})
     installed = (load_state().get("installed") or {}).get("mods") or []
     return {"folder": str(folder), "version": game.version, "label": versions.label(game.version), "tracks": out,
-            "count": len(mine), "installed": "musique" in installed}
+            "count": len(mine), "installed": "music" in installed}
 
 
 def music_audio(file: str, which: str) -> Binary:
@@ -847,7 +853,7 @@ def music_audio(file: str, which: str) -> Binary:
     if which == "mine":
         folder = music.default_dir()
         if not music.mine(folder, track).exists():
-            raise UserError("pas de musique à vous pour celle-ci")
+            raise UserError("no music of yours for this one")
         channels, rate = music.leveled(folder, track)          # as the game will play it
         out = io.BytesIO()
         bcstm.write_wav(out, channels, rate)
@@ -866,14 +872,14 @@ def music_apply(log) -> dict:
     """Builds and installs the mods installed so far, with the music mod when there is music of yours (and
     without it when there is none)."""
     installed = load_state().get("installed") or {}
-    names = [n for n in installed.get("mods") or [] if n not in mod.fixes() and n != "musique"]
+    names = [n for n in installed.get("mods") or [] if n not in mod.fixes() and n != "music"]
     if music.replaced(music.default_dir()):
-        names.append("musique")
-        print(f"Vos musiques : {len(music.replaced(music.default_dir()))}")
+        names.append("music")
+        print(f"Your music: {len(music.replaced(music.default_dir()))}")
     else:
-        print("Aucune musique à vous : celles du jeu.")
+        print("No music of yours: the game's.")
     if not names and not installed.get("mods"):
-        print("Aucun mod installé jusqu'ici : seulement les correctifs.")
+        print("No mod installed so far: only the fixes.")
     params = {str(k): str(v) for k, v in (installed.get("params") or {}).items() if k != "sdsw_version"}
     return build_mods(names, params, True, log)
 
@@ -921,14 +927,14 @@ class Handler(BaseHTTPRequestHandler):
             self._send(404, b"not found", "text/plain")
             return
         if not secrets.compare_digest(self.headers.get("X-Token", ""), self.server.token):
-            self._json(403, {"error": "jeton invalide : rechargez la page"})
+            self._json(403, {"error": "invalid token: reload the page"})
             return
         query = {k: v[-1] for k, v in parse_qs(url.query).items()}
         body = {}
         if method == "POST" and self.headers.get("Content-Type", "").startswith("application/octet-stream"):
             length = int(self.headers.get("Content-Length") or 0)
             if length > MAX_UPLOAD:
-                self._json(413, {"error": "fichier trop gros"})
+                self._json(413, {"error": "file too large"})
                 return
             body = {"raw": self.rfile.read(length)}
         elif method == "POST":
@@ -937,7 +943,7 @@ class Handler(BaseHTTPRequestHandler):
                 try:
                     body = json.loads(self.rfile.read(length))
                 except ValueError:
-                    self._json(400, {"error": "requête illisible"})
+                    self._json(400, {"error": "unreadable request"})
                     return
         try:
             result = self.server.api(method, url.path[5:], query, body)
@@ -952,7 +958,7 @@ class Handler(BaseHTTPRequestHandler):
             self._json(400, {"error": str(e)})
         except Exception as e:
             traceback.print_exc()
-            self._json(500, {"error": f"erreur inattendue : {e}"})
+            self._json(500, {"error": f"unexpected error: {e}"})
 
 
 class LauncherServer(ThreadingHTTPServer):
@@ -977,33 +983,33 @@ class LauncherServer(ThreadingHTTPServer):
         if route.startswith("task/") and method == "GET":
             task = self.tasks.known.get(route[5:])
             if task is None:
-                raise UserError("tâche inconnue")
+                raise UserError("unknown task")
             return task.json()
         if key == "GET files":
             return list_files(query.get("dir"))
         if key == "POST game/extract":
             source = Path(body.get("path") or "").expanduser() if body.get("path") else extract_cia.find_game()
             if source is None:
-                raise UserError("Jeu introuvable dans cia/ ou dans Azahar : choisissez son fichier.")
-            return self.tasks.start("Préparer les fichiers du jeu", lambda log: extract_game(source, log)).json()
+                raise UserError("Game not found in cia/ or in Azahar: choose its file.")
+            return self.tasks.start("Prepare the game's files", lambda log: extract_game(source, log)).json()
         if key == "POST game/prepare":
             source = load_state().get("source")
             source = Path(source) if source else extract_cia.find_game()
             if source is None:
-                raise UserError("Choisissez d'abord le fichier du jeu.")
-            return self.tasks.start("Préparer le jeu pour Azahar", lambda log: prepare_for_azahar(source, log)).json()
+                raise UserError("Choose the game's file first.")
+            return self.tasks.start("Prepare the game for Azahar", lambda log: prepare_for_azahar(source, log)).json()
         if key == "POST mods/build":
             names = [str(n) for n in body.get("mods", [])]
             params = {str(k): str(v) for k, v in (body.get("params") or {}).items()}
             install = bool(body.get("install", True))
-            title = ("Installer : " if install else "Construire : ") + " + ".join(names)
+            title = ("Install: " if install else "Build: ") + " + ".join(names)
             return self.tasks.start(title, lambda log: build_mods(names, params, install, log)).json()
         if key == "POST mods/uninstall":
             return uninstall_mods()
         if key == "POST update/install":
-            return self.tasks.start("Installer la mise à jour dans l'émulateur", install_update).json()
+            return self.tasks.start("Install the update into the emulator", install_update).json()
         if key == "POST update/uninstall":
-            return self.tasks.start("Retirer la mise à jour de l'émulateur", uninstall_update).json()
+            return self.tasks.start("Remove the update from the emulator", uninstall_update).json()
         if key == "GET save":
             return save_summary(save_file(query))
         if key == "POST save/unlock":
@@ -1013,23 +1019,23 @@ class LauncherServer(ThreadingHTTPServer):
             def change(data: save.SaveData, version: str) -> str:
                 done = []
                 if "subs" in what:
-                    done.append(f"{data.unlock_subs(version)} sous-marin(s)")
+                    done.append(f"{data.unlock_subs(version)} submarine(s)")
                 if "patterns" in what:
-                    done.append(f"{data.unlock_patterns(colours)} motif(s)")
+                    done.append(f"{data.unlock_patterns(colours)} pattern(s)")
                 if "crew" in what:
-                    done.append(f"{data.unlock_crew(version)} membre(s) d'équipage")
+                    done.append(f"{data.unlock_crew(version)} crew member(s)")
                 if "gold" in what:
-                    done.append(f"{data.award_medals(save.MEDAL_GOLD)} médaille(s) d'or")
+                    done.append(f"{data.award_medals(save.MEDAL_GOLD)} gold medal(s)")
                 elif "missions" in what:
-                    done.append(f"{data.award_medals(save.MEDAL_CLEARED)} mission(s) terminée(s)")
-                return "Débloqué : " + (", ".join(done) or "rien")
+                    done.append(f"{data.award_medals(save.MEDAL_CLEARED)} mission(s) completed")
+                return "Unlocked: " + (", ".join(done) or "nothing")
             return edit_save(save_file(body), change)
         if key == "POST save/premium-off":
-            return edit_save(save_file(body), lambda data, version: "Drapeau premium retiré" if data.premium_off()
-                             else "Pas de drapeau premium : rien à changer")
+            return edit_save(save_file(body), lambda data, version: "Premium flag cleared" if data.premium_off()
+                             else "No premium flag: nothing to change")
         if key == "POST save/set":
             name, value = str(body.get("name", "")), save.parse_value(str(body.get("value", "")))
-            return edit_save(save_file(body), lambda data, version: (data.set(name, value), f"{name} modifié")[1])
+            return edit_save(save_file(body), lambda data, version: (data.set(name, value), f"{name} changed")[1])
         if key == "GET save/export":
             data = save.SaveData.parse(save_file(query).read_bytes())
             return {"version": data.version, "ints": data.ints, "arrays": data.arrays}
@@ -1044,14 +1050,14 @@ class LauncherServer(ThreadingHTTPServer):
                     data.set(k, int(v))
                 for k, v in raw.get("arrays", {}).items():
                     data.set(k, [int(x) for x in v])
-                return "Sauvegarde importée"
+                return "Save imported"
             return edit_save(save_file(body), replace)
         if key == "GET subs":
             return subs_state()
         if key == "POST subs/set":
             n = int(body.get("n", 0))
             if not 1 <= n <= subs.count(azahar.game_version()):
-                raise UserError("sous-marin inconnu")
+                raise UserError("unknown submarine")
 
             def update(values, game):
                 for k, v in (body.get("values") or {}).items():
@@ -1091,9 +1097,9 @@ class LauncherServer(ThreadingHTTPServer):
             try:
                 rate, count = int(query.get("rate", 0)), int(query.get("channels", 0))
             except ValueError:
-                raise UserError("fréquence ou canaux illisibles") from None
+                raise UserError("unreadable rate or channels") from None
             music.store_pcm(music.default_dir(), game, track, body.get("raw") or b"", rate, count,
-                            str(query.get("name", "musique"))[:120], query.get("normalize", "1") == "1")
+                            str(query.get("name", "music"))[:120], query.get("normalize", "1") == "1")
             return music_state()
         if key == "POST music/reset":
             if body.get("all"):
@@ -1107,7 +1113,7 @@ class LauncherServer(ThreadingHTTPServer):
             music.set_match(music.default_dir(), game, track, bool(body.get("on", True)))
             return music_state()
         if key == "POST music/apply":
-            return self.tasks.start("Appliquer les musiques dans l'émulateur", music_apply).json()
+            return self.tasks.start("Apply the music in the emulator", music_apply).json()
         if key == "POST music/folder":
             folder = music.default_dir()
             folder.mkdir(parents=True, exist_ok=True)
@@ -1116,13 +1122,13 @@ class LauncherServer(ThreadingHTTPServer):
         if key == "POST open":
             open_folder(Path(body.get("path", "")))
             return {}
-        raise UserError(f"action inconnue : {key}")
+        raise UserError(f"unknown action: {key}")
 
 
 def list_files(folder: str | None) -> dict:
     path = Path(folder).expanduser() if folder else Path.home()
     if not path.is_dir():
-        raise UserError(f"{path} : dossier introuvable")
+        raise UserError(f"{path}: folder not found")
     entries = []
     with contextlib.suppress(PermissionError):
         for child in sorted(path.iterdir(), key=lambda p: p.name.lower()):
@@ -1136,16 +1142,16 @@ def list_files(folder: str | None) -> dict:
                     entries.append({"name": child.name, "path": str(child), "type": "game" if game else "other",
                                     "size": child.stat().st_size})
     return {"dir": str(path), "parent": str(path.parent) if path.parent != path else None, "entries": entries,
-            "shortcuts": [{"name": "Dossier personnel", "path": str(Path.home())},
-                          {"name": "Dossier cia/ du projet", "path": str(ROOT / "cia")}]
-                         + [{"name": "Téléchargements", "path": str(p)} for p in
+            "shortcuts": [{"name": "Home folder", "path": str(Path.home())},
+                          {"name": "The project's cia/ folder", "path": str(ROOT / "cia")}]
+                         + [{"name": p.name, "path": str(p)} for p in
                             (Path.home() / "Downloads", Path.home() / "Téléchargements") if p.is_dir()]}
 
 
 def open_folder(path: Path) -> None:
     """Shows a folder in the system's file manager."""
     if not path.exists():
-        raise UserError(f"{path} n'existe pas")
+        raise UserError(f"{path} does not exist")
     if sys.platform.startswith("win"):
         os.startfile(path)                                 # noqa: S606 (a folder chosen by the launcher)
     elif sys.platform == "darwin":
@@ -1157,15 +1163,15 @@ def open_folder(path: Path) -> None:
 def serve(port: int = 0, open_browser: bool = True) -> None:
     server = LauncherServer(port)
     url = f"http://127.0.0.1:{server.port}/"
-    print(f"Sub Wars Open Sourced : le lanceur est ouvert dans votre navigateur.\n"
-          f"  Sinon, ouvrez cette adresse : {url}\n"
-          f"  Gardez cette fenêtre ouverte pendant que vous l'utilisez ; Ctrl+C pour quitter.")
+    print(f"Sub Wars Open Sourced: the launcher is open in your web browser.\n"
+          f"  Otherwise, open this address: {url}\n"
+          f"  Keep this window open while you use it; Ctrl+C to quit.")
     if open_browser:
         threading.Timer(0.5, webbrowser.open, args=(url,)).start()
     try:
         server.serve_forever()
     except KeyboardInterrupt:
-        print("\nAu revoir.")
+        print("\nBye.")
     finally:
         server.game_server.stop()
         server.server_close()

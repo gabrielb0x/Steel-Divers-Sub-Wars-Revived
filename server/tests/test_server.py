@@ -108,7 +108,7 @@ class Formats(unittest.TestCase):
         self.assertEqual((q.supported_functions, q.conn_sig, q.max_substream_id), (3, b"s" * 16, 0))
 
 
-def run_realm(test, max_players=8, cheats="separes", bots=None, anticheat_ban=30, duration=10):
+def run_realm(test, max_players=8, cheats="separate", bots=None, anticheat_ban=30, duration=10):
     """Starts a realm on free ports, runs test(realm, port) inside the event loop."""
     async def main():
         with tempfile.TemporaryDirectory() as tmp:
@@ -160,7 +160,7 @@ class FriendsMeet(unittest.TestCase):
         self.assertEqual(self.search(matchmaker, 3, continent=-1 & 0xFFFFFFFF, lobby=1, level=2), first)
         # never with another version, a cheater, or the Morse chat room
         self.assertNotEqual(self.search(matchmaker, 4, continent=3, lobby=1, level=8, checksum=868960903), first)
-        self.assertNotEqual(self.search(matchmaker, 5, continent=3, lobby=1, level=8, pool="triche"), first)
+        self.assertNotEqual(self.search(matchmaker, 5, continent=3, lobby=1, level=8, pool="cheats"), first)
         self.assertNotEqual(self.search(matchmaker, 6, continent=3, lobby=2, level=0), first)
 
     def test_full_or_started_sessions_are_not_proposed(self):
@@ -189,9 +189,9 @@ class AntiCheat(unittest.TestCase):
             await testclient.matchmake(secure, 3, report=0x100)
             await asyncio.sleep(0.2)
             return secure.game_globals().get("server.anticheat")
-        self.assertEqual(run_realm(test, cheats="refuses"), 1)
-        self.assertEqual(run_realm(test, cheats="separes"), 1)
-        self.assertEqual(run_realm(test, cheats="autorises"), 0)
+        self.assertEqual(run_realm(test, cheats="refused"), 1)
+        self.assertEqual(run_realm(test, cheats="separate"), 1)
+        self.assertEqual(run_realm(test, cheats="allowed"), 0)
 
     def test_caught_cheating_is_kept_out(self):
         async def test(realm, port):
@@ -205,7 +205,7 @@ class AntiCheat(unittest.TestCase):
                 again = False
             other, _ = await testclient.login("127.0.0.1", port, 0x10000002, "password")
             return again, realm.status()["caught_cheating"]
-        again, caught = run_realm(test, cheats="refuses")
+        again, caught = run_realm(test, cheats="refused")
         self.assertFalse(again)                     # excluded for anticheat_ban minutes
         self.assertEqual(caught, 1)
 
@@ -217,17 +217,17 @@ class AntiCheat(unittest.TestCase):
                 await testclient.matchmake(secure, 3, report=0x100 | 2 | kick << 16)
                 counts.append(realm.status()["caught_cheating"])
             return counts
-        self.assertEqual(run_realm(test, cheats="refuses", anticheat_ban=0), [1, 1, 2])
+        self.assertEqual(run_realm(test, cheats="refused", anticheat_ban=0), [1, 1, 2])
 
     def test_caught_cheating_with_the_cheaters(self):
         async def test(realm, port):
             fair = await matchmade(port, 0x10000001)
             secure, _ = await testclient.login("127.0.0.1", port, 0x10000002, "password")
             caught = await testclient.matchmake(secure, 3, report=0x100 | 2 | 1 << 16)
-            cheater = await matchmade(port, 0x10000003, "triche")
+            cheater = await matchmade(port, 0x10000003, "cheats")
             again = await testclient.matchmake(secure, 3, report=0x100 | 2 | 1 << 16)
             return fair.id, caught.id, cheater.id, again.id, realm.status()["caught_cheating"]
-        fair, caught, cheater, again, count = run_realm(test, cheats="separes")
+        fair, caught, cheater, again, count = run_realm(test, cheats="separate")
         self.assertNotEqual(fair, caught)
         self.assertEqual(caught, cheater)
         self.assertEqual(again, cheater)            # still with the cheaters for anticheat_ban minutes
@@ -240,7 +240,7 @@ class AntiCheat(unittest.TestCase):
             first = await testclient.matchmake(a, 3, report=0x100)
             second = await testclient.matchmake(b, 3)                 # a game without the online mod's report
             return first.id, second.id
-        first, second = run_realm(test, cheats="autorises")
+        first, second = run_realm(test, cheats="allowed")
         self.assertEqual(first, second)
 
 
@@ -357,7 +357,7 @@ class Bots(unittest.TestCase):
 
 
 class Options(unittest.TestCase):
-    """serveur.toml options: max_players (more AI subs) and the cheat policy."""
+    """server.toml options: max_players (more AI subs) and the cheat policy."""
 
     def test_versions_never_meet(self):
         async def test(realm, port):
@@ -383,10 +383,10 @@ class Options(unittest.TestCase):
     def test_cheaters_kept_apart(self):
         async def test(realm, port):
             fair = await matchmade(port, 0x10000001)
-            cheater = await matchmade(port, 0x10000002, "triche")
-            other = await matchmade(port, 0x10000003, "triche")
+            cheater = await matchmade(port, 0x10000002, "cheats")
+            other = await matchmade(port, 0x10000003, "cheats")
             return fair.id, cheater.id, other.id
-        fair, cheater, other = run_realm(test, cheats="separes")
+        fair, cheater, other = run_realm(test, cheats="separate")
         self.assertNotEqual(fair, cheater)
         self.assertEqual(cheater, other)
 
@@ -396,7 +396,7 @@ class Options(unittest.TestCase):
             specs = await matchmade(port, 0x10000002, "specs")
             cheater = await matchmade(port, 0x10000003, "premium,triche")
             return fair.id, specs.id, cheater.id
-        fair, specs, cheater = run_realm(test, cheats="separes")
+        fair, specs, cheater = run_realm(test, cheats="separate")
         self.assertNotEqual(fair, specs)
         self.assertEqual(specs, cheater)
 
@@ -415,7 +415,7 @@ class Options(unittest.TestCase):
         async def test(realm, port):
             await matchmade(port, 0x10000001)
             await matchmade(port, 0x10000002)
-            await matchmade(port, 0x10000003, "triche")
+            await matchmade(port, 0x10000003, "cheats")
             status = StatusServer([realm])
             web = free_tcp_port()
             await status.start("127.0.0.1", web)
@@ -432,20 +432,20 @@ class Options(unittest.TestCase):
         self.assertEqual(realm["cheaters_online"], 1)
         self.assertEqual(sorted((m["players"], m["cheaters"]) for m in realm["matches"]), [(1, True), (2, False)])
         self.assertNotIn("268435457", json.dumps(data))      # no player id (0x10000001)
-        self.assertIn("3</b> joueur(s)", page)
+        self.assertIn("3</b> player(s)", page)
 
     def test_cheaters_allowed(self):
         async def test(realm, port):
-            return (await matchmade(port, 0x10000001)).id, (await matchmade(port, 0x10000002, "triche")).id
-        fair, cheater = run_realm(test, cheats="autorises")
+            return (await matchmade(port, 0x10000001)).id, (await matchmade(port, 0x10000002, "cheats")).id
+        fair, cheater = run_realm(test, cheats="allowed")
         self.assertEqual(fair, cheater)
 
     def test_cheaters_refused(self):
         async def test(realm, port):
             with self.assertRaises(testclient.ClientError):
-                await matchmade(port, 0x10000002, "triche")
+                await matchmade(port, 0x10000002, "cheats")
             return (await matchmade(port, 0x10000001)).id
-        self.assertTrue(run_realm(test, cheats="refuses"))
+        self.assertTrue(run_realm(test, cheats="refused"))
 
     def test_bad_option(self):
         with self.assertRaises(ValueError):

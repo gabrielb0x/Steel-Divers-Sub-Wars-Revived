@@ -61,14 +61,14 @@ build/pawncc:
 		-I. -I../amx -I../linux -o $(CURDIR)/$@ sc1.c sc2.c sc3.c sc4.c sc5.c sc6.c sc7.c scexpand.c sci18n.c \
 		sclist.c scmemfil.c scstate.c scvars.c lstring.c memfile.c ../linux/binreloc.c -lm
 
-# The bots of the online battles, written in Pawn (mods/en-ligne/src) -> mods/en-ligne/*.pasm (committed);
+# The bots of the online battles, written in Pawn (mods/online/src) -> mods/online/*.pasm (committed);
 # tools/botsim.py runs them in a sandbox. The same for the update v5200 (*-v5200.pasm): the Pawn sources compiled
 # for its scripts, the hand-written .pasm translated by tools/amxport.py (addresses it cannot pair: v5200.toml).
-BOTS_SRC := $(wildcard mods/en-ligne/src/*.p)
-BOTS_PASM := bots_salon:mode_lobby bots_bataille:mode_periscope bots_hud:hud bots_joueur:pscope_player \
-	anti_triche_joueur:pscope_player anti_triche_tir:periscope_move
+BOTS_SRC := $(wildcard mods/online/src/*.p)
+BOTS_PASM := bots_lobby:mode_lobby bots_battle:mode_periscope bots_hud:hud bots_player:pscope_player \
+	anticheat_player:pscope_player anticheat_fire:periscope_move
 bots: build/pawncc
-	python3 tools/pawn2pasm.py $(BOTS_SRC) mods/premium/src/couleurs.p
-	python3 tools/pawn2pasm.py --version v5200 $(BOTS_SRC) mods/premium/src/couleurs.p
-	for p in $(BOTS_PASM); do python3 tools/amxport.py $${p#*:} --pasm mods/en-ligne/$${p%%:*}.pasm \
-		mods/en-ligne/$${p%%:*}-v5200.pasm --overrides mods/en-ligne/v5200.toml || exit 1; done
+	python3 tools/pawn2pasm.py $(BOTS_SRC) mods/premium/src/colours.p
+	python3 tools/pawn2pasm.py --version v5200 $(BOTS_SRC) mods/premium/src/colours.p
+	for p in $(BOTS_PASM); do python3 tools/amxport.py $${p#*:} --pasm mods/online/$${p%%:*}.pasm \
+		mods/online/$${p%%:*}-v5200.pasm --overrides mods/online/v5200.toml || exit 1; done

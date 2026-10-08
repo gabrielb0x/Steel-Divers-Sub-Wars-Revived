@@ -1,0 +1,28 @@
+# Mod "title credits": the two lines at the bottom of the top screen, on the title screen.
+#
+#   tools/mod.py build title-credits --install
+#   tools/mod.py build premium title-credits --set line2="Open Sourced by me" --install
+#
+# They come from two texts of the game (text/*.bxml, every language) that the title screen's layout
+# (layouts/mode_title_u.arc) calls by their key: [title_company_name] and [title_codeveloped]. The engine
+# widens the text's room when it is longer and shrinks it when it goes past the planned width
+# (substituteKeystrings, source/gfx/layout.cpp): longer lines fit.
+
+name = "Title screen credits"
+description = "\"© 2026 Nintendo Lawyers\" and \"Open Sourced by gabrielb0x.\" under the title (editable texts)"
+
+[params.line1]
+help = "first line (\"© 2014 Nintendo\" in the game)"
+default = "© 2026 Nintendo Lawyers"
+
+[params.line2]
+help = "second line (\"Co-developed by VITEI INC.\" in the game)"
+default = "Open Sourced by gabrielb0x."
+
+[[text]]
+key = "title_company_name"
+text = "${line1}"
+
+[[text]]
+key = "title_codeveloped"
+text = "${line2}"

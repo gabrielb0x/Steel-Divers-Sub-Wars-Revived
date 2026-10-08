@@ -18,13 +18,13 @@ Il faut [Python 3.11 ou plus récent](https://www.python.org/downloads/) (rien d
 **votre** copie du jeu européen, déchiffrée (`.cia`, `.cxi` ou `.3ds`). Windows, macOS et Linux.
 
 1. Téléchargez ce projet (bouton *Code > Download ZIP* sur GitHub) et décompressez-le.
-2. Double-cliquez sur le lanceur de votre système : `lancer-windows.bat` (Windows), `lancer-macos.command`
-   (macOS ; la première fois, clic droit > Ouvrir), `lancer-linux.sh` (Linux), ou dans un terminal
+2. Double-cliquez sur le lanceur de votre système : `launch-windows.bat` (Windows), `launch-macos.command`
+   (macOS ; la première fois, clic droit > Ouvrir), `launch-linux.sh` (Linux), ou dans un terminal
    `python3 subwars.py`. Le lanceur s'ouvre dans votre navigateur ; il ne parle qu'à votre ordinateur.
 3. Onglet **Jeu** : il trouve votre jeu (dans le dossier `cia/` du projet ou dans Azahar, sinon choisissez le
    fichier) et le prépare. Avec le `.cia` déchiffré de la **mise à jour v5200** dans `cia/` (facultatif : 16
    sous-marins et 3 cartes de plus), il la prépare aussi et peut l'installer dans l'émulateur
-   ([docs/mise-a-jour.md](docs/mise-a-jour.md)).
+   ([docs/update-v5200.md](docs/update-v5200.md)).
 4. Onglet **Mods** : cochez **Premium** (version complète et tous les sous-marins), et si vous voulez **Toutes
    les missions**, la **Triche** (dont le tir sans délai), la **Vitesse du sous-marin** (×2 à ×15), vos
    **Caractéristiques** de sous-marins ou le **Jeu en ligne**, puis *Installer dans l'émulateur* (dans chaque
@@ -48,14 +48,14 @@ Les mêmes outils existent en ligne de commande : `tools/mod.py`, `tools/save.py
 - Extraction complète du CIA (EUR, `00040000000D7E00`, v0), déjà déchiffré : aucune clé de console n'est nécessaire.
 - **Mise à jour v5200** (`0004000E000D7E00`) : extraite dans `extracted/v5200/`, installable dans Azahar ; les
   mods se construisent pour la version installée, et tous sauf le jeu en ligne marchent déjà avec elle
-  ([docs/mise-a-jour.md](docs/mise-a-jour.md)).
+  ([docs/update-v5200.md](docs/update-v5200.md)).
 - **Table des symboles du linker trouvée dans le RomFS** (`romfs:/map`) : 9431 fonctions avec leur vrai nom, leur
   taille et leur fichier objet d'origine (84,7 % du code). Elle est appliquée automatiquement dans Ghidra.
 - 44 chemins de fichiers sources originaux retrouvés (`source/net/session.cpp`, `source/amx/amxactor.cpp`, …).
 - Pseudo-code C++ exporté par fichier objet d'origine dans `decomp/raw/` (généré localement), avec les classes
   `World`, `AMXLoader` et les 647 natives Pawn typées.
 - **Scripts Pawn décompilés** : les 123 scripts qui portent la logique du jeu (modes, acteurs, interface) sont
-  décompilés en pseudo-Pawn lisible dans `decomp/scripts/` ([docs/scripts-pawn.md](docs/scripts-pawn.md)).
+  décompilés en pseudo-Pawn lisible dans `decomp/scripts/` ([docs/pawn-scripts.md](docs/pawn-scripts.md)).
 
 - **Données du jeu lisibles et modifiables** : le format BXML (niveaux, stats, textes) est décodé ; `make data`
   convertit les 490 fichiers en XML, et `tools/bxml.py --to-bxml` les reconvertit (identiques à l'octet près si on
@@ -67,14 +67,14 @@ Les mêmes outils existent en ligne de commande : `tools/mod.py`, `tools/save.py
   du manuel chiffré), et `tools/mod.py` construit et installe des mods décrits par des recettes
   ([mods/README.md](mods/README.md), [docs/mods.md](docs/mods.md)).
 - **Le jeu en ligne refonctionne** : serveur maison ([server/](server/README.md), Python sans dépendance) et mod
-  `en-ligne` pour Azahar. Deux émulateurs se connectent, se trouvent par le matchmaking et jouent une bataille
+  `online` pour Azahar. Deux émulateurs se connectent, se trouvent par le matchmaking et jouent une bataille
   ensemble. Entre deux maisons, le serveur ouvre lui-même ses ports sur la box (UPnP) et le lanceur donne
   l'adresse à partager. Protocole reconstitué : [docs/online.md](docs/online.md).
 
 ```sh
 cd server && python3 -m sdsw_server                        # le serveur (royaumes « emulateur » et « pc »)
-.venv/bin/python tools/mod.py build en-ligne --set server=<adresse> --install    # chaque joueur
-.venv/bin/python tools/mod.py build en-ligne triche --set server=<adresse> --install   # avec la triche
+.venv/bin/python tools/mod.py build online --set server=<adresse> --install    # chaque joueur
+.venv/bin/python tools/mod.py build online triche --set server=<adresse> --install   # avec la triche
 ```
 
   Le serveur règle le nombre de joueurs humains par partie et décide quoi faire des tricheurs. Un joueur
@@ -97,8 +97,8 @@ cd server && python3 -m sdsw_server                        # le serveur (royaume
 .venv/bin/python tools/save.py show                         # la sauvegarde ; unlock all, set, export…
 ```
 
-Détails : [docs/analyse-initiale.md](docs/analyse-initiale.md) · Plan : [docs/roadmap.md](docs/roadmap.md) · IA
-aussi forte qu'un joueur, combien de parties : [docs/ia.md](docs/ia.md)
+Détails : [docs/initial-analysis.md](docs/initial-analysis.md) · Plan : [docs/roadmap.md](docs/roadmap.md) · IA
+aussi forte qu'un joueur, combien de parties : [docs/ai.md](docs/ai.md)
 
 ## Arborescence
 

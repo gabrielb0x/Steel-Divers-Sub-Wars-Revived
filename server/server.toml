@@ -1,0 +1,76 @@
+# Configuration of the online server (python3 -m sdsw_server, from server/).
+# Two independent "realms": separate accounts and matches. Azahar's online mod targets the first one, the PC
+# port will target the second.
+
+[server]
+listen = "0.0.0.0"              # listening address
+public_address = "auto"         # address (IP or name) by which Internet players reach this machine;
+                                # "auto": the one the router gives (UPnP), else the one a STUN server sees
+upnp = true                     # ask the router to open the server's ports (UPnP) while it runs
+nat_check = true                # Pia's NAT detection: UDP 10025 and 10125 (ports set by the game)
+name = "Sub Wars Open Sourced"  # name shown on the status page
+status_port = 0                 # status page (players online, matches) in HTTP on this TCP port; 0: none
+
+# Match options, per realm:
+#   max_players  human players per match, 2 to 8. The game always fills each team up to 4 submarines with
+#                computer subs (flown by the host console): fewer humans, more computer subs.
+#   duration     minutes of an online battle, 1 to 30 (the game: 10); each console gets it from the server
+#                when it looks for a match (needs an up-to-date online mod, else it is 10)
+#   cheats       players whose build cheats: mods/cheats, mods/speed, or changed submarine characteristics
+#                (mods/specs); the premium mod is not one of them.
+#                "allowed" (they play with everybody), "separate" (only among themselves) or "refused".
+#                Except with "allowed", the online mod's anti-cheat watches each submarine in battle (damage
+#                cancelled, infinite torpedoes, shots too close together, impossible speed): the cheater
+#                leaves the battle, then is put with the cheaters ("separate") or kept out ("refused").
+#   anticheat_ban  minutes during which a player caught cheating only plays with the cheaters ("separate")
+#                or cannot connect any more ("refused"); 0: only taken out of the battle.
+#                The list: <data_dir>/exclusions.json (each kick is only punished once)
+#   bots         true: a player left alone in a match plays against bots after bots_delay seconds (needs an
+#                up-to-date online mod). The other options of the bots:
+#   bots_delay      seconds alone before the bots (60)
+#   bots_format     size of both teams: "4v4" (you and 3 bots against 4 bots), "1v4" (alone against 4 bots),
+#                   "2v3"... 1 to 4 per team; if someone joins you before the battle, they play with you and
+#                   the bots fill in
+#   bots_map        "random", or the map's number: 1, 2, 4 to 10, and 11 to 13 for the update v5200 (random
+#                   for the players of the original game); the launcher shows their names
+#   bots_level      "normal", "hard" or "expert": bots that fly like players (aiming where the target will
+#                   be, dodging, masker...); the level sets their reflexes and aim; in a battle between
+#                   players, the computer subs the game adds to fill the teams stay the game's
+#   bots_countdown  seconds of countdown before the battle against the bots (10)
+#   bots_crew       true: each bot takes a crew, as a player does (ratings and abilities; at the expert
+#                   level, members that only add); false: no crew (true)
+# Older French values (separes, autorises, refuses, difficile, aleatoire) are still understood.
+# To ban a player: their id (server log: "login pid ...") on a line of <data_dir>/bannis.txt; the file is
+# read again at each connection, without restarting the server.
+
+[[realm]]
+name = "emulator"               # players on emulators (mods/online)
+auth_port = 61000               # authentication server (UDP)
+secure_port = 61001             # secure server (UDP)
+data_dir = "data/emulator"      # accounts (sqlite), relative to this file
+max_players = 8
+duration = 10
+cheats = "separate"
+anticheat_ban = 30
+bots = true
+bots_delay = 60
+bots_format = "4v4"
+bots_map = "random"
+bots_level = "hard"
+bots_countdown = 10
+
+[[realm]]
+name = "pc"                     # players of the PC port
+auth_port = 61010
+secure_port = 61011
+data_dir = "data/pc"
+max_players = 8
+duration = 10
+cheats = "separate"
+anticheat_ban = 30
+bots = true
+bots_delay = 60
+bots_format = "4v4"
+bots_map = "random"
+bots_level = "hard"
+bots_countdown = 10

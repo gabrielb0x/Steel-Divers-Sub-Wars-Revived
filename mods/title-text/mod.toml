@@ -1,0 +1,9 @@
+# An example mod: replaces "Free version" under the logo of the title screen, in every language.
+# It checks that the whole chain works (recipe -> BXML -> mod folder -> Azahar).
+name = "Title screen text"
+hidden = true                             # an example: not in the launcher (subwars.py)
+description = "Example: \"Free version\" becomes \"Modded version\" on the title screen"
+
+[[text]]
+key = "title_version"
+text = "Modded version"

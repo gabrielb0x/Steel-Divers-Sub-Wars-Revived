@@ -80,10 +80,10 @@ class SaveData:
     @classmethod
     def parse(cls, data: bytes) -> "SaveData":
         if len(data) < 16:
-            raise SaveError("fichier trop court pour être une sauvegarde")
+            raise SaveError("file too short to be a save")
         crc, = struct.unpack_from("<I", data)
         if crc != zlib.crc32(data[4:]):
-            raise SaveError("CRC incorrect : ce n'est pas une sauvegarde de ce jeu, ou elle est abîmée")
+            raise SaveError("bad CRC: not a save of this game, or a damaged one")
         version, n_ints, n_arrays = struct.unpack_from("<III", data, 4)
         save, pos = cls(version), 16
 
@@ -104,9 +104,9 @@ class SaveData:
                 save.arrays[key] = list(struct.unpack_from(f"<{count}i", data, pos + 4))
                 pos += 4 + 4 * count
         except (ValueError, struct.error) as e:
-            raise SaveError(f"sauvegarde tronquée ({e})") from e
+            raise SaveError(f"truncated save ({e})") from e
         if pos != len(data):
-            raise SaveError(f"{len(data) - pos} octet(s) inattendu(s) à la fin")
+            raise SaveError(f"{len(data) - pos} unexpected byte(s) at the end")
         return save
 
     def to_bytes(self) -> bytes:
@@ -208,9 +208,9 @@ def s32(value: int) -> int:
 
 def check_name(key: str) -> None:
     if not key.startswith("save"):
-        raise SaveError(f"{key} : le jeu ne sauvegarde que les valeurs dont le nom commence par « save »")
+        raise SaveError(f"{key}: the game only saves the values whose name starts with \"save\"")
     if len(key) > 63 or not key.isascii() or "\0" in key:
-        raise SaveError(f"{key} : les noms sont en ASCII, 63 caractères au plus")
+        raise SaveError(f"{key}: names are ASCII, 63 characters at most")
 
 
 def parse_value(text: str) -> int | list[int]:
@@ -224,12 +224,12 @@ def parse_value(text: str) -> int | list[int]:
     try:
         return [one(t) for t in text.split(",")] if "," in text else one(text)
     except ValueError as e:
-        raise SaveError(f"{text!r} : il faut un entier, un nombre à virgule ou des valeurs séparées par des virgules") from e
+        raise SaveError(f"{text!r}: an integer, a decimal number or values separated by commas is needed") from e
 
 
 # ---- game texts (optional: names of the submarines and crew) --------------------------------------
 
-def game_texts(language: str = "EU_French", version: str = versions.BASE) -> dict[str, str]:
+def game_texts(language: str = "EU_English", version: str = versions.BASE) -> dict[str, str]:
     """Texts of the player's game files (make extract), to show names; empty without them."""
     xml = ROOT / "extracted" / "xml" / "text" / f"{language}.xml"
     try:
@@ -263,7 +263,7 @@ def sub_name(texts: dict[str, str], index: int, version: str = versions.BASE) ->
     """Submarine of index 0..22, 0..38 in v5200 (save.sub.typenum is this index + 1). The update numbers the texts
     from 1 and adds width codes ("\\x0e(70)Garfish\\x0e(142.85…)") around the names."""
     key = f"sub_icon_name{index:02d}" if layout(version) == versions.BASE else f"sub_icon_name{index + 1:02d}"
-    return re.sub(r"\\x0e\([^)]*\)|\x0e\([^)]*\)", "", texts.get(key) or "").strip() or f"sous-marin {index + 1}"
+    return re.sub(r"\\x0e\([^)]*\)|\x0e\([^)]*\)", "", texts.get(key) or "").strip() or f"submarine {index + 1}"
 
 
 def save_version(path: Path, save: "SaveData | None" = None) -> str:
@@ -284,19 +284,19 @@ def find_save(path: Path | None) -> Path:
         if path.is_dir():
             path = path / "save"
         if not path.exists():
-            raise SaveError(f"{path} : fichier introuvable")
+            raise SaveError(f"{path}: file not found")
         return path
     found = azahar.save_files()
     if not found:
-        raise SaveError("aucune sauvegarde du jeu trouvée dans Azahar (lancez le jeu une fois jusqu'à l'écran titre, "
-                        "ou indiquez-la avec --file)")
+        raise SaveError("no save of the game found in Azahar (start the game once, up to the title screen, "
+                        "or give it with --file)")
     if len(found) > 1:
-        raise SaveError("plusieurs sauvegardes trouvées, choisissez-en une avec --file :\n  " + "\n  ".join(map(str, found)))
+        raise SaveError("several saves found, choose one with --file:\n  " + "\n  ".join(map(str, found)))
     return found[0]
 
 
 def backup(path: Path) -> Path:
-    folder = azahar.config_dir() / "sauvegardes"
+    folder = azahar.settings_file("save-backups", "sauvegardes")
     stamp = time.strftime("%Y%m%d-%H%M%S")
     n = 0
     while (folder / (stamp + (f"-{n}" if n else ""))).exists():
@@ -314,7 +314,7 @@ def write(path: Path, save: SaveData) -> None:
     tmp = path.with_name(path.name + ".tmp")
     tmp.write_bytes(data)
     tmp.replace(path)
-    print(f"[+] sauvegarde écrite : {path}\n    copie de l'ancienne : {copy}")
+    print(f"[+] save written: {path}\n    copy of the old one: {copy}")
 
 
 # ---- commands ------------------------------------------------------------------------------------
@@ -323,20 +323,20 @@ def show(save: SaveData, version: str = versions.BASE) -> None:
     texts = game_texts(version=version)
     typenum = save.ints.get("save.sub.typenum", 1)
     name = bytes(v & 0xFF for v in save.arrays.get("save.sub.filteredname", [])).split(b"\0")[0]
-    print(f"Joueur : {name.decode('utf-8', 'replace') or '?'}    version de la sauvegarde : {save.version}    "
-          f"jeu : {versions.label(version)}")
-    print(f"Sous-marin choisi : n° {typenum} ({sub_name(texts, typenum - 1, version)})")
+    print(f"Player: {name.decode('utf-8', 'replace') or '?'}    save version: {save.version}    "
+          f"game: {versions.label(version)}")
+    print(f"Submarine chosen: n° {typenum} ({sub_name(texts, typenum - 1, version)})")
     unlocked = save.unlocked_subs(version)
     paid = PAID_SUBS[layout(version)]
-    print(f"Sous-marins débloqués : {sum(unlocked)}/{len(unlocked)} "
-          f"(les n° {', '.join(map(str, paid))} dépendent en plus du DLC ou du mod premium)")
+    print(f"Submarines unlocked: {sum(unlocked)}/{len(unlocked)} "
+          f"(n° {', '.join(map(str, paid))} also depend on the DLC or the premium mod)")
     for i, flag in enumerate(unlocked):
         print(f"  {'x' if flag else ' '} {i + 1:2d} {sub_name(texts, i, version)}")
     patterns = save.array("save.sub.pattern.unlock", PATTERNS)
     patterns[0] = 1
     crew, crew_total = save.crew_unlocked(version)
-    print(f"Motifs débloqués : {sum(1 for p in patterns if p)}/{PATTERNS}    équipage : {crew}/{crew_total}")
-    print("Missions (médaille : - aucune, o terminée, * or ; meilleur temps) :")
+    print(f"Patterns unlocked: {sum(1 for p in patterns if p)}/{PATTERNS}    crew: {crew}/{crew_total}")
+    print("Missions (medal: - none, o completed, * gold; best time):")
     for stage in range(1, STAGES + 1):
         cells = []
         for level in range(1, LEVELS + 1):
@@ -345,14 +345,14 @@ def show(save: SaveData, version: str = versions.BASE) -> None:
             cells.append(f"{stage}-{level} {medal} {f'{t:6.1f} s' if t else '       -'}")
         print("  " + "    ".join(cells))
     gold = sum(save.medal(s, l) >= MEDAL_GOLD for s in range(1, STAGES + 1) for l in range(1, LEVELS + 1))
-    print(f"  médailles d'or : {gold}/{STAGES * LEVELS}")
+    print(f"  gold medals: {gold}/{STAGES * LEVELS}")
     stats = {k: save.ints.get(f"save.multi.{k}", 0) for k in
              ("games", "wins", "losses", "ties", "quits", "points", "kills", "killed", "hits", "shots")}
-    print("En ligne : {games} parties, {wins} victoires, {losses} défaites, {ties} nuls, {quits} abandons ; "
-          "{points} points ; {kills} coulés, {killed} fois coulé ; {hits} touches pour {shots} tirs".format(**stats))
+    print("Online: {games} battles, {wins} wins, {losses} losses, {ties} draws, {quits} quits; "
+          "{points} points; {kills} sunk, sunk {killed} times; {hits} hits for {shots} shots".format(**stats))
     if save.ints.get("save.sub.enlist"):
-        print("Drapeau premium : oui (sans la version complète ni le mod premium, Start affiche l'erreur 098-0101 ;"
-              " « save.py premium-off » le retire)")
+        print("Premium flag: yes (without the full version or the premium mod, Start shows error 098-0101;"
+              " \"save.py premium-off\" clears it)")
 
 
 def main() -> None:
@@ -383,13 +383,13 @@ def main() -> None:
         if args.command == "where":
             for path in azahar.save_files():
                 print(path)
-            print(f"copies de sécurité : {azahar.config_dir() / 'sauvegardes'}")
+            print(f"backups: {azahar.settings_file('save-backups', 'sauvegardes')}")
             return
         path = find_save(args.file)
         save = SaveData.parse(path.read_bytes())
         game = args.version or save_version(path, save)
         if save.version != VERSION:
-            print(f"[!] version {save.version} : le jeu attend {VERSION} et ignorerait cette sauvegarde")
+            print(f"[!] version {save.version}: the game expects {VERSION} and would ignore this save")
         if args.command == "show":
             print(f"{path}\n")
             show(save, game)
@@ -401,7 +401,7 @@ def main() -> None:
         elif args.command == "get":
             value = save.get(args.name)
             if value is None:
-                raise SaveError(f"{args.name} : absent de la sauvegarde (le jeu le lit comme 0)")
+                raise SaveError(f"{args.name}: not in the save (the game reads it as 0)")
             print(",".join(map(str, value)) if isinstance(value, list) else value)
         elif args.command == "export":
             args.json.write_text(json.dumps({"version": save.version, "ints": save.ints, "arrays": save.arrays},
@@ -419,27 +419,27 @@ def main() -> None:
                     save.set(key, [int(v) for v in values])
             elif args.command == "premium-off":
                 if not save.premium_off():
-                    print("[=] pas de drapeau premium dans cette sauvegarde : rien à faire")
+                    print("[=] no premium flag in this save: nothing to do")
                     return
             elif args.command == "unlock":
                 what = set(args.what)
                 if "all" in what:
                     what = {"subs", "patterns", "crew", "missions"}
                 if "subs" in what:
-                    print(f"[+] sous-marins : {save.unlock_subs(game)} débloqué(s)")
+                    print(f"[+] submarines: {save.unlock_subs(game)} unlocked")
                 if "patterns" in what:
                     colours = default_pattern_colours()
-                    print(f"[+] motifs : {save.unlock_patterns(colours)} débloqué(s)"
-                          + ("" if colours else " (couleurs par défaut inconnues sans les fichiers du jeu)"))
+                    print(f"[+] patterns: {save.unlock_patterns(colours)} unlocked"
+                          + ("" if colours else " (default colours unknown without the game's files)"))
                 if "crew" in what:
-                    print(f"[+] équipage : {save.unlock_crew(game)} débloqué(s)")
+                    print(f"[+] crew: {save.unlock_crew(game)} unlocked")
                 if "gold" in what:
-                    print(f"[+] missions : {save.award_medals(MEDAL_GOLD)} médaille(s) d'or")
+                    print(f"[+] missions: {save.award_medals(MEDAL_GOLD)} gold medal(s)")
                 elif "missions" in what:
-                    print(f"[+] missions : {save.award_medals(MEDAL_CLEARED)} mission(s) marquée(s) terminée(s)")
-                print(f"    (les sous-marins 2 à {sub_count(game)} demandent la version complète : mod premium)")
+                    print(f"[+] missions: {save.award_medals(MEDAL_CLEARED)} mission(s) marked completed")
+                print(f"    (submarines 2 to {sub_count(game)} need the full version: premium mod)")
             write(path, save)
-            print("    Fermez le jeu dans l'émulateur avant de le relancer : il réécrirait l'ancienne sauvegarde.")
+            print("    Close the game in the emulator before starting it again: it would write the old save back.")
     except SaveError as e:
         sys.exit(f"[!] {e}")
 

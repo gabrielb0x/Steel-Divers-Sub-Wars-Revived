@@ -2,7 +2,7 @@
 """Compile Pawn source into Pawn assembly for tools/amxasm.py: new code for a script of the game, written
 in Pawn instead of assembly (mods/*/src/*.p -> mods/*/*.pasm).
 
-    tools/pawn2pasm.py mods/en-ligne/src/bots_ia.p        # writes mods/en-ligne/bots_ia.pasm
+    tools/pawn2pasm.py mods/online/src/bots_pilot.p        # writes mods/online/bots_pilot.pasm
 
 A tool of the developers, not of the players: the .pasm it writes is committed, and tools/mod.py assembles it
 with Python alone. It needs the Pawn 3.3 compiler (`make pawncc`, build/pawncc) and the dump (the game's script,

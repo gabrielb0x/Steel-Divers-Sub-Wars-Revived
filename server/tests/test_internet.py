@@ -281,7 +281,7 @@ class PlayersAtHome(unittest.TestCase):
 class StateFile(unittest.TestCase):
     def test_written_while_running(self):
         async def main(tmp: Path):
-            config = tmp / "serveur.toml"
+            config = tmp / "server.toml"
             config.write_text(f'[server]\nlisten = "127.0.0.1"\npublic_address = "{PUBLIC}"\nupnp = false\n'
                               f'nat_check = false\n[[realm]]\nname = "test"\nauth_port = {free_udp_port()}\n'
                               f'secure_port = {free_udp_port()}\n', encoding="utf-8")

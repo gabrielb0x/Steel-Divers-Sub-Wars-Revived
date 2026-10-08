@@ -34,8 +34,8 @@ dit à quoi sert chaque fichier. Ce sont des copies du jeu : elles ne se partage
 
 ```sh
 .venv/bin/python tools/mod.py list                       # mods disponibles
-.venv/bin/python tools/mod.py build texte-titre          # -> build/mods/texte-titre/
-.venv/bin/python tools/mod.py build texte-titre --install
+.venv/bin/python tools/mod.py build title-text          # -> build/mods/title-text/
+.venv/bin/python tools/mod.py build title-text --install
 .venv/bin/python tools/azahar.py uninstall               # revenir au jeu d'origine
 ```
 
@@ -44,7 +44,7 @@ automatiquement, ou la variable `AZAHAR_DIR`). Un seul mod est actif à la fois.
 `make extract` : les recettes s'appliquent aux fichiers extraits du dump.
 
 Le mod est construit pour la version du jeu que fait tourner l'émulateur : la v0, ou la **mise à jour v5200** si
-elle y est installée ([../docs/mise-a-jour.md](../docs/mise-a-jour.md)). `--version v0` ou `--version v5200` en
+elle y est installée ([../docs/update-v5200.md](../docs/update-v5200.md)). `--version v0` ou `--version v5200` en
 choisit une ; `tools/mod.py list` dit avec quelles versions marche chaque mod. Une construction pour la v5200 va
 dans `build/mods/<nom>-v5200/`.
 
@@ -54,7 +54,7 @@ dans `build/mods/<nom>-v5200/`.
 .venv/bin/python tools/azahar.py uninstall-update          # revenir à la v0
 ```
 
-Chaque construction inclut les **correctifs** du jeu (`mods/correctifs`, `always = true`), sauf avec `--no-fixes` ;
+Chaque construction inclut les **correctifs** du jeu (`mods/fixes`, `always = true`), sauf avec `--no-fixes` ;
 `tools/mod.py build correctifs --install` les installe seuls.
 
 ## Écrire une recette : `mods/<nom>/mod.toml`
@@ -123,7 +123,7 @@ Autres possibilités : `from = "bxml/x.bxml"` dans `[[bxml]]` crée un nouveau f
 `scale = "${facteur}"` qui multiplie tous les nombres des nœuds choisis (après `set`) ;
 `if = "${option}"` sur n'importe quelle entrée (appliquée seulement si l'option vaut `oui`), ou
 `unless = "${option}"` (seulement si elle vaut `non`) ;
-`token_flags = ["triche"]` en tête de recette (annoncé au serveur en ligne dans le jeton) ; `always = true` en tête
+`token_flags = ["cheats"]` en tête de recette (annoncé au serveur en ligne dans le jeton) ; `always = true` en tête
 de recette : le mod fait partie de toutes les constructions (correctifs du jeu). Toute recette reçoit aussi
 `${sdsw_version}`, la version de Sub Wars Open Sourced (fichier `VERSION`, et le nombre de commits dans un dépôt
 git : « v0.1.34 »). `[[layout]]` (`file`, `pane`, `width`, `height`) change la taille d'un cadre d'une mise en
@@ -155,8 +155,8 @@ jeu. Chaque construction écrit `sdsw.json` (version et mods) dans le dossier du
 les mods installés ne correspondent plus à la version du jeu. Un mod toujours inclus (`always = true`) qui ne
 marche pas avec la version construite est laissé de côté, avec un message.
 
-**Plusieurs mods ensemble** : `tools/mod.py build en-ligne triche …` les construit dans un seul dossier
-(`build/mods/en-ligne+triche/`), puisqu'Azahar n'en charge qu'un.
+**Plusieurs mods ensemble** : `tools/mod.py build online triche …` les construit dans un seul dossier
+(`build/mods/online+triche/`), puisqu'Azahar n'en charge qu'un.
 
 Les adresses et les noms viennent de la décompilation (`decomp/`, `ghidra/symbols.txt`) ; les formats sont décrits
 dans [../docs/formats.md](../docs/formats.md).
@@ -184,14 +184,14 @@ Aussi : des fonctions (`nom:` puis `proc` … `retn`, appelées par `call @nom`)
 fonction publique de plus), `.var $nom [cellules]`, `.cells $nom 1, 2`, `.string $nom "texte"`, les chaînes
 entre guillemets (gardées dans les données du script), les globales du script par leur adresse (`g_504c`),
 `float(1.5)`. Une native absente du script est ajoutée à sa table. Voir les `bots_*.pasm` de
-[en-ligne](en-ligne/).
+[online](online/).
 
 Pour du code plus long, on l'écrit en Pawn : `tools/pawn2pasm.py src/x.p` le compile avec le compilateur Pawn 3.3
 (`make pawncc`, outil des développeurs) et écrit `x.pasm`, qu'on publie. Les globales du script sont déclarées
 `// @game Float:g_1ca0[3]` et ses fonctions `// @call 0x2ea0 nom(paramètres)`. Le code compilé lit et écrit ces
 globales à leur vraie adresse, et ses propres données vont à la fin de celles du script (`.data_at`). Les hooks
 restent écrits à la main, dans des commentaires `/* asm … */` de la source. Exemple : le pilote des bots,
-[`en-ligne/src/bots_ia.p`](en-ligne/src/bots_ia.p) ([../docs/bots.md](../docs/bots.md)).
+[`online/src/bots_pilot.p`](online/src/bots_pilot.p) ([../docs/bots.md](../docs/bots.md)).
 
 ## Mods disponibles
 
@@ -204,15 +204,15 @@ restent écrits à la main, dans des commentaires `/* asm … */` de la source. 
 | `version` | toutes | toujours inclus : la version de Sub Wars Open Sourced à la fin de la ligne sous le titre (« … v0.1.34 », même police que la ligne du dessus) |
 | `premium` | v0, v5200 | version complète, tous les sous-marins (23, 39 avec la mise à jour), motifs et équipage débloqués, sans l'eShop ([détails](../docs/premium.md)) |
 | `missions` | v0, v5200 | les 21 missions du mode solo jouables tout de suite, sans toucher à la sauvegarde |
-| `en-ligne` | v0, v5200 | jeu en ligne sur un serveur [Sub Wars Open Sourced](../server/README.md), avec ses bots pour un joueur seul et des bots qui jouent comme des joueurs ([bots.md](../docs/bots.md)), son anti-triche, la durée des batailles réglée par le serveur et un dialogue qui dit quel serveur est utilisé |
+| `online` | v0, v5200 | jeu en ligne sur un serveur [Sub Wars Open Sourced](../server/README.md), avec ses bots pour un joueur seul et des bots qui jouent comme des joueurs ([bots.md](../docs/bots.md)), son anti-triche, la durée des batailles réglée par le serveur et un dialogue qui dit quel serveur est utilisé |
 | `musique` | v0, v5200 | vos musiques (MP3, WAV… converties par l'onglet Musique du lanceur, ou `tools/music.py`) à la place de celles du jeu ; rien ne change en ligne |
 | `specs` | v0, v5200 | vos propres caractéristiques de sous-marins (`tools/subs.py`) ; en ligne, comptées comme triche |
-| `mention-titre` | toutes | « © 2026 Nintendo Lawyers » et « Open Sourced by gabrielb0x. » sous le titre (options `ligne1`, `ligne2`) |
+| `title-credits` | toutes | « © 2026 Nintendo Lawyers » et « Open Sourced by gabrielb0x. » sous le titre (options `ligne1`, `ligne2`) |
 | `triche` | v0, v5200 | invincible, torpilles et air infinis, tir sans délai, rechargement rapide, masqueur gratuit, moteur gonflé |
 | `vitesse` | toutes | votre sous-marin va 2, 3, 5, 10 ou 15 fois plus vite (option `facteur`) ; en ligne, compté comme triche |
-| `texte-titre` | toutes | exemple : « Version gratuite » devient « Version moddée » sur l'écran titre |
+| `title-text` | toutes | exemple : « Version gratuite » devient « Version moddée » sur l'écran titre |
 
-« v0 » : le jeu sans sa mise à jour ; « v5200 » : avec la mise à jour ([../docs/mise-a-jour.md](../docs/mise-a-jour.md)).
+« v0 » : le jeu sans sa mise à jour ; « v5200 » : avec la mise à jour ([../docs/update-v5200.md](../docs/update-v5200.md)).
 
 ## Pseudo de la console
 
@@ -280,7 +280,7 @@ image). En ligne, le serveur le compte comme de la triche.
 
 ```sh
 .venv/bin/python tools/mod.py build premium --install                                     # hors ligne
-.venv/bin/python tools/mod.py build en-ligne premium --set server=192.0.2.10 --install      # en ligne
+.venv/bin/python tools/mod.py build online premium --set server=192.0.2.10 --install      # en ligne
 ```
 
 La version complète (« premium ») et les cinq sous-marins historiques se vendaient sur l'eShop, fermé depuis
@@ -347,7 +347,7 @@ structure à l'octet près), qui boucle depuis le début. La musique ne change q
 
 ```sh
 .venv/bin/python tools/mod.py build triche --install                                  # hors ligne
-.venv/bin/python tools/mod.py build en-ligne triche --set server=192.0.2.10 --install   # en ligne
+.venv/bin/python tools/mod.py build online triche --set server=192.0.2.10 --install   # en ligne
 .venv/bin/python tools/mod.py build triche --set moteur=non --set rechargement=non --install
 ```
 
@@ -365,7 +365,7 @@ selon sa configuration, ne vous fait jouer qu'avec d'autres tricheurs.
 
 ```sh
 make extract                                               # une fois : les fichiers du dump
-.venv/bin/python tools/mod.py build en-ligne --set server=192.0.2.10 --install
+.venv/bin/python tools/mod.py build online --set server=192.0.2.10 --install
 ```
 
 `server` est l'adresse du serveur (IP ou nom, 31 caractères au plus ; `127.0.0.1` par défaut, pour un serveur sur

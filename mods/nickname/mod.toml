@@ -1,0 +1,136 @@
+# Mod "nickname": online and offline, your name is the console's nickname (the emulator's), not your Mii's
+# name. Part of every build (like the fixes).
+#
+# What the game does: the name shown for each player (lobby, battle, results) comes from their Mii, which
+# each console sends to the others (FaceSystem::sendMii, 0x60 bytes of Mii data). Under an emulator there is
+# no Mii of one's own: the emulator gives a default one, the same for everybody ("Citra" in Azahar). The
+# console's nickname, though, is set in the emulator (Azahar: Emulation > Configure > System > Username; the
+# same setting in Citra, Lime3DS, Mandarine, Borked3DS; the game reads it through nn::cfg, which every
+# emulator provides).
+#
+# The patch replaces the name of the player's Mii with this nickname (10 characters at most, like a Mii
+# name) and computes the Mii data's checksum again (CRC-16 XMODEM of bytes 0 to 0x5D, big-endian at 0x5E),
+# at the three places the game takes it from: the save (FaceSystem::setStoreData), the console's Mii
+# database (FaceSystem::updateMii) and reading the name (FaceSystem::getStoreDataName, for the player
+# themselves). The other consoles therefore receive a Mii that bears your nickname. An empty nickname keeps
+# the Mii's name. The Mii's face does not change.
+#
+# The added code goes in SEQ_WRITELIST_Write (Mii library, 1940 bytes, which the game never calls: no
+# reference to it in the executable); docs/mods.md keeps the list of these free places.
+#
+# Update v5200: these four functions and GetUserName are the same there (only their addresses and those of
+# what they call change); SEQ_WRITELIST_Write is still called by no one.
+
+name = "Console nickname"
+description = "Online and offline, your name is the console's (emulator's) nickname, not \"Citra\""
+versions = ["v0", "v5200"]
+always = true
+
+[symbols]
+getStoreDataName_body = { v0 = 0x00176C90, v5200 = 0x00177FF4 }    # after its push
+updateMii_resume = { v0 = 0x00176F10, v5200 = 0x00178274 }
+memcpy = { v0 = 0x00252B00, v5200 = 0x002690A0 }                   # __aeabi_memcpy
+GetUserName = { v0 = 0x0018A458, v5200 = 0x0018FEA4 }              # nn::cfg::CTR::GetUserName
+own_mii = { v0 = 0x00593C68, v5200 = 0x005BE8B0 }                  # the console's Mii (FaceSystem)
+
+[[code]]
+address = { v0 = 0x0014BC90, v5200 = 0x0014C554 }   # SEQ_WRITELIST_Write (never called), 0x000-0x0FF
+expect = "f14f2de940d04de2"
+max_size = 0x100
+arm = """
+@ getStoreDataName(store, out, size, isMe, isGuest): for the player's own Mii, the nickname first.
+names:
+    push {r0, r1, r2, r3, r4, lr}       @ the replaced instruction: the function's frame
+    cmp r3, #0
+    beq names_back
+    push {r0, r1, r2, r3}
+    bl rename
+    pop {r0, r1, r2, r3}
+names_back:
+    b ${getStoreDataName_body}
+
+@ setStoreData(src, size, own): tail call to memcpy(dst, src, size), then the player's own Mii renamed.
+store:
+    push {r4, lr}
+    mov r4, r0
+    bl ${memcpy}
+    ldr r1, own_mii
+    cmp r4, r1
+    moveq r0, r4
+    bleq rename
+    mov r0, r4
+    pop {r4, pc}
+
+@ updateMii: the console's own Mii just read from its Mii database into 0x593C68.
+database:
+    mov r0, r4
+    bl rename
+    mov r2, r5                          @ the replaced instruction
+    b ${updateMii_resume}
+
+@ rename(store): the console's nickname as the Mii's name (0x1A, 10 UTF-16 characters), then the
+@ CRC-16 XMODEM of bytes 0 to 0x5D, big-endian at 0x5E.
+rename:
+    push {r4, r5, r6, lr}
+    sub sp, sp, #0x20
+    mov r4, r0
+    mov r0, sp
+    bl ${GetUserName}
+    ldrh r1, [sp]
+    cmp r1, #0
+    beq renamed                         @ no nickname: the Mii keeps its name
+    add r2, r4, #0x1a
+    mov r3, #0
+    mov r5, #0
+copy:
+    ldrh r1, [sp, r3]
+    cmp r1, #0
+    moveq r5, #1
+    cmp r5, #0
+    movne r1, #0
+    strh r1, [r2, r3]
+    add r3, r3, #2
+    cmp r3, #20
+    blo copy
+    ldr r6, polynomial
+    mov r0, #0
+    mov r3, #0
+crc_byte:
+    ldrb r1, [r4, r3]
+    eor r0, r0, r1, lsl #8
+    mov r2, #8
+crc_bit:
+    mov r0, r0, lsl #1
+    tst r0, #0x10000
+    eorne r0, r0, r6
+    subs r2, r2, #1
+    bne crc_bit
+    add r3, r3, #1
+    cmp r3, #0x5e
+    blo crc_byte
+    mov r1, r0, lsr #8
+    strb r1, [r4, #0x5e]
+    strb r0, [r4, #0x5f]
+renamed:
+    add sp, sp, #0x20
+    pop {r4, r5, r6, pc}
+own_mii:
+    .word ${own_mii}
+polynomial:
+    .word 0x00011021                    @ x^16 + x^12 + x^5 + 1, bit 16 cleared at the same time
+"""
+
+[[code]]
+address = { v0 = 0x00176C8C, v5200 = 0x00177FF0 }   # FaceSystem::getStoreDataName: push {r0-r4, lr}
+expect = "1f402de9"
+arm = "b ${arm_names}"
+
+[[code]]
+address = { v0 = 0x00176A0C, v5200 = 0x00177D70 }   # FaceSystem::setStoreData: b __aeabi_memcpy
+expect = { v0 = "3b7003ea", v5200 = "cac403ea" }
+arm = "b ${arm_store}"
+
+[[code]]
+address = { v0 = 0x00176F0C, v5200 = 0x00178270 }   # FaceSystem::updateMii: mov r2, r5
+expect = "0520a0e1"
+arm = "b ${arm_database}"

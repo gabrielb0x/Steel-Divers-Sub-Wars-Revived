@@ -23,7 +23,7 @@ from ctr import _SIG_SIZES, UPDATE_TITLE_ID, tmd_title_version
 ROOT = Path(__file__).resolve().parent.parent
 EXTRACTED = ROOT / "extracted"
 BASE = "v0"                                     # the game without its update
-LABELS = {"v0": "jeu d'origine", "v5200": "mise à jour"}
+LABELS = {"v0": "original game", "v5200": "update"}
 
 
 def name(title_version: int) -> str:
@@ -32,8 +32,8 @@ def name(title_version: int) -> str:
 
 
 def label(version: str) -> str:
-    """For the player: « v5200 (mise à jour) »."""
-    return f"{version} ({LABELS.get(version, 'mise à jour')})"
+    """For the player: "v5200 (update)"."""
+    return f"{version} ({LABELS.get(version, 'update')})"
 
 
 def folder(version: str) -> Path:

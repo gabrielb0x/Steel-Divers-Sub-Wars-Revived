@@ -1,39 +1,39 @@
-# Mod « toutes les missions » : les 21 missions du mode solo sont jouables tout de suite.
+# Mod "all missions": the 21 missions of the single-player mode can be played at once.
 #
 #   tools/mod.py build missions --install
 #
-# Rien n'est écrit dans la sauvegarde : vos médailles et vos meilleurs temps restent les vôtres, et
-# retirer le mod remet le menu comme avant.
+# Nothing is written to the save: your medals and best times stay yours, and removing the mod puts the menu
+# back as it was.
 #
-# Comment le menu des missions décide (amx/mode_mission_select.amx, decomp/scripts/mode_mission_select.p) :
-# * pour chacune des 7 zones, il compte les missions terminées (save.single.stageS.medal[L] > 0) ;
-# * la mission L d'une zone s'ouvre quand les L-1 précédentes sont terminées ;
-# * une zone s'ouvre quand le total des missions terminées atteint son seuil (0, 0, 5, 7, 12, 5, 9) ;
-# * en version gratuite, seules les deux premières zones du menu se lancent (sinon il propose la
-#   version complète : « g_7de8 <= 1 || isFullVersion() »).
-# Le mod fait compter chaque mission comme terminée (ce compte ne sert qu'à ouvrir les missions et au
-# total affiché en haut du menu, qui indique donc 21), et ouvre toutes les zones en version gratuite.
-# Les médailles affichées, elles, restent celles de la sauvegarde.
+# How the missions menu decides (amx/mode_mission_select.amx, decomp/scripts/mode_mission_select.p):
+# * for each of the 7 areas, it counts the missions completed (save.single.stageS.medal[L] > 0);
+# * mission L of an area opens when the L-1 before it are completed;
+# * an area opens when the total of missions completed reaches its threshold (0, 0, 5, 7, 12, 5, 9);
+# * in the free version, only the first two areas of the menu start (otherwise it offers the full
+#   version: "g_7de8 <= 1 || isFullVersion()").
+# The mod counts each mission as completed (this count only opens missions and gives the total shown at the
+# top of the menu, which therefore says 21), and opens every area in the free version. The medals shown stay
+# those of the save.
 #
-# Aucun effet en ligne : le menu des missions n'est que local.
+# No effect online: the missions menu is local only.
 #
-# Mise à jour v5200 : le script est recompilé (adresses différentes), avec la même logique et les mêmes seuils
-# des 7 zones ; ces deux fonctions se retrouvent instruction pour instruction.
+# Update v5200: the script is recompiled (other addresses), with the same logic and the same thresholds for
+# the 7 areas; both functions match instruction for instruction.
 
-name = "Toutes les missions"
-description = "Les 21 missions du mode solo jouables tout de suite, sans toucher à la sauvegarde"
+name = "All missions"
+description = "The 21 single-player missions playable at once, without touching the save"
 versions = ["v0", "v5200"]
 
 [[amx]]
 file = "amx/mode_mission_select.amx"
-address = { v0 = 0x6A50, v5200 = 0x7314 }   # jsgeq L_6a64 : « if (0 < médaille) terminées++ »
+address = { v0 = 0x6A50, v5200 = 0x7314 }   # jsgeq L_6a64: "if (0 < medal) completed++"
 operand = 0
-expect = 0x14                             # saut relatif vers 0x6A64 (pas de médaille : non comptée)
-value = 8                                 # vers l'instruction suivante : toujours comptée
+expect = 0x14                             # relative jump to 0x6A64 (no medal: not counted)
+value = 8                                 # to the next instruction: always counted
 
 [[amx]]
 file = "amx/mode_mission_select.amx"
-address = { v0 = 0x76A0, v5200 = 0x7FA8 }   # const.alt 1 de « g_7de8 <= 1 » (deux zones en version gratuite)
+address = { v0 = 0x76A0, v5200 = 0x7FA8 }   # const.alt 1 of "g_7de8 <= 1" (two areas in the free version)
 operand = 0
 expect = 1
-value = 6                                 # les 7 zones du menu (0 à 6)
+value = 6                                 # the 7 areas of the menu (0 to 6)

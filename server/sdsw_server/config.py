@@ -1,4 +1,4 @@
-"""serveur.toml: the options of the server, read and written back with their comments.
+"""server.toml: the options of the server, read and written back with their comments.
 
 The launcher (tools/webui.py) shows these options and changes them with update(): each value is
 replaced on its own line, so the comments of the file stay; a missing option is added at the end of its
@@ -26,49 +26,59 @@ class Option:
     high: int | None = None
 
 
+# The values of the options before the project went English: still understood, written back in English.
+VALUE_ALIASES = {"separes": "separate", "autorises": "allowed", "refuses": "refused", "difficile": "hard",
+                 "aleatoire": "random", "aléatoire": "random"}
+
+
+def canonical(value):
+    """An option's value, its older (French) spelling translated."""
+    return VALUE_ALIASES.get(value.strip().lower(), value.strip()) if isinstance(value, str) else value
+
+
 SERVER_OPTIONS = (
-    Option("name", "text", "Sub Wars Open Sourced", "Nom", "affiché sur la page d'état"),
+    Option("name", "text", "Sub Wars Open Sourced", "Name", "shown on the status page"),
     Option("public_address", "text", "auto", "Adresse publique",
-           "IP ou nom par lequel Internet joint ce serveur ; auto : celle de la box (UPnP), sinon STUN"),
-    Option("upnp", "bool", True, "UPnP", "demander à la box d'ouvrir les ports du serveur"),
-    Option("nat_check", "bool", True, "Détection de NAT", "UDP 10025 et 10125, ports fixés par le jeu"),
-    Option("status_port", "int", 0, "Page d'état", "port TCP de la page d'état (0 : aucune)", low=0, high=65535),
-    Option("listen", "text", "0.0.0.0", "Adresse d'écoute", "0.0.0.0 : toutes les interfaces"),
+           "IP or name by which the Internet reaches this server; auto: the router's (UPnP), else STUN"),
+    Option("upnp", "bool", True, "UPnP", "ask the router to open the server's ports"),
+    Option("nat_check", "bool", True, "NAT detection", "UDP 10025 and 10125, ports set by the game"),
+    Option("status_port", "int", 0, "Status page", "TCP port of the status page (0: none)", low=0, high=65535),
+    Option("listen", "text", "0.0.0.0", "Listening address", "0.0.0.0: every interface"),
 )
 
 FORMATS = tuple(f"{a}v{b}" for a in range(1, 5) for b in range(1, 5))
 
 REALM_OPTIONS = (
-    Option("auth_port", "int", 61000, "Port", "authentification (UDP) ; le serveur sécurisé prend le suivant",
+    Option("auth_port", "int", 61000, "Port", "authentication (UDP); the secure server takes the next one",
            low=1, high=65535),
-    Option("secure_port", "int", 61001, "Port sécurisé", "UDP", low=1, high=65535),
-    Option("max_players", "int", 8, "Joueurs humains par partie", "2 à 8 ; des bots complètent les équipes",
+    Option("secure_port", "int", 61001, "Secure port", "UDP", low=1, high=65535),
+    Option("max_players", "int", 8, "Human players per match", "2 to 8; computer subs fill the teams",
            low=2, high=8),
-    Option("duration", "int", 10, "Durée d'une bataille",
-           "minutes, pour toutes les batailles en ligne (le jeu : 10) ; il faut le mod Jeu en ligne à jour",
+    Option("duration", "int", 10, "Battle length",
+           "minutes, for every online battle (the game: 10); needs an up-to-date Online play mod",
            low=1, high=30),
-    Option("cheats", "choice", "separes", "Tricheurs",
-           "separes : entre eux ; autorises : avec tout le monde ; refuses : connexion refusée. Sauf autorises, "
-           "l'anti-triche du mod exclut de la bataille un joueur qui triche", choices=("separes", "autorises", "refuses")),
-    Option("anticheat_ban", "int", 30, "Exclusion d'un tricheur",
-           "minutes pendant lesquelles un joueur pris à tricher ne joue qu'avec les tricheurs (separes) ou ne peut "
-           "plus jouer (refuses) ; 0 : seulement exclu de la bataille", low=0, high=10080),
-    Option("bots", "bool", True, "Bots pour un joueur seul",
-           "un joueur seul dans une partie joue contre des bots au bout du délai"),
-    Option("bots_delay", "int", 60, "Délai avant les bots", "secondes seul dans la partie", low=5, high=3600),
-    Option("bots_format", "choice", "4v4", "Équipes",
-           "votre équipe contre l'autre : 4v4 = vous et 3 bots contre 4 bots, 1v4 = seul contre 4", choices=FORMATS),
-    Option("bots_map", "choice", "aleatoire", "Carte", "aleatoire, ou le numéro d'une carte (11 à 13 : celles de "
-           "la mise à jour v5200, aléatoire pour les joueurs du jeu d'origine)",
-           choices=("aleatoire", "1", "2", "4", "5", "6", "7", "8", "9", "10", "11", "12", "13")),
-    Option("bots_level", "choice", "difficile", "Niveau des bots",
-           "ils jouent comme des joueurs ; le niveau règle réflexes et précision (entre joueurs, les sous-marins "
-           "que le jeu ajoute restent les siens)",
-           choices=("normal", "difficile", "expert")),
-    Option("bots_countdown", "int", 10, "Compte à rebours", "secondes avant la bataille contre les bots",
+    Option("cheats", "choice", "separate", "Cheaters",
+           "separate: among themselves; allowed: with everybody; refused: connection refused. Except with allowed, "
+           "the mod's anti-cheat takes a player who cheats out of the battle", choices=("separate", "allowed", "refused")),
+    Option("anticheat_ban", "int", 30, "Cheater exclusion",
+           "minutes during which a player caught cheating only plays with the cheaters (separate) or cannot play "
+           "any more (refused); 0: only taken out of the battle", low=0, high=10080),
+    Option("bots", "bool", True, "Bots for a player alone",
+           "a player alone in a match plays against bots after the delay"),
+    Option("bots_delay", "int", 60, "Delay before the bots", "seconds alone in the match", low=5, high=3600),
+    Option("bots_format", "choice", "4v4", "Teams",
+           "your team against the other: 4v4 = you and 3 bots against 4 bots, 1v4 = alone against 4", choices=FORMATS),
+    Option("bots_map", "choice", "random", "Map", "random, or a map's number (11 to 13: the update v5200's, random "
+           "for the players of the original game)",
+           choices=("random", "1", "2", "4", "5", "6", "7", "8", "9", "10", "11", "12", "13")),
+    Option("bots_level", "choice", "hard", "Bot level",
+           "they play like players; the level sets their reflexes and aim (between players, the computer subs "
+           "the game adds stay the game's)",
+           choices=("normal", "hard", "expert")),
+    Option("bots_countdown", "int", 10, "Countdown", "seconds before the battle against the bots",
            low=6, high=120),
-    Option("bots_crew", "bool", True, "Équipage des bots",
-           "chaque bot prend un équipage, comme un joueur (meilleur au niveau expert) : ses notes et ses capacités"),
+    Option("bots_crew", "bool", True, "Bot crews",
+           "each bot takes a crew, as a player does (a better one at the expert level): its ratings and abilities"),
 )
 
 
@@ -79,11 +89,11 @@ class ConfigError(ValueError):
 def read(path: Path) -> dict:
     """{"server": {...}, "realm": [{...}, ...]} with every option (defaults filled in)."""
     data = tomllib.loads(path.read_text(encoding="utf-8"))
-    server = {o.key: data.get("server", {}).get(o.key, o.default) for o in SERVER_OPTIONS}
+    server = {o.key: canonical(data.get("server", {}).get(o.key, o.default)) for o in SERVER_OPTIONS}
     realms = []
     for entry in data.get("realm", []):
         realm = {"name": entry.get("name", "?"), "data_dir": entry.get("data_dir", "")}
-        realm.update({o.key: entry.get(o.key, o.default) for o in REALM_OPTIONS})
+        realm.update({o.key: canonical(entry.get(o.key, o.default)) for o in REALM_OPTIONS})
         realms.append(realm)
     return {"server": server, "realm": realms}
 
@@ -98,21 +108,21 @@ def schema() -> dict:
 def _coerce(option: Option, value) -> object:
     if option.kind == "bool":
         if isinstance(value, str):
-            return value.strip().lower() in ("1", "true", "oui", "yes", "on", "vrai")
+            return value.strip().lower() in ("1", "true", "yes", "on", "oui", "vrai")
         return bool(value)
     if option.kind == "int":
         try:
             number = int(value)
         except (TypeError, ValueError):
-            raise ConfigError(f"{option.label} : un nombre entier est attendu") from None
+            raise ConfigError(f"{option.label}: a whole number is expected") from None
         if option.low is not None and number < option.low or option.high is not None and number > option.high:
-            raise ConfigError(f"{option.label} : entre {option.low} et {option.high}")
+            raise ConfigError(f"{option.label}: between {option.low} and {option.high}")
         return number
-    text = str(value).strip()
+    text = str(canonical(value)).strip()
     if option.kind == "choice" and text not in option.choices:
-        raise ConfigError(f"{option.label} : {text!r} n'est pas une valeur possible")
+        raise ConfigError(f"{option.label}: {text!r} is not a possible value")
     if len(text) > 200 or "\n" in text:
-        raise ConfigError(f"{option.label} : valeur trop longue")
+        raise ConfigError(f"{option.label}: value too long")
     return text
 
 
@@ -153,24 +163,24 @@ def update(path: Path, changes: dict) -> dict:
     values = {}
     for key, value in (changes.get("server") or {}).items():
         if key not in known:
-            raise ConfigError(f"option inconnue : {key}")
+            raise ConfigError(f"unknown option: {key}")
         values[key] = _coerce(known[key], value)
     if values:
         if ("server", 0) not in found:
-            raise ConfigError("pas de section [server] dans serveur.toml")
+            raise ConfigError("no [server] section in server.toml")
         edits[("server", 0)] = values
     names = [entry.get("name") for entry in tomllib.loads(text).get("realm", [])]
     known = {o.key: o for o in REALM_OPTIONS}
     for realm in changes.get("realm") or []:
         if realm.get("name") not in names:
-            raise ConfigError(f"royaume inconnu : {realm.get('name')}")
+            raise ConfigError(f"unknown realm: {realm.get('name')}")
         index = names.index(realm["name"])
         values = {}
         for key, value in realm.items():
             if key == "name":
                 continue
             if key not in known:
-                raise ConfigError(f"option inconnue : {key}")
+                raise ConfigError(f"unknown option: {key}")
             values[key] = _coerce(known[key], value)
         edits[("realm", index)] = values
 
@@ -208,7 +218,7 @@ def check(text: str, path: Path) -> None:
     try:
         data = tomllib.loads(text)
     except tomllib.TOMLDecodeError as e:
-        raise ConfigError(f"fichier invalide : {e}") from e
+        raise ConfigError(f"invalid file: {e}") from e
     temp = path.with_name(path.name + ".check")
     try:
         temp.write_text(text, encoding="utf-8")
@@ -219,6 +229,6 @@ def check(text: str, path: Path) -> None:
         temp.unlink(missing_ok=True)
     ports = [p for r in realms for p in (r.auth_port, r.secure_port)]
     if len(ports) != len(set(ports)):
-        raise ConfigError("deux royaumes utilisent le même port")
+        raise ConfigError("two realms use the same port")
     if data.get("server", {}).get("status_port") in ports:
-        raise ConfigError("la page d'état utilise le port d'un royaume")
+        raise ConfigError("the status page uses a realm's port")

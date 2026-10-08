@@ -34,10 +34,10 @@ mod.toml:
   keep = ["position", "bearing"]    # (all, or these), renamed by rename = {...}; floats = true: numbers as f32
 
   [[subs]]                          # the characteristics of the submarines from a player's file
-  file = "${fichier}"               # (tools/subs.py; "auto": sous-marins.toml of the settings folder)
+  file = "${file}"                  # (tools/subs.py; "auto": submarines.toml of the settings folder)
 
   [[music]]                         # your music in place of the game's (tools/music.py: WAV files named
-  dir = "${dossier}"                # after the streams they replace; "auto": « musique » of the settings folder)
+  dir = "${folder}"                 # after the streams they replace; "auto": "music" in the settings folder)
 
   [[amx]]                           # a Pawn script (amx/*.amx), addresses of decomp/scripts/asm/*.asm
   file = "amx/periscope_move.amx"
@@ -76,7 +76,7 @@ mod.toml:
   [identity]                        # optional: a player identity for an online server, generated once
   scope = "${server}:${port}"       # per scope and kept in ~/.config/sub-wars-open-sourced/identites.json;
                                     # gives ${pid}, ${password} and ${token}
-  token_flags = ["triche"]          # optional, top level: told to the online server in the token
+  token_flags = ["cheats"]          # optional, top level: told to the online server in the token
   always = true                     # optional, top level: part of every build (fixes of the game)
 
 Every recipe also gets ${sdsw_version}, the version of Sub Wars Open Sourced (VERSION, and the number of
@@ -92,7 +92,7 @@ ${name} in the code (and address = "${name}").
 Usage:  tools/mod.py build <name> [<name>...] [--set key=value ...] [--install] [--cxi] [--no-fixes]
         tools/mod.py list
 Several mods are built together into build/mods/<name>+<name>/ (Azahar loads a single mod folder).
-The recipes marked always = true (mods/correctifs) are added to every build, unless --no-fixes.
+The recipes marked always = true (mods/fixes) are added to every build, unless --no-fixes.
 
 --cxi also writes build/azahar/SteelDiverSubWars_<name>[_<server>].cxi, the game with the code patch already
 applied, to open in Azahar next to the original (RomFS changes stay in the mod folder only).
@@ -418,8 +418,8 @@ def apply_texts(files: dict[str, ET.Element], entry: dict, params: dict[str, str
         chars = font_characters(node.get("typeface", "")) if node is not None else None
         missing = sorted({c for c in text if c not in "\n" and chars is not None and ord(c) not in chars})
         if missing and language == languages[0]:
-            print(f"[!] {entry['key']} : la police {node.get('typeface')} n'a pas {' '.join(missing)} "
-                  "(ces caractères ne s'afficheront pas)")
+            print(f"[!] {entry['key']}: the font {node.get('typeface')} lacks {' '.join(missing)} "
+                  "(these characters will not show)")
     return count
 
 
@@ -513,7 +513,7 @@ def ips(patches: dict[int, bytes]) -> bytes:
 
 # ---- parameters and identity ----------------------------------------------------------------
 
-IDENTITY_FILE = azahar.config_dir() / "identites.json"
+IDENTITY_FILE = azahar.settings_file("identities.json", "identites.json")
 
 
 def user_key(pid: int, password: str) -> str:
@@ -561,6 +561,8 @@ def recipe_params(mods: list[dict], overrides: dict[str, str]) -> dict[str, str]
             if key in specs and specs[key] != spec:
                 raise ModError(f"parameter {key} is declared differently by two of these mods")
             specs[key] = spec
+    overrides = {(PARAM_ALIASES[k] if k not in specs and PARAM_ALIASES.get(k) in specs else k): v
+                 for k, v in overrides.items()}
     unknown = set(overrides) - set(specs)
     if unknown:
         raise ModError(f"unknown parameter(s) {', '.join(sorted(unknown))}; these mods take: {', '.join(specs) or 'none'}")
@@ -595,8 +597,22 @@ def recipe_params(mods: list[dict], overrides: dict[str, str]) -> dict[str, str]
     return params
 
 
+# The names of the mods and of their parameters before the project went English: still understood (the
+# launcher's saved choices, the players' habits, the scripts that call tools/mod.py).
+MOD_ALIASES = {"correctifs": "fixes", "en-ligne": "online", "pseudo": "nickname", "triche": "cheats",
+               "vitesse": "speed", "musique": "music", "mention-titre": "title-credits", "texte-titre": "title-text"}
+PARAM_ALIASES = {"debloquer": "unlock", "fichier": "file", "dossier": "folder", "facteur": "factor",
+                 "torpilles": "torpedoes", "rechargement": "reload", "rafale": "rapid_fire", "masqueur": "masker",
+                 "moteur": "engine", "ligne1": "line1", "ligne2": "line2"}
+
+
+def canonical(name: str) -> str:
+    """A mod's name, its older (French) name translated."""
+    return MOD_ALIASES.get(name, name)
+
+
 def load_recipe(name: str) -> dict:
-    recipe = MODS / name / "mod.toml"
+    recipe = MODS / canonical(name) / "mod.toml"
     if not recipe.exists():
         raise ModError(f"no recipe {recipe}")
     return tomllib.loads(recipe.read_text(encoding="utf-8"))
@@ -638,8 +654,8 @@ def supports(recipe: dict, version: str) -> bool:
 
 def unsupported(name: str, recipe: dict, version: str) -> str:
     known = recipe_versions(recipe) or []
-    return (f"Le mod « {recipe.get('name', name)} » ne marche pas (encore) avec {versions.label(version)}"
-            + (f" : seulement avec {', '.join(versions.label(v) for v in known)}" if known else "") + ".")
+    return (f"The mod \"{recipe.get('name', name)}\" does not work (yet) with {versions.label(version)}"
+            + (f": only with {', '.join(versions.label(v) for v in known)}" if known else "") + ".")
 
 
 def emulator_versions() -> dict[str, list[Path]]:
@@ -665,9 +681,10 @@ def build(names: list[str], out_root: Path, overrides: dict[str, str] | None = N
     global GAME
     game = versions.game_files(version)
     if not game.ready():
-        raise ModError(f"Les fichiers de {versions.label(version)} ne sont pas extraits : make extract "
-                       "(ou l'onglet Jeu du lanceur).")
+        raise ModError(f"The files of {versions.label(version)} are not extracted: make extract "
+                       "(or the launcher's Game tab).")
     GAME = game
+    names = [canonical(name) for name in names]
     asked = list(names)
     if with_fixes:
         names = [name for name in fixes() if name not in names] + list(names)
@@ -678,7 +695,7 @@ def build(names: list[str], out_root: Path, overrides: dict[str, str] | None = N
         recipe = load_recipe(name)
         if not supports(recipe, version):
             if name not in asked:                      # a fix not yet ported to this version
-                print(f"[!] {recipe.get('name', name)} : pas encore disponible pour {version}, laissé de côté")
+                print(f"[!] {recipe.get('name', name)}: not available for {version} yet, left out")
                 continue
             raise ModError(unsupported(name, recipe, version))
         mods.append(for_version(recipe, version, name))
@@ -731,7 +748,7 @@ def build(names: list[str], out_root: Path, overrides: dict[str, str] | None = N
                 for file, values in edits.items():
                     edit_bxml(files, file, ".", values)
                     edited.add(file)
-                print(f"[+] caractéristiques de {len(edits)} sous-marin(s) modifiées")
+                print(f"[+] characteristics of {len(edits)} submarine(s) changed")
         for entry in mod.get("music", []):
             if enabled(entry, params):
                 import music
@@ -740,7 +757,7 @@ def build(names: list[str], out_root: Path, overrides: dict[str, str] | None = N
                 except (music.MusicError, bcstm.BcstmError) as e:
                     raise ModError(str(e)) from e
                 binaries.update({file: bytearray(data) for file, data in found.items()})
-                print(f"[+] {len(found)} musique(s) remplacée(s)")
+                print(f"[+] {len(found)} music stream(s) replaced")
         for entry in mod.get("amx", []):
             if enabled(entry, params):
                 edit_amx(scripts, entry, params, MODS / name)
@@ -793,8 +810,8 @@ def build(names: list[str], out_root: Path, overrides: dict[str, str] | None = N
 
 def write_cxi(name: str, built: Path, params: dict[str, str]) -> Path:
     if GAME.version != versions.BASE:
-        raise ModError("--cxi : seulement pour le jeu sans sa mise à jour ; quand la mise à jour est installée, "
-                       "l'émulateur prend son code à elle, pas celui du .cxi")
+        raise ModError("--cxi: only for the game without its update; when the update is installed, the emulator "
+                       "runs the update's code, not the .cxi's")
     patch = built / azahar.TITLE_ID / "exefs" / "code.ips"
     if not patch.exists():
         raise ModError("this mod has no code patch: nothing to put in a CXI")
@@ -825,7 +842,7 @@ def main() -> None:
                    help="then install it into the emulators found (Azahar, Lime3DS, Citra, Borked3DS) where the "
                         "game runs as that version")
     p.add_argument("--cxi", action="store_true", help="also write the game with this code patch applied (v0)")
-    p.add_argument("--no-fixes", action="store_true", help="without the fixes of the game (mods/correctifs)")
+    p.add_argument("--no-fixes", action="store_true", help="without the fixes of the game (mods/fixes)")
     p.add_argument("-o", "--out", type=Path, default=ROOT / "build" / "mods")
     sub.add_parser("list", help="list the mods of mods/ and the versions of the game they work with")
     args = ap.parse_args()
@@ -833,8 +850,8 @@ def main() -> None:
     if args.command == "list":
         for recipe in sorted(MODS.glob("*/mod.toml")):
             mod = tomllib.loads(recipe.read_text(encoding="utf-8"))
-            always = " (toujours inclus)" if mod.get("always") else ""
-            known = ", ".join(recipe_versions(mod) or ["toutes versions"])
+            always = " (always included)" if mod.get("always") else ""
+            known = ", ".join(recipe_versions(mod) or ["every version"])
             print(f"{recipe.parent.name:14s} [{known}] {mod.get('description', '')}{always}")
         return
     try:

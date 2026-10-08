@@ -18,7 +18,7 @@ Notifications the clients act on (MyNotificationEventHandler::ProcessNotificatio
 Bots: the battle is played between the consoles and the game itself drives the computer subs (the host
 fills each team up to four), but it only starts a countdown when each team has a player. With the online
 mod, the server decides: a player alone in a match for BotSettings.delay seconds gets the server.bots.*
-globals, and the mod's scripts then start the battle with bots on both teams (mods/en-ligne).
+globals, and the mod's scripts then start the battle with bots on both teams (mods/online).
 """
 
 from __future__ import annotations
@@ -47,7 +47,7 @@ SET_GLOBAL_STRING = 999002     # global (string = name, param1 = value), a strin
 # v5200 adds 11 to 13 (worlds/scope00_online_stage11..13; its getRandomStage draws stages 10 to 22).
 MAPS = (1, 2, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13)
 MAPS_OF = {"v0": MAPS[:9], "v5200": MAPS}
-LEVELS = {"normal": 1, "difficile": 2, "expert": 3}
+LEVELS = {"normal": 1, "hard": 2, "expert": 3}
 # The game's versions, by the version checksum of their search (attribute 3, sysGetVersionChecksum): players of
 # two versions never meet (maps, submarines and scripts differ), whatever their criteria say.
 VERSIONS = {0xB95D7F2B: "v0", 868960903: "v5200"}
@@ -63,7 +63,7 @@ SUBS = {"v0": 23, "v5200": 36}
 CREW = {"v0": 32, "v5200": 40}
 CREW_NOT_FOR_BOTS = {14, 31, 32}
 CREW_STRONG = (20, 21, 22, 24, 25, 26, 27, 28, 29, 30, 33, 34, 36, 37, 38, 39)
-CREW_SIZE = {"normal": (0, 3), "difficile": (2, 5), "expert": (4, 5)}     # members drawn (the sub may hold fewer)
+CREW_SIZE = {"normal": (0, 3), "hard": (2, 5), "expert": (4, 5)}     # members drawn (the sub may hold fewer)
 BOT_NAMES = ("Requin", "Kraken", "Narval", "Murene", "Espadon", "Barracuda", "Orque", "Nautilus", "Abysse",
              "Corsaire", "Marlin", "Calamar", "Triton", "Poseidon", "Sonar", "Torpille", "Ressac", "Hublot",
              "Abordage", "Typhon", "Neptune", "Leviathan", "Remous", "Sillage", "Capitaine", "Matelot",
@@ -74,13 +74,13 @@ MAX_NAME = 10                  # characters of a name, like a Mii name or a cons
 
 @dataclass
 class BotSettings:
-    """serveur.toml, per realm: what happens to a player left alone in a match."""
+    """server.toml, per realm: what happens to a player left alone in a match."""
     enabled: bool = True
     delay: int = 60                # seconds alone in a match before the bots come
     mine: int = 4                  # subs of the player's team, the player included (bots fill it)
     other: int = 4                 # subs of the other team, all bots
     map: int = 0                   # 0: a random map, else its number (MAPS)
-    level: str = "difficile"       # how hard the bots are: normal, difficile, expert
+    level: str = "hard"            # how hard the bots are: normal, hard, expert
     countdown: int = 10            # seconds before the battle once the bots are announced
     crew: bool = True              # the bots take a crew
     duration: int = 10             # minutes of the battle: the realm's duration, as for the other battles
@@ -96,18 +96,19 @@ class BotSettings:
         if not m:
             raise ValueError(f"realm {realm}: bots_format must look like 4v4, 1v4 or 2v3 (1 to 4 per team)")
         b.mine, b.other = int(m[1]), int(m[2])
-        value = str(entry.get("bots_map", "aleatoire")).strip().lower()
-        if value in ("aleatoire", "aléatoire", "random", "0", ""):
+        value = str(entry.get("bots_map", "random")).strip().lower()
+        if value in ("random", "aleatoire", "aléatoire", "0", ""):
             b.map = 0
         else:
             try:
                 b.map = int(value)
             except ValueError:
-                raise ValueError(f"realm {realm}: bots_map must be aleatoire or a map number "
+                raise ValueError(f"realm {realm}: bots_map must be random or a map number "
                                  f"({', '.join(map(str, MAPS))})") from None
             if b.map not in MAPS:
                 raise ValueError(f"realm {realm}: no map {b.map} (maps: {', '.join(map(str, MAPS))})")
         b.level = str(entry.get("bots_level", b.level)).strip().lower()
+        b.level = {"difficile": "hard"}.get(b.level, b.level)           # its French name, before the project went English
         if b.level not in LEVELS:
             raise ValueError(f"realm {realm}: bots_level must be one of {', '.join(LEVELS)}")
         b.countdown = int(entry.get("bots_countdown", b.countdown))

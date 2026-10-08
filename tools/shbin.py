@@ -18,7 +18,7 @@ counter of a LOOP in host registers that it saves only for a loop nested in the 
 code. A loop inside a subroutine called from another loop overwrites the counter of the outer
 loop, which ends at 0, then wraps to -1: about four billion more iterations. A geometry shader
 emits vertices at each one and the emulator fills its memory until it is killed
-(shaders/metaball.shbin, the oil of damaged submarines: mods/correctifs).
+(shaders/metaball.shbin, the oil of damaged submarines: mods/fixes).
 """
 
 from __future__ import annotations

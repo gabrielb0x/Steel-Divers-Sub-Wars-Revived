@@ -68,7 +68,7 @@ se jouent en P2P via Pia. Aucune bibliothèque NEX de classement ou de stockage 
 2. ~~**Serveur autonome**~~ (Python, sans dépendance) : TicketGranting, SecureConnection, NATTraversal, MatchMaking,
    MatchMakingExt, MatchmakeExtension, serveurs « nncs » ; deux royaumes séparés, émulateur et PC ; options
    `max_players` (plus de bots) et `cheats` (tricheurs acceptés, séparés ou refusés).
-3. ~~**Validation avec le jeu**~~ : deux Azahar avec le mod `en-ligne` se connectent, se trouvent et jouent une
+3. ~~**Validation avec le jeu**~~ : deux Azahar avec le mod `online` se connectent, se trouvent et jouent une
    bataille ensemble.
 4. ~~**Serveur public**~~ : adresse publique trouvée (box, STUN), ports ouverts par UPnP (vérifié avec une
    box), joueurs du réseau du serveur présentés sous l'adresse publique et port de leur jeu redirigé
@@ -83,7 +83,7 @@ se jouent en P2P via Pia. Aucune bibliothèque NEX de classement ou de stockage 
    de joueur, collisions avec la carte et les sous-marins, combats contre tout ennemi (bots compris), visée là où
    sera la cible, esquive, torpilles à tête chercheuse, masqueur et repli. Écrits en Pawn (`tools/pawn2pasm.py`),
    vérifiés dans un bac à sable (`tools/botsim.py`) ; reste à les voir dans Azahar. Pour une IA apprise,
-   estimation dans [ia.md](ia.md).
+   estimation dans [ia.md](ai.md).
 7. **À suivre** : une vraie partie entre deux maisons ; relais pour les NAT stricts si besoin ; migration d'hôte
    et départs en cours de partie à éprouver.
 
@@ -100,7 +100,7 @@ Le plan détaillé est dans [mods.md](mods.md) : on publie des recettes (`mods/`
    natives et fonctions publiques ajoutés, crochets sur les instructions existantes, fichiers `.pasm`) ; reste
    du pseudo-Pawn recompilable. Le menu de debug des développeurs en dépend (sa logique et son affichage ont
    été retirés).
-3. ~~**Jeu en ligne**~~ : mod `en-ligne` (patch des fonctions *friends* utilisées par `JobCTRLogin`, serveurs de
+3. ~~**Jeu en ligne**~~ : mod `online` (patch des fonctions *friends* utilisées par `JobCTRLogin`, serveurs de
    détection de NAT redirigés, identité par joueur). Reste : une somme de version propre aux mods de gameplay.
 4. **60 fps** : un essai dans Azahar (image intermédiaire interpolée entre deux pas de simulation, commit
    bfac07c) a été abandonné pour l'instant, trop de défauts en jeu ([mods.md](mods.md#60-et-120-images-par-seconde)).
@@ -120,7 +120,7 @@ Le plan détaillé est dans [mods.md](mods.md) : on publie des recettes (`mods/`
 *Avancement estimé : 100 %.*
 
 - **Versions du jeu** : la version de lancement (v0, Europe), celle du dump, et sa dernière mise à jour, v5200
-  ([mise-a-jour.md](mise-a-jour.md)). La rétro-ingénierie (Ghidra, `decomp/`) travaille sur la v0 ; les mods et
+  ([update-v5200.md](update-v5200.md)). La rétro-ingénierie (Ghidra, `decomp/`) travaille sur la v0 ; les mods et
   le jeu en ligne marchent avec les deux (adresses de la v5200 retrouvées par correspondance : `tools/amxport.py`
   pour les scripts), et le serveur ne mélange jamais les joueurs des deux versions.
 - **Cibles** : mods pour Azahar d'abord, portage PC ensuite (recompilation statique + HLE). La 3DS n'est pas une

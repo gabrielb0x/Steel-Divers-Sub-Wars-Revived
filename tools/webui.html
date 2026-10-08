@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="fr">
+<html lang="en">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -244,209 +244,209 @@ ol.steps { margin: 6px 0 0; padding-left: 20px; } ol.steps li { margin-bottom: 6
       <div class="logo"><svg class="i"><use href="#i-sub"/></svg></div>
       <div class="titles">
         <h1>Steel Diver: Sub Wars — Open Sourced</h1>
-        <p>Le lanceur : votre jeu, ses mods, votre sauvegarde. Tout reste sur cet ordinateur.</p>
+        <p>The launcher: your game, its mods, your save. Everything stays on this computer.</p>
       </div>
       <div class="chips" id="chips"></div>
     </div>
-    <div id="restart" class="small" style="display:none">Le lanceur a été mis à jour : fermez la fenêtre où il tourne
-      et relancez <code>subwars.py</code>.</div>
+    <div id="restart" class="small" style="display:none">The launcher was updated: close the window it runs in and
+      start <code>subwars.py</code> again.</div>
     <nav id="nav">
-      <button data-tab="jeu" data-icon="game" class="active">Jeu</button>
+      <button data-tab="game" data-icon="game" class="active">Game</button>
       <button data-tab="mods" data-icon="mods">Mods</button>
-      <button data-tab="sauvegarde" data-icon="save">Sauvegarde</button>
-      <button data-tab="sousmarins" data-icon="sub">Sous-marins</button>
-      <button data-tab="musique" data-icon="music">Musique</button>
-      <button data-tab="serveur" data-icon="server">Serveur</button>
-      <button data-tab="aide" data-icon="help">Aide</button>
+      <button data-tab="save" data-icon="save">Save</button>
+      <button data-tab="subs" data-icon="sub">Submarines</button>
+      <button data-tab="music" data-icon="music">Music</button>
+      <button data-tab="server" data-icon="server">Server</button>
+      <button data-tab="help" data-icon="help">Help</button>
     </nav>
   </div>
 </header>
 <main>
 
-<section class="tab active" id="tab-jeu">
+<section class="tab active" id="tab-game">
   <div class="card">
-    <h2><span class="badge"><svg class="i"><use href="#i-game"/></svg></span>1. Les fichiers du jeu</h2>
+    <h2><span class="badge"><svg class="i"><use href="#i-game"/></svg></span>1. The game's files</h2>
     <div class="status" id="game-status"></div>
     <div class="status" id="update-status" style="margin-top:4px"></div>
-    <p class="small muted">Il faut <b>votre</b> copie de Steel Diver: Sub Wars, version européenne
-      (<code>00040000000D7E00</code>), déchiffrée : le <code>.cia</code> de l'eShop, un <code>.cxi</code> ou un
-      <code>.3ds</code>. Le lanceur la cherche dans le dossier <code>cia/</code> du projet et dans l'émulateur. Rien n'est
-      envoyé nulle part. Sa <b>mise à jour v5200</b> (<code>0004000E000D7E00</code>, facultative : 16 sous-marins et
-      3 cartes de plus) se prépare en même temps si son <code>.cia</code> déchiffré est dans <code>cia/</code>.</p>
+    <p class="small muted">You need <b>your own</b> copy of Steel Diver: Sub Wars, European version
+      (<code>00040000000D7E00</code>), decrypted: the eShop <code>.cia</code>, a <code>.cxi</code> or a
+      <code>.3ds</code>. The launcher looks for it in the project's <code>cia/</code> folder and in the emulator. Nothing
+      is sent anywhere. Its <b>update v5200</b> (<code>0004000E000D7E00</code>, optional: 16 more submarines and 3 more
+      maps) is prepared at the same time if its decrypted <code>.cia</code> is in <code>cia/</code>.</p>
     <div class="row">
-      <button class="btn primary" id="btn-extract-auto" data-icon="search">Trouver le jeu et le préparer</button>
-      <button class="btn" id="btn-extract-pick" data-icon="folder">Choisir le fichier…</button>
+      <button class="btn primary" id="btn-extract-auto" data-icon="search">Find the game and prepare it</button>
+      <button class="btn" id="btn-extract-pick" data-icon="folder">Choose the file…</button>
     </div>
   </div>
   <div class="card">
-    <h2><span class="badge"><svg class="i"><use href="#i-chip"/></svg></span>2. L'émulateur</h2>
+    <h2><span class="badge"><svg class="i"><use href="#i-chip"/></svg></span>2. The emulator</h2>
     <div class="status" id="emu-status"></div>
-    <p class="small muted">Azahar refuse le <code>.cia</code> de l'eShop entier (son manuel est resté chiffré) :
-      le lanceur en fait une copie du jeu seul, à installer (Fichier &gt; Installer un CIA), ou un <code>.cxi</code>
-      à ouvrir directement (Fichier &gt; Charger un fichier). Inutile avec un <code>.cxi</code> ou un <code>.3ds</code>.
-      Les mods vont dans chaque émulateur trouvé : Azahar, et ceux de la même famille (Lime3DS, Citra, Borked3DS).</p>
+    <p class="small muted">Azahar refuses the whole eShop <code>.cia</code> (its manual stayed encrypted): the launcher
+      makes a copy of the game alone, to install (File &gt; Install CIA), or a <code>.cxi</code> to open directly
+      (File &gt; Load File). Not needed with a <code>.cxi</code> or a <code>.3ds</code>. The mods go into every
+      emulator found: Azahar, and those of the same family (Lime3DS, Citra, Borked3DS).</p>
     <div class="row">
-      <button class="btn" id="btn-prepare" data-icon="box">Préparer le jeu pour Azahar</button>
-      <button class="btn" id="btn-open-prepared" data-icon="folder">Ouvrir le dossier</button>
+      <button class="btn" id="btn-prepare" data-icon="box">Prepare the game for Azahar</button>
+      <button class="btn" id="btn-open-prepared" data-icon="folder">Open the folder</button>
     </div>
-    <h3>La mise à jour dans l'émulateur</h3>
-    <p class="small muted">Installée, elle remplace le code du jeu, qu'il soit installé ou ouvert depuis son
-      <code>.cxi</code> : les mods sont alors construits pour elle. Les mods déjà installés pour l'autre version sont
-      retirés (ils empêcheraient le jeu de démarrer) : réinstallez-les ensuite.</p>
+    <h3>The update in the emulator</h3>
+    <p class="small muted">Once installed, it replaces the game's code, whether the game is installed or opened from its
+      <code>.cxi</code>: the mods are then built for it. The mods already installed for the other version are removed
+      (they would keep the game from starting): install them again afterwards.</p>
     <div class="row">
-      <button class="btn" id="btn-update-install" data-icon="download">Installer la mise à jour</button>
-      <button class="btn danger" id="btn-update-uninstall" data-icon="trash">Retirer la mise à jour</button>
+      <button class="btn" id="btn-update-install" data-icon="download">Install the update</button>
+      <button class="btn danger" id="btn-update-uninstall" data-icon="trash">Remove the update</button>
     </div>
   </div>
   <div class="card">
-    <h2><span class="badge"><svg class="i"><use href="#i-mods"/></svg></span>3. Les mods</h2>
-    <p class="small">Premium sans l'eShop, triche, caractéristiques des sous-marins, jeu en ligne :
-      <a href="#" data-goto="mods">onglet Mods</a>. Votre sauvegarde : <a href="#" data-goto="sauvegarde">onglet Sauvegarde</a>.</p>
+    <h2><span class="badge"><svg class="i"><use href="#i-mods"/></svg></span>3. The mods</h2>
+    <p class="small">Premium without the eShop, cheats, submarine characteristics, online play, your music:
+      <a href="#" data-goto="mods">Mods tab</a>. Your save: <a href="#" data-goto="save">Save tab</a>.</p>
   </div>
 </section>
 
 <section class="tab" id="tab-mods">
   <div class="card">
     <h2><span class="badge"><svg class="i"><use href="#i-mods"/></svg></span>Mods</h2>
-    <p class="small muted">Cochez les mods voulus puis « Installer » : ils sont construits à partir de votre jeu et
-      copiés dans l'émulateur (<code>load/mods/00040000000D7E00/</code>, dans chaque émulateur trouvé). Il n'en
-      charge qu'un dossier : tous les mods cochés y vont ensemble. Relancez le jeu ensuite.</p>
+    <p class="small muted">Tick the mods you want, then "Install": they are built from your game and copied into the
+      emulator (<code>load/mods/00040000000D7E00/</code>, in every emulator found). It only loads one folder: all the
+      mods ticked go into it together. Restart the game afterwards.</p>
     <div id="mods-version" class="small"></div>
     <div id="installed" class="small"></div>
   </div>
   <div id="mod-list"></div>
   <div class="card row">
-    <button class="btn primary" id="btn-install" data-icon="download">Installer dans l'émulateur</button>
-    <button class="btn" id="btn-build" data-icon="box">Construire sans installer</button>
-    <button class="btn danger" id="btn-uninstall" data-icon="trash">Retirer les mods de l'émulateur</button>
+    <button class="btn primary" id="btn-install" data-icon="download">Install into the emulator</button>
+    <button class="btn" id="btn-build" data-icon="box">Build without installing</button>
+    <button class="btn danger" id="btn-uninstall" data-icon="trash">Remove the mods from the emulator</button>
   </div>
 </section>
 
-<section class="tab" id="tab-sauvegarde">
+<section class="tab" id="tab-save">
   <div class="card">
-    <h2><span class="badge"><svg class="i"><use href="#i-save"/></svg></span>Sauvegarde</h2>
-    <p class="small"><b>Fermez le jeu dans l'émulateur avant de modifier la sauvegarde</b> : il garde ses valeurs en
-      mémoire et réécrirait l'ancienne. Une copie de sécurité est faite avant chaque modification.</p>
-    <div class="row"><label>Fichier : <select id="save-file"></select></label>
-      <button class="btn" id="btn-save-reload" data-icon="refresh">Relire</button></div>
+    <h2><span class="badge"><svg class="i"><use href="#i-save"/></svg></span>Save</h2>
+    <p class="small"><b>Close the game in the emulator before changing the save</b>: it keeps its values in memory and
+      would write the old ones back. A backup is made before every change.</p>
+    <div class="row"><label>File: <select id="save-file"></select></label>
+      <button class="btn" id="btn-save-reload" data-icon="refresh">Reload</button></div>
   </div>
   <div id="save-view"></div>
 </section>
 
-<section class="tab" id="tab-sousmarins">
+<section class="tab" id="tab-subs">
   <div class="card">
-    <h2><span class="badge"><svg class="i"><use href="#i-sub"/></svg></span>Caractéristiques des sous-marins</h2>
-    <p class="small muted">Vos valeurs vont dans votre fichier (<code id="subs-file"></code>), puis le mod
-      <b>Caractéristiques</b> (onglet Mods) les applique au jeu. Les valeurs que le jeu ne supporte pas sont refusées.
-      Prévu pour jouer hors ligne : en ligne, le serveur le traite comme de la triche.</p>
-    <div class="row"><button class="btn" id="btn-subs-reset-all" data-icon="undo">Tout remettre comme dans le jeu</button>
-      <button class="btn" data-goto="mods" data-icon="mods">Aller aux mods</button></div>
+    <h2><span class="badge"><svg class="i"><use href="#i-sub"/></svg></span>Submarine characteristics</h2>
+    <p class="small muted">Your values go into your file (<code id="subs-file"></code>), then the
+      <b>Characteristics</b> mod (Mods tab) applies them to the game. Values the game does not support are refused.
+      Meant for offline play: online, the server treats it as cheating.</p>
+    <div class="row"><button class="btn" id="btn-subs-reset-all" data-icon="undo">Put everything back as in the game</button>
+      <button class="btn" data-goto="mods" data-icon="mods">Go to the mods</button></div>
   </div>
-  <div class="card" id="sub-editor"><p class="muted">Choisissez un sous-marin dans la liste.</p></div>
+  <div class="card" id="sub-editor"><p class="muted">Choose a submarine in the list.</p></div>
   <div class="card" style="overflow-x:auto"><table id="subs-table"></table></div>
 </section>
 
-<section class="tab" id="tab-musique">
+<section class="tab" id="tab-music">
   <div class="card">
     <div class="music-head">
-      <h2><span class="badge"><svg class="i"><use href="#i-music"/></svg></span>Musique du jeu</h2>
+      <h2><span class="badge"><svg class="i"><use href="#i-music"/></svg></span>The game's music</h2>
       <div class="row">
-        <button class="btn primary" id="btn-music-apply" data-icon="download">Appliquer dans l'émulateur</button>
-        <button class="btn danger" id="btn-music-reset-all" data-icon="undo">Remettre les musiques d'origine</button>
-        <button class="btn icon ghost" id="btn-music-folder" data-icon="folder" title="Ouvrir le dossier de vos musiques"></button>
+        <button class="btn primary" id="btn-music-apply" data-icon="download">Apply in the emulator</button>
+        <button class="btn danger" id="btn-music-reset-all" data-icon="undo">Restore the original music</button>
+        <button class="btn icon ghost" id="btn-music-folder" data-icon="folder" title="Open the folder of your music"></button>
       </div>
     </div>
-    <p class="small muted">Écoutez une musique du jeu, puis remplacez-la par la vôtre : MP3, WAV, OGG, FLAC, M4A… Le
-      lanceur la convertit (canaux et fréquence de l'original, en boucle) et la garde dans votre dossier de réglages.
-      « Appliquer dans l'émulateur » réinstalle vos mods avec le mod <b>Musique</b> ; relancez ensuite le jeu. Rien ne
-      change en ligne : les autres joueurs gardent leur musique.</p>
+    <p class="small muted">Listen to a music of the game, then replace it with yours: MP3, WAV, OGG, FLAC, M4A… The
+      launcher converts it (the original's channels and rate, looping) and keeps it in your settings folder. "Apply in
+      the emulator" installs your mods again with the <b>Music</b> mod; then restart the game. Nothing changes online:
+      the other players keep their music.</p>
     <div class="row" style="justify-content:space-between">
-      <label class="switch" title="Mesure la sonie de la musique d'origine et de la vôtre, puis ajuste la vôtre pour qu'elle sonne aussi fort (sans saturer)">
+      <label class="switch" title="Measures the loudness of the original music and of yours, then adjusts yours so that it sounds as loud (without clipping)">
         <input type="checkbox" id="music-normalize" checked><span class="track-ui"></span>
-        Égaliser le volume sur la musique d'origine (nouvelles musiques)</label>
+        Match the loudness of the original music (new music)</label>
       <div class="search"><svg class="i"><use href="#i-search"/></svg>
-        <input type="text" id="music-filter" placeholder="Chercher : titre, mission, carte…"></div>
+        <input type="text" id="music-filter" placeholder="Search: title, mission, map…"></div>
     </div>
     <div class="stats" id="music-stats"></div>
     <div id="music-status" class="small" style="margin-top:10px"></div>
   </div>
   <div class="card player" id="music-player-card">
     <div class="disc" id="music-disc"><svg class="i"><use href="#i-music"/></svg></div>
-    <div class="now"><b id="music-now">Rien en écoute</b><span id="music-now-sub">Choisissez « Écouter » sur une musique.</span></div>
+    <div class="now"><b id="music-now">Nothing playing</b><span id="music-now-sub">Choose "Game" or "Yours" on a music.</span></div>
     <audio id="music-player" controls preload="none"></audio>
   </div>
   <div class="tracks" id="music-table"></div>
 </section>
 
-<section class="tab" id="tab-serveur">
+<section class="tab" id="tab-server">
   <div class="card">
-    <h2><span class="badge"><svg class="i"><use href="#i-server"/></svg></span>Serveur en ligne</h2>
-    <p class="small muted">Pour jouer en ligne entre amis, un joueur lance le serveur sur son ordinateur et chacun
-      installe le mod <b>Jeu en ligne</b> avec son adresse. Le serveur demande à la box d'ouvrir ses ports (UPnP) :
-      les amis peuvent jouer depuis chez eux, par Internet.</p>
+    <h2><span class="badge"><svg class="i"><use href="#i-server"/></svg></span>Online server</h2>
+    <p class="small muted">To play online with friends, one player runs the server on their computer and everyone
+      installs the <b>Online play</b> mod with its address. The server asks the router to open its ports (UPnP):
+      friends can play from home, over the Internet.</p>
     <div class="status" id="srv-status"></div>
     <div class="row" style="margin-top:8px">
-      <button class="btn primary" id="btn-srv-start" data-icon="power">Lancer le serveur</button>
-      <button class="btn" id="btn-srv-stop" data-icon="x">Arrêter</button>
-      <button class="btn" id="btn-srv-config" data-icon="folder">Ouvrir sa configuration</button>
+      <button class="btn primary" id="btn-srv-start" data-icon="power">Start the server</button>
+      <button class="btn" id="btn-srv-stop" data-icon="x">Stop</button>
+      <button class="btn" id="btn-srv-config" data-icon="folder">Open its configuration</button>
     </div>
   </div>
   <div class="card" id="srv-public"></div>
   <div class="card">
-    <h2><span class="badge"><svg class="i"><use href="#i-sliders"/></svg></span>Configuration du serveur</h2>
-    <p class="small muted">Les options de <code>serveur.toml</code>. « Enregistrer » les écrit dans le fichier (ses
-      commentaires restent) ; un serveur qui tourne les prend en compte quand on le relance.</p>
-    <div id="srv-config"><p class="muted small">Chargement…</p></div>
+    <h2><span class="badge"><svg class="i"><use href="#i-sliders"/></svg></span>Server configuration</h2>
+    <p class="small muted">The options of <code>server.toml</code>. "Save" writes them to the file (its comments stay); a
+      running server takes them into account when it is restarted.</p>
+    <div id="srv-config"><p class="muted small">Loading…</p></div>
     <div class="row" style="margin-top:10px">
-      <button class="btn primary" id="btn-srv-config-save" data-icon="check">Enregistrer</button>
-      <button class="btn" id="btn-srv-config-reload" data-icon="undo">Annuler les changements</button>
+      <button class="btn primary" id="btn-srv-config-save" data-icon="check">Save</button>
+      <button class="btn" id="btn-srv-config-reload" data-icon="undo">Discard the changes</button>
     </div>
   </div>
   <div class="card">
-    <h2><span class="badge"><svg class="i"><use href="#i-link"/></svg></span>Rejoindre le serveur d'un ami</h2>
-    <p class="small muted">Entrez l'adresse qu'il vous donne (IP ou nom, avec <code>:port</code> s'il n'utilise
-      pas 61000). « Tester » vérifie depuis cet ordinateur que son serveur répond ; puis installez le mod
-      <b>Jeu en ligne</b> avec cette adresse.</p>
+    <h2><span class="badge"><svg class="i"><use href="#i-link"/></svg></span>Join a friend's server</h2>
+    <p class="small muted">Enter the address they give you (IP or name, with <code>:port</code> if it does not use
+      61000). "Test" checks from this computer that their server answers; then install the <b>Online play</b> mod
+      with this address.</p>
     <div class="row">
-      <input type="text" id="srv-test-address" placeholder="ex. 203.0.113.7 ou monserveur.duckdns.org" size="34">
-      <button class="btn" id="btn-srv-test" data-icon="test">Tester</button>
-      <button class="btn primary" id="btn-srv-use" data-icon="link">Utiliser pour le mod Jeu en ligne</button>
+      <input type="text" id="srv-test-address" placeholder="e.g. 203.0.113.7 or myserver.duckdns.org" size="34">
+      <button class="btn" id="btn-srv-test" data-icon="test">Test</button>
+      <button class="btn primary" id="btn-srv-use" data-icon="link">Use it for the Online play mod</button>
     </div>
     <div id="srv-test-result" class="small" style="margin-top:8px"></div>
   </div>
-  <div class="card"><h2><span class="badge"><svg class="i"><use href="#i-wave"/></svg></span>Journal</h2><div class="log" id="srv-log"></div></div>
+  <div class="card"><h2><span class="badge"><svg class="i"><use href="#i-wave"/></svg></span>Log</h2><div class="log" id="srv-log"></div></div>
 </section>
 
-<section class="tab" id="tab-aide">
+<section class="tab" id="tab-help">
   <div class="card">
-    <h2><span class="badge"><svg class="i"><use href="#i-help"/></svg></span>En bref</h2>
+    <h2><span class="badge"><svg class="i"><use href="#i-help"/></svg></span>In short</h2>
     <ol class="steps">
-      <li><b>Jeu</b> : le lanceur trouve votre copie du jeu et en extrait les fichiers dont les mods ont besoin.</li>
-      <li><b>L'émulateur</b> (Azahar, ou Lime3DS, Citra, Borked3DS) : installez le <code>.cia</code> préparé, ou
-        ouvrez le <code>.cxi</code>.</li>
-      <li><b>Mods</b> : cochez <i>Premium</i> (version complète et les 23 sous-marins), et si vous voulez la
-        <i>Triche</i>, vos <i>Caractéristiques</i>, le <i>Jeu en ligne</i>. Installez, relancez le jeu.</li>
-      <li><b>Sauvegarde</b> : tout débloquer, des médailles d'or, retirer le drapeau premium d'une ancienne sauvegarde.</li>
-      <li><b>Musique</b> : écoutez les musiques du jeu et remplacez celles que vous voulez par les vôtres (MP3, WAV…) ;
-        un bouton remet celles d'origine.</li>
+      <li><b>Game</b>: the launcher finds your copy of the game and extracts the files the mods need.</li>
+      <li><b>The emulator</b> (Azahar, or Lime3DS, Citra, Borked3DS): install the prepared <code>.cia</code>, or open
+        the <code>.cxi</code>.</li>
+      <li><b>Mods</b>: tick <i>Premium</i> (the full version and every submarine), and if you like <i>Cheats</i>,
+        your <i>Characteristics</i>, <i>Online play</i>, <i>Music</i>. Install, restart the game.</li>
+      <li><b>Save</b>: unlock everything, gold medals, clear the premium flag of an old save.</li>
+      <li><b>Music</b>: listen to the game's music and replace the ones you want with yours (MP3, WAV…), at the same
+        loudness; a button brings the originals back.</li>
     </ol>
     <h3>Questions</h3>
-    <p class="small"><b>Le premium sans l'eShop ?</b> Tout le contenu premium est déjà dans le jeu gratuit ; l'achat
-      n'ajoutait qu'un droit. Le mod le donne, et donne aux cinq sous-marins historiques leur coque à la place de leur
-      proue, qui était dans le contenu payant.</p>
-    <p class="small"><b>La mise à jour v5200 ?</b> La dernière mise à jour du jeu (16 sous-marins, 3 cartes, des
-      règles revues). Avec son <code>.cia</code> déchiffré dans <code>cia/</code>, le lanceur la prépare et l'installe
-      dans l'émulateur (onglet Jeu). Les mods sont construits pour la version que l'émulateur fait tourner ; chaque mod
-      indique les versions avec lesquelles il marche (onglet Mods).</p>
-    <p class="small"><b>Retirer les mods ?</b> Onglet Mods, « Retirer les mods de l'émulateur ». Les déblocages restent dans
-      la sauvegarde.</p>
-    <p class="small"><b>Le jeu affiche l'erreur 098-0101 au démarrage ?</b> La sauvegarde a été marquée « premium » :
-      onglet Sauvegarde, « Retirer le drapeau premium », ou installez le mod Premium.</p>
-    <p class="small"><b>En ligne, la triche ?</b> Le serveur sait quels mods vous avez : selon sa configuration, les
-      tricheurs (Triche, Caractéristiques) ne jouent qu'entre eux, avec tout le monde, ou pas du tout. Premium n'est
-      pas de la triche.</p>
-    <p class="small muted">Projet libre (MIT) : <code>README.md</code>, <code>mods/README.md</code>, <code>docs/</code>.
-      Les mêmes outils existent en ligne de commande dans <code>tools/</code>.</p>
+    <p class="small"><b>Premium without the eShop?</b> All the premium content is already in the free game; the
+      purchase only added a right. The mod gives it, and gives the five historical submarines a prow of the game in
+      place of theirs, which was in the paid content.</p>
+    <p class="small"><b>The update v5200?</b> The game's last update (16 submarines, 3 maps, revised rules). With its
+      decrypted <code>.cia</code> in <code>cia/</code>, the launcher prepares it and installs it into the emulator
+      (Game tab). The mods are built for the version the emulator runs; each mod says which versions it works with
+      (Mods tab).</p>
+    <p class="small"><b>Remove the mods?</b> Mods tab, "Remove the mods from the emulator". The unlocks stay in the
+      save.</p>
+    <p class="small"><b>The game shows error 098-0101 at start-up?</b> The save was flagged "premium": Save tab, "Clear
+      the premium flag", or install the Premium mod.</p>
+    <p class="small"><b>Cheating online?</b> The server knows which mods you have: depending on its configuration,
+      cheaters (Cheats, Characteristics, Submarine speed) only play together, with everybody, or not at all. Premium
+      and Music are not cheating.</p>
+    <p class="small muted">Free software (MIT): <code>README.md</code>, <code>mods/README.md</code>, <code>docs/</code>.
+      The same tools exist on the command line in <code>tools/</code>.</p>
   </div>
 </section>
 </main>
@@ -455,17 +455,17 @@ ol.steps { margin: 6px 0 0; padding-left: 20px; } ol.steps li { margin-bottom: 6
   <h2 id="task-title"></h2>
   <div class="log" id="task-log"></div>
   <p id="task-end" class="small"></p>
-  <div class="row"><button class="btn primary" id="task-close" data-icon="check" disabled>Fermer</button></div>
+  <div class="row"><button class="btn primary" id="task-close" data-icon="check" disabled>Close</button></div>
 </div></div>
 
 <div class="overlay" id="files-overlay"><div class="dialog">
-  <h2>Choisir le fichier du jeu</h2>
+  <h2>Choose the game's file</h2>
   <div class="row" style="margin-bottom:8px"><input type="text" id="files-path" style="flex:1">
-    <button class="btn" id="files-go" data-icon="search">Aller</button></div>
+    <button class="btn" id="files-go" data-icon="search">Go</button></div>
   <div class="row small" id="files-shortcuts" style="margin-bottom:8px"></div>
   <div class="files" id="files-list"></div>
-  <p class="small muted">Les fichiers marqués ★ sont Steel Diver: Sub Wars (Europe).</p>
-  <div class="row"><button class="btn" id="files-cancel" data-icon="x">Annuler</button></div>
+  <p class="small muted">The files marked ★ are Steel Diver: Sub Wars (Europe).</p>
+  <div class="row"><button class="btn" id="files-cancel" data-icon="x">Cancel</button></div>
 </div></div>
 
 <div class="toast" id="toast"></div>
@@ -483,7 +483,7 @@ async function api(path, options = {}) {
     init.body = JSON.stringify(options.body);
   }
   const response = await fetch("/api/" + path, init);
-  const data = await response.json().catch(() => ({error: "réponse illisible"}));
+  const data = await response.json().catch(() => ({error: "unreadable answer"}));
   if (!response.ok) throw new Error(data.error || response.statusText);
   return data;
 }
@@ -527,10 +527,10 @@ async function guarded(work) {
 function showTab(name) {
   document.querySelectorAll("nav button").forEach(b => b.classList.toggle("active", b.dataset.tab === name));
   document.querySelectorAll("section.tab").forEach(s => s.classList.toggle("active", s.id === "tab-" + name));
-  if (name === "sauvegarde") loadSave();
-  if (name === "sousmarins") loadSubs();
-  if (name === "musique") loadMusic();
-  if (name === "serveur") { loadServer(); loadServerConfig(); }
+  if (name === "save") loadSave();
+  if (name === "subs") loadSubs();
+  if (name === "music") loadMusic();
+  if (name === "server") { loadServer(); loadServerConfig(); }
   history.replaceState(null, "", "#" + name);
 }
 document.querySelectorAll("nav button").forEach(b => b.addEventListener("click", () => showTab(b.dataset.tab)));
@@ -546,42 +546,42 @@ function allVersions() {
   for (const m of state.mods) for (const v of m.versions || []) found.add(v);
   return [...found].sort(byVersion);
 }
-function versionLabel(v) { return v === "v0" ? "v0 (jeu d'origine)" : `${v} (mise à jour)`; }
+function versionLabel(v) { return v === "v0" ? "v0 (original game)" : `${v} (update)`; }
 async function refresh() {
   state = await api("state");
   const g = state.game, emu = state.emulator, up = g.update;
   const stale = emu.emulators.filter(e => e.stale);
   const chips = $("#chips");
   chips.replaceChildren(
-    el("span", {class: "chip " + (g.ready ? "ok" : "warn")}, g.ready ? "Jeu prêt" : "Jeu à préparer"),
+    el("span", {class: "chip " + (g.ready ? "ok" : "warn")}, g.ready ? "Game ready" : "Game to prepare"),
     el("span", {class: "chip " + (emu.dirs.length ? "ok" : "warn")}, emu.dirs.length
-      ? [...new Set(emu.names.map(n => n.replace(/ \(.*\)$/, "")))].join(", ") + " trouvé" + (emu.names.length > 1 ? "s" : "")
-      : "Émulateur introuvable"),
-    ...emu.versions.map(v => el("span", {class: "chip ok"}, "Jeu en " + versionLabel(v))),
+      ? [...new Set(emu.names.map(n => n.replace(/ \(.*\)$/, "")))].join(", ") + " found"
+      : "No emulator found"),
+    ...emu.versions.map(v => el("span", {class: "chip ok"}, "Game: " + versionLabel(v))),
     el("span", {class: "chip " + (stale.length ? "warn" : emu.mods_installed ? "ok" : "")},
-       stale.length ? "Mods à réinstaller (construits pour " + stale[0].mods_version + ")"
-       : emu.mods_installed ? "Mods installés" + (emu.installed ? " : " + emu.installed.mods.join(", ") : "") : "Aucun mod installé"));
+       stale.length ? "Mods to install again (built for " + stale[0].mods_version + ")"
+       : emu.mods_installed ? "Mods installed" + (emu.installed ? ": " + emu.installed.mods.join(", ") : "") : "No mod installed"));
   $("#game-status").replaceChildren(el("span", {class: "dot " + (g.ready ? "ok" : "warn")}),
-    el("span", {}, g.ready ? `Prêts (${g.product}, depuis ${g.source_name}).`
-      : g.found ? "Pas encore préparés. Jeu trouvé : " : "Pas encore préparés, et le jeu n'a pas été trouvé automatiquement.",
+    el("span", {}, g.ready ? `Ready (${g.product}, from ${g.source_name}).`
+      : g.found ? "Not prepared yet. Game found: " : "Not prepared yet, and the game was not found automatically.",
       g.ready || !g.found ? "" : el("code", {}, g.found)));
   $("#update-status").replaceChildren(
     el("span", {class: "dot " + (!up.found ? "" : up.encrypted ? "warn" : up.extracted.includes(up.version) ? "ok" : "warn")}),
-    el("span", {}, !up.found ? "Mise à jour : aucune (facultative ; mettez son .cia déchiffré dans cia/ pour la v5200)."
-      : up.encrypted ? el("span", {}, `Mise à jour ${up.version} trouvée, mais chiffrée (`, el("code", {}, up.name),
-          ") : déchiffrez-la (GodMode9, ou un outil de déchiffrement de CIA), puis remettez-la dans cia/.")
-      : up.extracted.includes(up.version) ? el("span", {}, `Mise à jour ${up.version} prête (`, el("code", {}, up.name), ").")
-      : el("span", {}, `Mise à jour ${up.version} trouvée (`, el("code", {}, up.name), ") : « Trouver le jeu et le préparer » la prépare aussi.")));
+    el("span", {}, !up.found ? "Update: none (optional; put its decrypted .cia in cia/ for v5200)."
+      : up.encrypted ? el("span", {}, `Update ${up.version} found, but encrypted (`, el("code", {}, up.name),
+          "): decrypt it (GodMode9, or a CIA decryption tool), then put it back in cia/.")
+      : up.extracted.includes(up.version) ? el("span", {}, `Update ${up.version} ready (`, el("code", {}, up.name), ").")
+      : el("span", {}, `Update ${up.version} found (`, el("code", {}, up.name), "): \"Find the game and prepare it\" prepares it too.")));
   $("#emu-status").replaceChildren(el("span", {class: "dot " + (emu.dirs.length ? "ok" : "warn")}),
-    el("span", {}, emu.dirs.length ? emu.emulators.map(e => el("div", {}, e.name + " : ", el("code", {}, e.dir),
-        el("span", {class: "muted"}, " — jeu en " + e.label)))
-      : "Aucun émulateur trouvé (Azahar, Lime3DS, Citra, Borked3DS) : lancez-le une fois. Version portable : "
-        + "définissez la variable AZAHAR_DIR sur son dossier « user »."),
-    g.prepared ? el("span", {class: "muted small"}, " — jeu préparé dans build/azahar/") : "");
+    el("span", {}, emu.dirs.length ? emu.emulators.map(e => el("div", {}, e.name + ": ", el("code", {}, e.dir),
+        el("span", {class: "muted"}, " — game: " + e.label)))
+      : "No emulator found (Azahar, Lime3DS, Citra, Borked3DS): start it once. Portable version: "
+        + "set the variable AZAHAR_DIR to its \"user\" folder."),
+    g.prepared ? el("span", {class: "muted small"}, " — game prepared in build/azahar/") : "");
   const installedSomewhere = emu.emulators.some(e => e.version !== "v0");
   $("#btn-update-install").disabled = !up.found || up.encrypted || !up.cia || !emu.dirs.length
     || emu.emulators.every(e => e.version === up.version);
-  $("#btn-update-install").replaceChildren(icon("download"), up.version ? `Installer la mise à jour ${up.version}` : "Installer la mise à jour");
+  $("#btn-update-install").replaceChildren(icon("download"), up.version ? `Install the update ${up.version}` : "Install the update");
   $("#btn-update-uninstall").disabled = !installedSomewhere;
   $("#restart").style.display = state.restart ? "block" : "none";
   renderMods();
@@ -602,8 +602,8 @@ async function followTask(task) {
     log.scrollTop = log.scrollHeight;
     if (t.done) {
       $("#task-title").textContent = task.title;
-      $("#task-end").replaceChildren(t.error ? el("b", {style: "color:var(--bad)"}, "Échec : " + t.error)
-        : el("b", {style: "color:var(--ok)"}, "Terminé."));
+      $("#task-end").replaceChildren(t.error ? el("b", {style: "color:var(--bad)"}, "Failed: " + t.error)
+        : el("b", {style: "color:var(--ok)"}, "Done."));
       $("#task-close").disabled = false;
       await refresh();
       return t;
@@ -622,12 +622,12 @@ $("#btn-prepare").addEventListener("click", () => runTask("game/prepare"));
 $("#btn-open-prepared").addEventListener("click", () => guarded(() => api("open", {body: {path: state.game.prepared_dir}})));
 $("#btn-update-install").addEventListener("click", () => {
   const v = state.game.update.version;
-  if (confirm(`Installer la mise à jour ${v} dans l'émulateur ? Le jeu démarrera en ${v}. Les mods installés pour une autre `
-      + "version seront retirés : réinstallez-les ensuite (onglet Mods).")) runTask("update/install");
+  if (confirm(`Install the update ${v} into the emulator? The game will start as ${v}. The mods installed for another `
+      + "version will be removed: install them again afterwards (Mods tab).")) runTask("update/install");
 });
 $("#btn-update-uninstall").addEventListener("click", () => {
-  if (confirm("Retirer la mise à jour de l'émulateur ? Le jeu redevient la v0 (la sauvegarde ne change pas). Les mods "
-      + "installés pour la mise à jour seront retirés : réinstallez-les ensuite.")) runTask("update/uninstall");
+  if (confirm("Remove the update from the emulator? The game becomes v0 again (the save does not change). The mods "
+      + "installed for the update will be removed: install them again afterwards.")) runTask("update/uninstall");
 });
 $("#btn-extract-pick").addEventListener("click", () => browse(null));
 $("#files-cancel").addEventListener("click", () => $("#files-overlay").classList.remove("show"));
@@ -642,19 +642,23 @@ async function browse(dir) {
       el("button", {class: "btn", icon: "folder", onclick: () => browse(s.path)}, s.name)));
     const list = $("#files-list");
     list.replaceChildren();
-    if (data.parent) list.append(el("div", {onclick: () => browse(data.parent), icon: "undo"}, "..", el("span", {class: "muted"}, " dossier parent")));
+    if (data.parent) list.append(el("div", {onclick: () => browse(data.parent), icon: "undo"}, "..", el("span", {class: "muted"}, " parent folder")));
     for (const e of data.entries) {
       if (e.type === "dir") list.append(el("div", {onclick: () => browse(e.path), icon: "folder"}, e.name));
       else list.append(el("div", {class: e.type === "game" ? "" : "other",
         onclick: () => { $("#files-overlay").classList.remove("show"); runTask("game/extract", {path: e.path}); }},
-        (e.type === "game" ? "★ " : "· ") + e.name, el("span", {class: "muted small"}, ` ${(e.size / 1048576).toFixed(1)} Mo`)));
+        (e.type === "game" ? "★ " : "· ") + e.name, el("span", {class: "muted small"}, ` ${(e.size / 1048576).toFixed(1)} MB`)));
     }
-    if (!data.entries.length) list.append(el("div", {class: "other"}, "(aucun dossier ni fichier de jeu ici)"));
+    if (!data.entries.length) list.append(el("div", {class: "other"}, "(no folder or game file here)"));
   });
 }
 
 // ---- mods ------------------------------------------------------------------------------------------
 const modChoices = JSON.parse(localStorageGet("mods") || "{}");
+// the mods' names before the project went English: keep the choices made under them
+for (const [old, now] of Object.entries({"en-ligne": "online", "triche": "cheats", "vitesse": "speed", "musique": "music",
+    "correctifs": "fixes", "pseudo": "nickname", "mention-titre": "title-credits", "texte-titre": "title-text"}))
+  if (modChoices[old] && !modChoices[now]) { modChoices[now] = modChoices[old]; delete modChoices[old]; }
 function localStorageGet(k) { try { return localStorage.getItem("sdsw." + k); } catch (e) { return null; } }
 function localStorageSet(k, v) { try { localStorage.setItem("sdsw." + k, v); } catch (e) {} }
 function emulatorVersions() { return state.emulator.versions.length ? state.emulator.versions : ["v0"]; }
@@ -665,14 +669,14 @@ function renderMods() {
   const targets = emulatorVersions();
   const stale = state.emulator.emulators.filter(e => e.stale);
   $("#mods-version").replaceChildren(
-    el("div", {}, "Version du jeu dans l'émulateur : ", el("b", {}, targets.map(versionLabel).join(", ")),
-      " — les mods sont construits pour elle. Chaque mod indique les versions avec lesquelles il marche."),
-    ...stale.map(e => el("div", {style: "color:var(--warn)"}, `Les mods installés dans ${e.name} ont été construits pour `
-      + `${e.mods_version}, mais le jeu y tourne en ${e.version} : ils l'empêcheraient de démarrer. Réinstallez-les.`)));
+    el("div", {}, "Version of the game in the emulator: ", el("b", {}, targets.map(versionLabel).join(", ")),
+      " — the mods are built for it. Each mod says which versions it works with."),
+    ...stale.map(e => el("div", {style: "color:var(--warn)"}, `The mods installed in ${e.name} were built for `
+      + `${e.mods_version}, but the game runs as ${e.version} there: they would keep it from starting. Install them again.`)));
   $("#installed").replaceChildren(state.emulator.mods_installed
-    ? el("span", {}, "Installés : ", el("b", {}, installed ? installed.mods.join(" + ") : "des mods"),
-        installed ? el("span", {class: "muted"}, ` (le ${installed.date})`) : "")
-    : el("span", {class: "muted"}, "Aucun mod installé dans l'émulateur."));
+    ? el("span", {}, "Installed: ", el("b", {}, installed ? installed.mods.join(" + ") : "some mods"),
+        installed ? el("span", {class: "muted"}, ` (on ${installed.date})`) : "")
+    : el("span", {class: "muted"}, "No mod installed in the emulator."));
   const key = targets.join(",") + "|" + allVersions().join(",");
   if (list.dataset.built === key) return;
   list.dataset.built = key;
@@ -688,13 +692,13 @@ function renderMods() {
     const card = el("div", {class: "mod card" + (box.checked ? " on" : "") + (missing.length ? " unavailable" : ""), id: "mod-" + m.id});
     box.addEventListener("change", () => { choice.on = box.checked; card.classList.toggle("on", box.checked); saveChoices(); });
     const tags = [];
-    if (m.flags.includes("triche") || m.flags.includes("specs")) tags.push(el("span", {class: "tag cheat"}, "triche en ligne"));
-    if (m.online) tags.push(el("span", {class: "tag"}, "en ligne"));
-    if (m.always) tags.push(el("span", {class: "tag"}, "toujours inclus"));
+    if (m.flags.includes("cheats") || m.flags.includes("specs")) tags.push(el("span", {class: "tag cheat"}, "cheating online"));
+    if (m.online) tags.push(el("span", {class: "tag"}, "online"));
+    if (m.always) tags.push(el("span", {class: "tag"}, "always included"));
     for (const v of allVersions()) {
       const ok = modWorksWith(m, v);
-      tags.push(el("span", {class: "tag " + (ok ? "ok" : "off"), title: ok ? `marche avec ${versionLabel(v)}`
-        : `ne marche pas (encore) avec ${versionLabel(v)}`}, (ok ? "✓ " : "✗ ") + v));
+      tags.push(el("span", {class: "tag " + (ok ? "ok" : "off"), title: ok ? `works with ${versionLabel(v)}`
+        : `does not work (yet) with ${versionLabel(v)}`}, (ok ? "✓ " : "✗ ") + v));
     }
     const params = el("div", {class: "params"});
     for (const p of m.params) {
@@ -703,8 +707,8 @@ function renderMods() {
       if (p.kind === "bool") {
         input = el("input", {type: "checkbox", "data-param": p.key});
         input.checked = ["oui", "o", "yes", "1", "true", "vrai", "on"].includes(String(value).toLowerCase());
-        input.addEventListener("change", () => { choice.params[p.key] = input.checked ? "oui" : "non"; saveChoices(); });
-        params.append(el("label", {}, input, p.help.replace(/\s*\(oui\/non\)\s*$/, "")));
+        input.addEventListener("change", () => { choice.params[p.key] = input.checked ? "yes" : "no"; saveChoices(); });
+        params.append(el("label", {}, input, p.help.replace(/\s*\((yes\/no|oui\/non)\)\s*$/, "")));
       } else if (p.kind === "choice") {
         input = el("select", {"data-param": p.key}, ...p.choices.map(c => el("option", {value: c}, c)));
         input.value = p.choices.includes(String(value)) ? String(value) : p.default;
@@ -719,8 +723,8 @@ function renderMods() {
     card.append(el("label", {class: "title"}, box, m.name, ...tags),
                 el("div", {class: "small muted", style: "margin-left:28px"}, m.description),
                 missing.length ? el("div", {class: "note"}, m.always
-                  ? `Pas encore disponible pour ${missing.map(versionLabel).join(", ")} : laissé de côté pour cette version.`
-                  : `Pas encore disponible pour ${missing.map(versionLabel).join(", ")}, la version du jeu dans l'émulateur.`) : "",
+                  ? `Not available yet for ${missing.map(versionLabel).join(", ")}: left out for this version.`
+                  : `Not available yet for ${missing.map(versionLabel).join(", ")}, the version of the game in the emulator.`) : "",
                 m.params.length && !missing.length ? params : "");
     list.append(card);
   }
@@ -752,9 +756,9 @@ function selectedMods() {
 $("#btn-install").addEventListener("click", () => { const s = selectedMods(); runTask("mods/build", {mods: s.names, params: s.params, install: true}); });
 $("#btn-build").addEventListener("click", () => { const s = selectedMods(); runTask("mods/build", {mods: s.names, params: s.params, install: false}); });
 $("#btn-uninstall").addEventListener("click", () => guarded(async () => {
-  if (!confirm("Retirer les mods de l'émulateur ? Le jeu redevient celui d'origine (la sauvegarde ne change pas).")) return;
+  if (!confirm("Remove the mods from the emulator? The game becomes the original again (the save does not change).")) return;
   const r = await api("mods/uninstall", {body: {}});
-  toast(r.removed.length ? "Mods retirés." : "Il n'y avait pas de mod installé.");
+  toast(r.removed.length ? "Mods removed." : "There was no mod installed.");
   await refresh();
 }));
 
@@ -772,7 +776,7 @@ async function loadSave() {
   if (current && files.includes(current)) select.value = current;
   const view = $("#save-view");
   if (!files.length) {
-    view.replaceChildren(el("div", {class: "card"}, el("p", {}, "Aucune sauvegarde du jeu dans l'émulateur : lancez le jeu une fois, jusqu'à l'écran titre.")));
+    view.replaceChildren(el("div", {class: "card"}, el("p", {}, "No save of the game in the emulator: start the game once, up to the title screen.")));
     return;
   }
   await guarded(async () => renderSave(await api("save?file=" + encodeURIComponent(select.value))));
@@ -783,7 +787,7 @@ function saveAction(path, body, question) {
   return guarded(async () => {
     if (question && !confirm(question)) return;
     const r = await api(path, {body: Object.assign({file: $("#save-file").value}, body)});
-    toast(r.message + " — copie de sécurité faite.");
+    toast(r.message + " — backup made.");
     renderSave(r.summary);
   });
 }
@@ -791,52 +795,52 @@ function renderSave(s) {
   saveData = s;
   const medal = m => el("span", {class: "medal m" + Math.min(m.medal, 2)}, ["—", "✓", "★"][Math.min(m.medal, 2)]);
   const missions = el("table", {},
-    el("tr", {}, el("th", {}, "Zone"), el("th", {}, "Mission 1"), el("th", {}, "Mission 2"), el("th", {}, "Mission 3")),
+    el("tr", {}, el("th", {}, "Area"), el("th", {}, "Mission 1"), el("th", {}, "Mission 2"), el("th", {}, "Mission 3")),
     ...s.missions.map((row, i) => el("tr", {}, el("td", {}, String(i + 1)), ...row.map(m =>
       el("td", {}, medal(m), m.time ? el("span", {class: "muted small"}, ` ${m.time.toFixed(1)} s`) : "")))));
   const o = s.online;
   $("#save-view").replaceChildren(
     el("div", {class: "card"},
-      el("h2", {}, s.player || "Joueur"),
-      el("p", {class: "small"}, `Sous-marin : n° ${s.typenum} ${s.sub_name} · motifs ${s.patterns}/${s.patterns_total} · `
-        + `équipage ${s.crew}/${s.crew_total} · médailles d'or ${s.gold}/21 · jeu en ${s.game_label}`),
+      el("h2", {}, s.player || "Player"),
+      el("p", {class: "small"}, `Submarine: n° ${s.typenum} ${s.sub_name} · patterns ${s.patterns}/${s.patterns_total} · `
+        + `crew ${s.crew}/${s.crew_total} · gold medals ${s.gold}/21 · game: ${s.game_label}`),
       s.premium_flag ? el("p", {class: "small", style: "color:var(--warn)"},
-        "Drapeau premium présent : sans la version complète (ou le mod Premium), le jeu affiche l'erreur 098-0101 au démarrage.") : "",
-      el("h3", {}, "Sous-marins débloqués"),
+        "Premium flag set: without the full version (or the Premium mod), the game shows error 098-0101 at start-up.") : "",
+      el("h3", {}, "Submarines unlocked"),
       el("div", {class: "subs"}, ...s.subs.map(x => el("div", {class: "sub " + (x.unlocked ? "on" : "off")},
         (x.unlocked ? "✓ " : "· ") + x.n + " " + x.name))),
-      el("p", {class: "small muted"}, `Les n° 2 à ${s.subs.length} demandent la version complète, et les n° `
-        + `${s.paid.join(", ")} le contenu additionnel : mod Premium.`),
+      el("p", {class: "small muted"}, `N° 2 to ${s.subs.length} need the full version, and n° `
+        + `${s.paid.join(", ")} the add-on content: Premium mod.`),
       el("h3", {}, "Missions"), missions,
-      el("h3", {}, "En ligne"),
-      el("p", {class: "small"}, `${o.games} parties, ${o.wins} victoires, ${o.losses} défaites, ${o.ties} nuls, `
-        + `${o.points} points, ${o.kills} coulés, ${o.hits} touches pour ${o.shots} tirs`)),
+      el("h3", {}, "Online"),
+      el("p", {class: "small"}, `${o.games} battles, ${o.wins} wins, ${o.losses} losses, ${o.ties} draws, `
+        + `${o.points} points, ${o.kills} sunk, ${o.hits} hits for ${o.shots} shots`)),
     el("div", {class: "card"},
-      el("h2", {}, "Modifier"),
+      el("h2", {}, "Change"),
       el("div", {class: "row"},
         el("button", {class: "btn primary", icon: "check", onclick: () => saveAction("save/unlock", {what: ["subs", "patterns", "crew", "missions"]},
-          "Débloquer tous les sous-marins, motifs, membres d'équipage et missions ?")}, "Tout débloquer"),
-        el("button", {class: "btn", onclick: () => saveAction("save/unlock", {what: ["subs"]})}, "Sous-marins"),
-        el("button", {class: "btn", onclick: () => saveAction("save/unlock", {what: ["patterns"]})}, "Motifs"),
-        el("button", {class: "btn", onclick: () => saveAction("save/unlock", {what: ["crew"]})}, "Équipage"),
-        el("button", {class: "btn", onclick: () => saveAction("save/unlock", {what: ["gold"]}, "Mettre une médaille d'or à chaque mission ?")}, "Médailles d'or"),
-        el("button", {class: "btn", onclick: () => saveAction("save/premium-off", {})}, "Retirer le drapeau premium")),
+          "Unlock every submarine, pattern, crew member and mission?")}, "Unlock everything"),
+        el("button", {class: "btn", onclick: () => saveAction("save/unlock", {what: ["subs"]})}, "Submarines"),
+        el("button", {class: "btn", onclick: () => saveAction("save/unlock", {what: ["patterns"]})}, "Patterns"),
+        el("button", {class: "btn", onclick: () => saveAction("save/unlock", {what: ["crew"]})}, "Crew"),
+        el("button", {class: "btn", onclick: () => saveAction("save/unlock", {what: ["gold"]}, "Give every mission a gold medal?")}, "Gold medals"),
+        el("button", {class: "btn", onclick: () => saveAction("save/premium-off", {})}, "Clear the premium flag")),
       el("details", {},
-        el("summary", {}, "Avancé : une valeur, export et import"),
+        el("summary", {}, "Advanced: one value, export and import"),
         el("div", {class: "row"},
           el("input", {type: "text", id: "set-name", placeholder: "save.sub.typenum", size: 30}),
-          el("input", {type: "text", id: "set-value", placeholder: "valeur (1,0,1 pour un tableau)", size: 26}),
-          el("button", {class: "btn", icon: "check", onclick: () => saveAction("save/set", {name: $("#set-name").value, value: $("#set-value").value})}, "Écrire")),
+          el("input", {type: "text", id: "set-value", placeholder: "value (1,0,1 for an array)", size: 26}),
+          el("button", {class: "btn", icon: "check", onclick: () => saveAction("save/set", {name: $("#set-name").value, value: $("#set-value").value})}, "Write")),
         el("div", {class: "row", style: "margin-top:8px"},
-          el("button", {class: "btn", icon: "download", onclick: exportSave}, "Exporter en JSON"),
-          el("label", {class: "btn", icon: "upload"}, "Importer un JSON…", el("input", {type: "file", accept: ".json", style: "display:none", onchange: importSave}))),
-        el("p", {class: "small muted"}, `${s.values} valeurs. Fichier : `, el("code", {}, s.file)))));
+          el("button", {class: "btn", icon: "download", onclick: exportSave}, "Export as JSON"),
+          el("label", {class: "btn", icon: "upload"}, "Import a JSON…", el("input", {type: "file", accept: ".json", style: "display:none", onchange: importSave}))),
+        el("p", {class: "small muted"}, `${s.values} values. File: `, el("code", {}, s.file)))));
 }
 async function exportSave() {
   await guarded(async () => {
     const data = await api("save/export?file=" + encodeURIComponent($("#save-file").value));
     const blob = new Blob([JSON.stringify(data, null, 1)], {type: "application/json"});
-    const a = el("a", {href: URL.createObjectURL(blob), download: "sauvegarde-subwars.json"});
+    const a = el("a", {href: URL.createObjectURL(blob), download: "subwars-save.json"});
     document.body.append(a); a.click(); a.remove();
   });
 }
@@ -844,7 +848,7 @@ async function importSave(event) {
   const file = event.target.files[0];
   if (!file) return;
   const data = JSON.parse(await file.text());
-  await saveAction("save/import", {data}, "Remplacer la sauvegarde par ce fichier ?");
+  await saveAction("save/import", {data}, "Replace the save with this file?");
 }
 
 // ---- submarines ------------------------------------------------------------------------------------
@@ -871,32 +875,32 @@ function renderSubs() {
 function renderSubEditor() {
   const box = $("#sub-editor");
   const s = subsData.subs.find(x => x.n === selectedSub);
-  if (!s) { box.replaceChildren(el("p", {class: "muted"}, "Choisissez un sous-marin dans la liste.")); return; }
+  if (!s) { box.replaceChildren(el("p", {class: "muted"}, "Choose a submarine in the list.")); return; }
   const inputs = {};
   const field = f => {
     if (s.game[f.key] === undefined) return "";
     const input = el("input", {type: "number", min: f.low, max: f.high, step: f.kind === "int" ? 1 : "any", value: s.mine[f.key]});
     inputs[f.key] = input;
     return el("div", {class: "field"}, el("label", {}, f.key + (s.mine[f.key] !== s.game[f.key] ? " ●" : "")), input,
-      el("div", {class: "hint"}, `${f.help} — jeu : ${fmt(s.game[f.key])}`));
+      el("div", {class: "hint"}, `${f.help} — game: ${fmt(s.game[f.key])}`));
   };
   box.replaceChildren(el("h2", {}, `n° ${s.n} ${s.name}`),
     el("div", {class: "fields"}, ...subsData.fields.filter(f => !f.advanced).map(field)),
-    el("details", {}, el("summary", {}, "Réglages fins de la physique"),
+    el("details", {}, el("summary", {}, "Fine-tuning of the physics"),
       el("div", {class: "fields"}, ...subsData.fields.filter(f => f.advanced).map(field))),
     el("div", {class: "row", style: "margin-top:12px"},
       el("button", {class: "btn primary", icon: "check", onclick: () => guarded(async () => {
         const values = {};
         for (const [k, input] of Object.entries(inputs)) values[k] = Number(input.value);
         subsData = await api("subs/set", {body: {n: s.n, values}});
-        toast(`${s.name} enregistré. Installez le mod « Caractéristiques » pour l'appliquer.`);
+        toast(`${s.name} saved. Install the "Characteristics" mod to apply it.`);
         renderSubs();
-      })}, "Enregistrer"),
+      })}, "Save"),
       el("button", {class: "btn", icon: "undo", onclick: () => guarded(async () => {
-        subsData = await api("subs/reset", {body: {n: s.n}}); renderSubs(); })}, "Valeurs du jeu")));
+        subsData = await api("subs/reset", {body: {n: s.n}}); renderSubs(); })}, "Game values")));
 }
 $("#btn-subs-reset-all").addEventListener("click", () => guarded(async () => {
-  if (!confirm(`Remettre les valeurs du jeu pour les ${subsData.subs.length} sous-marins ?`)) return;
+  if (!confirm(`Put the game's values back for the ${subsData.subs.length} submarines?`)) return;
   subsData = await api("subs/reset", {body: {}}); renderSubs();
 }));
 
@@ -916,15 +920,15 @@ function renderMusic() {
   const mine = m.tracks.filter(t => t.mine);
   const matched = mine.filter(t => t.mine.match).length;
   $("#music-stats").replaceChildren(
-    el("div", {class: "stat"}, el("b", {}, String(m.tracks.length)), el("span", {}, "musiques dans le jeu")),
-    el("div", {class: "stat"}, el("b", {}, String(m.count)), el("span", {}, "remplacées par les vôtres")),
-    el("div", {class: "stat"}, el("b", {}, m.count ? `${matched}/${m.count}` : "—"), el("span", {}, "au volume de l'original")),
-    el("div", {class: "stat"}, el("b", {}, m.installed ? "Oui" : "Non"), el("span", {}, "dans l'émulateur")));
+    el("div", {class: "stat"}, el("b", {}, String(m.tracks.length)), el("span", {}, "music streams in the game")),
+    el("div", {class: "stat"}, el("b", {}, String(m.count)), el("span", {}, "replaced by yours")),
+    el("div", {class: "stat"}, el("b", {}, m.count ? `${matched}/${m.count}` : "—"), el("span", {}, "at the original's loudness")),
+    el("div", {class: "stat"}, el("b", {}, m.installed ? "Yes" : "No"), el("span", {}, "in the emulator")));
   $("#music-status").replaceChildren(
-    m.count && !m.installed ? el("div", {class: "pill warn", icon: "download"}, "Pas encore dans l'émulateur : « Appliquer dans l'émulateur »")
-      : !m.count && m.installed ? el("div", {class: "pill warn", icon: "download"}, "L'émulateur a encore vos musiques : « Appliquer » remet celles du jeu")
+    m.count && !m.installed ? el("div", {class: "pill warn", icon: "download"}, "Not in the emulator yet: \"Apply in the emulator\"")
+      : !m.count && m.installed ? el("div", {class: "pill warn", icon: "download"}, "The emulator still has your music: \"Apply\" brings the game's back")
       : "",
-    el("div", {class: "muted", style: "margin-top:6px"}, `Jeu en ${m.label}. Vos musiques : `, el("code", {}, m.folder)));
+    el("div", {class: "muted", style: "margin-top:6px"}, `Game: ${m.label}. Your music: `, el("code", {}, m.folder)));
   const filter = $("#music-filter").value.trim().toLowerCase();
   const list = $("#music-table");
   list.replaceChildren();
@@ -935,51 +939,51 @@ function renderMusic() {
     const input = el("input", {type: "file", accept: "audio/*,.mp3,.wav,.ogg,.oga,.flac,.m4a,.aac,.opus,.webm", style: "display:none",
       onchange: e => { const f = e.target.files[0]; e.target.value = ""; if (f) replaceMusic(t, f); }});
     const meta = el("div", {class: "meta"}, el("span", {class: "mono"}, t.file),
-      el("span", {class: "pill"}, t.channels === 2 ? "stéréo" : "mono"), el("span", {class: "pill"}, `${t.rate} Hz`),
+      el("span", {class: "pill"}, t.channels === 2 ? "stereo" : "mono"), el("span", {class: "pill"}, `${t.rate} Hz`),
       el("span", {class: "pill"}, duration(t.seconds)));
     let yours = "";
     if (busy) {
-      yours = el("div", {class: "yours"}, el("span", {class: "spin"}), "Conversion et analyse du volume…");
+      yours = el("div", {class: "yours"}, el("span", {class: "spin"}), "Converting and measuring the loudness…");
     } else if (t.mine) {
       const box = el("input", {type: "checkbox"});
       box.checked = t.mine.match;
       box.addEventListener("change", () => guarded(async () => {
         musicData = await api("music/match", {body: {file: t.file, on: box.checked}});
         renderMusic();
-        toast(box.checked ? `${t.label} : volume égalisé sur l'original.` : `${t.label} : volume de votre fichier gardé tel quel.`);
+        toast(box.checked ? `${t.label}: loudness matched to the original.` : `${t.label}: your file's loudness kept as it is.`);
       }));
       const gain = t.mine.gain;
       yours = el("div", {class: "yours"},
         el("span", {class: "src", icon: "music"}, t.mine.source),
         el("span", {class: "pill"}, duration(t.mine.seconds)),
-        el("label", {class: "switch", title: "Ajuster votre musique pour qu'elle sonne aussi fort que celle du jeu"},
-          box, el("span", {class: "track-ui"}), "Volume égalisé"),
+        el("label", {class: "switch", title: "Adjust your music so that it sounds as loud as the game's"},
+          box, el("span", {class: "track-ui"}), "Loudness matched"),
         gain === null || gain === undefined ? ""
           : el("span", {class: "pill " + (t.mine.match ? "accent" : ""), icon: "volume",
-               title: `Sonie : la vôtre ${t.mine.loudness} dB, l'original ${t.mine.target} dB`},
-               t.mine.match ? `ajusté de ${db(gain)}` : `écart ${db(-gain)}`));
+               title: `Loudness: yours ${t.mine.loudness} dB, the original ${t.mine.target} dB`},
+               t.mine.match ? `adjusted by ${db(gain)}` : `${db(-gain)} apart`));
     }
     list.append(el("div", {class: "trackrow" + (t.mine ? " mine" : "")},
       el("div", {}, el("div", {class: "name"}, t.label), meta, yours),
       el("div", {class: "actions"},
-        el("button", {class: "btn", title: "Écouter la musique du jeu", icon: "play", onclick: () => playMusic(t, "original")}, "Jeu"),
-        t.mine ? el("button", {class: "btn", title: "Écouter la vôtre, telle que le jeu la jouera", icon: "play", onclick: () => playMusic(t, "mine")}, "La vôtre") : "",
-        el("label", {class: "btn" + (busy ? " disabled" : ""), icon: "upload"}, t.mine ? "Changer" : "Remplacer", input),
-        t.mine ? el("button", {class: "btn icon danger", title: "Remettre la musique du jeu", icon: "undo", onclick: () => guarded(async () => {
+        el("button", {class: "btn", title: "Listen to the game's music", icon: "play", onclick: () => playMusic(t, "original")}, "Game"),
+        t.mine ? el("button", {class: "btn", title: "Listen to yours, as the game will play it", icon: "play", onclick: () => playMusic(t, "mine")}, "Yours") : "",
+        el("label", {class: "btn" + (busy ? " disabled" : ""), icon: "upload"}, t.mine ? "Change" : "Replace", input),
+        t.mine ? el("button", {class: "btn icon danger", title: "Put the game's music back", icon: "undo", onclick: () => guarded(async () => {
           musicData = await api("music/reset", {body: {file: t.file}}); renderMusic();
-          toast(`${t.label} : musique du jeu remise. « Appliquer dans l'émulateur » pour l'entendre en jeu.`);
+          toast(`${t.label}: the game's music is back. "Apply in the emulator" to hear it in the game.`);
         })}) : "")));
   }
-  if (!list.children.length) list.append(el("div", {class: "card muted"}, "Aucune musique ne correspond à la recherche."));
+  if (!list.children.length) list.append(el("div", {class: "card muted"}, "No music matches the search."));
 }
 async function playMusic(t, which) {
   await guarded(async () => {
-    $("#music-now").replaceChildren(el("span", {class: "spin"}), " Préparation…");
+    $("#music-now").replaceChildren(el("span", {class: "spin"}), " Preparing…");
     $("#music-now-sub").textContent = t.label;
     const response = await fetch(`/api/music/audio?file=${encodeURIComponent(t.file)}&which=${which}`, {headers: {"X-Token": TOKEN}});
     if (!response.ok) {
       const data = await response.json().catch(() => ({}));
-      $("#music-now").textContent = "Rien en écoute";
+      $("#music-now").textContent = "Nothing playing";
       $("#music-now-sub").textContent = "";
       throw new Error(data.error || response.statusText);
     }
@@ -989,8 +993,8 @@ async function playMusic(t, which) {
     const player = $("#music-player");
     player.src = musicUrl;
     $("#music-now").textContent = t.label;
-    $("#music-now-sub").textContent = which === "mine" ? "Votre musique : " + t.mine.source + (t.mine.match ? " (volume égalisé)" : "")
-      : "Musique du jeu : " + t.file;
+    $("#music-now-sub").textContent = which === "mine" ? "Your music: " + t.mine.source + (t.mine.match ? " (loudness matched)" : "")
+      : "The game's music: " + t.file;
     await player.play().catch(() => {});
   });
 }
@@ -998,17 +1002,17 @@ async function playMusic(t, which) {
 // music it replaces; the launcher gets 16-bit samples, levels them and keeps them as a WAV.
 async function decodeFor(file, t) {
   const Context = window.AudioContext || window.webkitAudioContext;
-  if (!Context || !window.OfflineAudioContext) throw new Error("ce navigateur ne sait pas décoder l'audio : utilisez tools/music.py avec un WAV");
+  if (!Context || !window.OfflineAudioContext) throw new Error("this browser cannot decode audio: use tools/music.py with a WAV");
   const context = new Context();
   let audio;
   try {
     audio = await context.decodeAudioData(await file.arrayBuffer());
   } catch (e) {
-    throw new Error(`${file.name} : format que ce navigateur ne sait pas lire (essayez un MP3 ou un WAV)`);
+    throw new Error(`${file.name}: a format this browser cannot read (try an MP3 or a WAV)`);
   } finally {
     context.close();
   }
-  if (audio.duration > 15 * 60) throw new Error(`${file.name} : plus de 15 minutes, c'est trop long`);
+  if (audio.duration > 15 * 60) throw new Error(`${file.name}: over 15 minutes, that is too long`);
   const length = Math.max(1, Math.ceil(audio.duration * t.rate));
   const offline = new OfflineAudioContext(t.channels, length, t.rate);
   const source = offline.createBufferSource();
@@ -1036,12 +1040,12 @@ async function replaceMusic(t, file) {
         normalize: $("#music-normalize").checked ? "1" : "0"});
       const response = await fetch("/api/music/upload?" + query, {method: "POST",
         headers: {"X-Token": TOKEN, "Content-Type": "application/octet-stream"}, body: pcm.buffer});
-      const data = await response.json().catch(() => ({error: "réponse illisible"}));
+      const data = await response.json().catch(() => ({error: "unreadable answer"}));
       if (!response.ok) throw new Error(data.error || response.statusText);
       musicData = data;
       const done = musicData.tracks.find(x => x.file === t.file);
-      const g = done && done.mine && done.mine.match && done.mine.gain !== null ? ` Volume ajusté de ${db(done.mine.gain)}.` : "";
-      toast(`${t.label} : « ${file.name} » prête.${g} « La vôtre » pour l'écouter, puis « Appliquer dans l'émulateur ».`);
+      const g = done && done.mine && done.mine.match && done.mine.gain !== null ? ` Loudness adjusted by ${db(done.mine.gain)}.` : "";
+      toast(`${t.label}: "${file.name}" is ready.${g} "Yours" to listen to it, then "Apply in the emulator".`);
     });
   } finally {
     musicBusy = null;
@@ -1058,21 +1062,21 @@ $("#btn-music-apply").addEventListener("click", () => guarded(async () => {
   loadMusic();
 }));
 $("#btn-music-reset-all").addEventListener("click", () => guarded(async () => {
-  if (!musicData || !musicData.count) { toast("Toutes les musiques sont déjà celles du jeu."); if (musicData && musicData.installed && confirm("L'émulateur a encore vos musiques. Les retirer maintenant ?")) $("#btn-music-apply").click(); return; }
-  if (!confirm(`Remettre les musiques d'origine ? Vos ${musicData.count} musique(s) seront retirées du dossier de réglages.`)) return;
+  if (!musicData || !musicData.count) { toast("All the music is already the game's."); if (musicData && musicData.installed && confirm("The emulator still has your music. Remove it now?")) $("#btn-music-apply").click(); return; }
+  if (!confirm(`Restore the original music? Your ${musicData.count} music file(s) will be removed from the settings folder.`)) return;
   musicData = await api("music/reset", {body: {all: true}});
   renderMusic();
-  if (musicData.installed && confirm("Remettre aussi tout de suite les musiques d'origine dans l'émulateur ?")) $("#btn-music-apply").click();
-  else toast("Musiques d'origine remises. « Appliquer dans l'émulateur » pour les retrouver en jeu.");
+  if (musicData.installed && confirm("Also put the original music back in the emulator right away?")) $("#btn-music-apply").click();
+  else toast("Original music restored. \"Apply in the emulator\" to hear it in the game again.");
 }));
 $("#btn-music-folder").addEventListener("click", () => guarded(() => api("music/folder", {body: {}})));
 
 // ---- server ----------------------------------------------------------------------------------------
 let serverTimer = null;
-const CHEATS = {separes: "ils ne jouent qu'entre eux", autorises: "acceptés avec tout le monde", refuses: "refusés"};
+const CHEATS = {separate: "they only play together", allowed: "accepted with everybody", refused: "refused"};
 function copyButton(text) {
   return el("button", {class: "btn", icon: "copy", onclick: () => guarded(async () => {
-    await navigator.clipboard.writeText(text); toast("Copié : " + text); })}, "Copier");
+    await navigator.clipboard.writeText(text); toast("Copied: " + text); })}, "Copy");
 }
 async function loadServer() {
   clearTimeout(serverTimer);
@@ -1080,78 +1084,78 @@ async function loadServer() {
     const s = await api("server");
     const other = s.others.length ? s.others[0] : null;
     $("#srv-status").replaceChildren(el("span", {class: "dot " + (s.running ? "ok" : other ? "warn" : "")}),
-      el("span", {}, s.running ? "Le serveur tourne."
-        : other ? `Un serveur lancé ailleurs tourne déjà (PID ${other.pid}) : « Relancer ici » l'arrête et en lance un nouveau.`
-        : "Le serveur est arrêté."));
+      el("span", {}, s.running ? "The server is running."
+        : other ? `A server started elsewhere is already running (PID ${other.pid}): "Restart here" stops it and starts a new one.`
+        : "The server is stopped."));
     $("#btn-srv-start").replaceChildren(icon(s.running || other ? "refresh" : "power"),
-      s.running ? "Relancer le serveur" : other ? "Relancer ici" : "Lancer le serveur");
+      s.running ? "Restart the server" : other ? "Restart here" : "Start the server");
     renderPublic(s);
     const log = $("#srv-log");
     const atBottom = log.scrollTop + log.clientHeight >= log.scrollHeight - 4;
     log.textContent = s.lines.length ? s.lines.join("\n")
-      : other ? "(le journal d'un serveur lancé ailleurs ne s'affiche pas ici : « Relancer ici » pour le suivre)" : "";
+      : other ? "(the log of a server started elsewhere does not show here: \"Restart here\" to follow it)" : "";
     if (atBottom) log.scrollTop = log.scrollHeight;
-    if (document.querySelector("#tab-serveur.active")) serverTimer = setTimeout(loadServer, 2000);
+    if (document.querySelector("#tab-server.active")) serverTimer = setTimeout(loadServer, 2000);
   });
 }
 function renderPublic(s) {
   const box = $("#srv-public");
-  const realm = s.realms.find(r => r.name === "emulateur") || s.realms[0];
+  const realm = s.realms.find(r => r.name === "emulator" || r.name === "emulateur") || s.realms[0];
   const port = realm ? realm.auth_port : 61000;
   const net = s.state && s.state.internet;
-  const parts = [el("h2", {}, "Jouer avec des amis éloignés")];
+  const parts = [el("h2", {}, "Play with friends far away")];
   if (!s.running && !s.others.length) {
-    parts.push(el("p", {class: "small muted"}, "Lancez le serveur : il cherche son adresse publique et ouvre ses ports sur la box."));
+    parts.push(el("p", {class: "small muted"}, "Start the server: it finds its public address and opens its ports on the router."));
   } else if (!net || !net.ready) {
-    parts.push(el("p", {class: "small"}, el("span", {class: "spin"}), " Recherche de la box et de l'adresse publique…"));
+    parts.push(el("p", {class: "small"}, el("span", {class: "spin"}), " Looking for the router and the public address…"));
   } else {
     const share = net.public_address && net.global ? net.public_address + (port !== 61000 ? ":" + port : "") : null;
     parts.push(share
-      ? el("div", {class: "row"}, el("span", {}, "Adresse à donner à vos amis : "), el("code", {style: "font-size:15px"}, share), copyButton(share))
+      ? el("div", {class: "row"}, el("span", {}, "Address to give your friends: "), el("code", {style: "font-size:15px"}, share), copyButton(share))
       : el("p", {style: "color:var(--warn)"}, net.public_address
-          ? `Adresse « ${net.public_address} » : ce n'est pas une adresse Internet, seuls les joueurs de votre réseau peuvent venir.`
-          : "Adresse publique introuvable : seuls les joueurs de votre réseau peuvent venir (public_address dans la configuration)."));
+          ? `Address "${net.public_address}": not an Internet address, only the players of your network can come.`
+          : "Public address not found: only the players of your network can come (public_address in the configuration)."));
     const up = net.upnp;
     const failed = Object.entries(up.failed || {});
-    const lan = net.lan_address || (s.addresses[0] || "cet ordinateur");
+    const lan = net.lan_address || (s.addresses[0] || "this computer");
     if (!up.enabled) {
-      parts.push(el("p", {class: "small"}, "UPnP désactivé (upnp dans la configuration) : redirigez à la main sur la box les ports UDP ",
-        el("code", {}, net.ports.map(p => p.split(" ")[1]).join(", ")), " vers ", el("code", {}, lan), "."));
+      parts.push(el("p", {class: "small"}, "UPnP off (upnp in the configuration): forward by hand on the router the UDP ports ",
+        el("code", {}, net.ports.map(p => p.split(" ")[1]).join(", ")), " to ", el("code", {}, lan), "."));
     } else if (!up.router) {
-      parts.push(el("p", {class: "small", style: "color:var(--warn)"}, "La box ne répond pas en UPnP : activez l'UPnP dans sa configuration ",
-        "(le serveur réessaie toutes les 20 minutes), ou redirigez à la main les ports UDP ",
-        el("code", {}, net.ports.map(p => p.split(" ")[1]).join(", ")), " vers ", el("code", {}, lan), "."));
+      parts.push(el("p", {class: "small", style: "color:var(--warn)"}, "The router does not answer UPnP: turn UPnP on in its configuration ",
+        "(the server tries again every 20 minutes), or forward by hand the UDP ports ",
+        el("code", {}, net.ports.map(p => p.split(" ")[1]).join(", ")), " to ", el("code", {}, lan), "."));
     } else {
       parts.push(el("p", {class: "small"}, el("span", {style: "color:var(--ok)"}, "✓ "),
-        `Ports ouverts sur la box (${up.router}, UPnP) : ${up.forwarded.join(", ") || "aucun"}`
-        + (up.players ? ` · ${up.players} port(s) de joueur de votre réseau` : "") + "."));
+        `Ports open on the router (${up.router}, UPnP): ${up.forwarded.join(", ") || "none"}`
+        + (up.players ? ` · ${up.players} player port(s) of your network` : "") + "."));
       if (failed.length) parts.push(el("p", {class: "small", style: "color:var(--bad)"},
-        "La box refuse : " + failed.map(([k, e]) => `${k} (${e})`).join(" ; ")
-        + ". Redirigez-les à la main, ou changez les ports dans la configuration."));
+        "The router refuses: " + failed.map(([k, e]) => `${k} (${e})`).join("; ")
+        + ". Forward them by hand, or change the ports in the configuration."));
     }
     if (net.double_nat) parts.push(el("p", {class: "small", style: "color:var(--bad)"},
-      `La box a l'adresse ${net.router_address}, mais Internet vous voit en ${net.stun_address} : un autre NAT est devant la box `
-      + "(celui de l'opérateur, ou un second routeur). Les ports ouverts sur la box ne suffisent pas : demandez une adresse IPv4 "
-      + "complète à votre opérateur, ou jouez par un réseau privé virtuel (voir l'aide du serveur)."));
-    parts.push(el("p", {class: "small muted"}, "Pour jouer sur cet ordinateur, votre mod Jeu en ligne garde l'adresse ",
-      el("code", {}, "127.0.0.1"), " ; sur votre réseau local : ", el("code", {}, lan), "."));
+      `The router has the address ${net.router_address}, but the Internet sees you as ${net.stun_address}: another NAT is in `
+      + "front of the router (the operator's, or a second router). Ports opened on the router are not enough: ask your "
+      + "operator for a full IPv4 address, or play over a virtual private network (see the server's help)."));
+    parts.push(el("p", {class: "small muted"}, "To play on this computer, your Online play mod keeps the address ",
+      el("code", {}, "127.0.0.1"), "; on your local network: ", el("code", {}, lan), "."));
   }
-  if (realm) parts.push(el("div", {class: "small muted"}, `Royaume « ${realm.name} » : jusqu'à ${realm.max_players} joueurs humains par partie `
-    + `(des bots complètent les équipes) · batailles de ${realm.duration} min · tricheurs : ${CHEATS[realm.cheats] || realm.cheats}`
-    + (realm.bots ? ` · seul ${realm.bots_delay} s : bots en ${realm.bots_format}, niveau ${realm.bots_level}.` : " · pas de bots pour un joueur seul.")));
-  parts.push(s.status_page ? el("div", {class: "small"}, "Page d'état : ", el("a", {href: s.status_page, target: "_blank"}, s.status_page))
-    : el("div", {class: "small muted"}, "Page d'état : désactivée (status_port dans la configuration)."));
-  parts.push(el("div", {class: "small muted"}, "Configuration : ", el("code", {}, s.config)));
+  if (realm) parts.push(el("div", {class: "small muted"}, `Realm "${realm.name}": up to ${realm.max_players} human players per match `
+    + `(bots fill the teams) · ${realm.duration}-minute battles · cheaters: ${CHEATS[realm.cheats] || realm.cheats}`
+    + (realm.bots ? ` · alone ${realm.bots_delay} s: bots in ${realm.bots_format}, level ${realm.bots_level}.` : " · no bots for a player alone.")));
+  parts.push(s.status_page ? el("div", {class: "small"}, "Status page: ", el("a", {href: s.status_page, target: "_blank"}, s.status_page))
+    : el("div", {class: "small muted"}, "Status page: off (status_port in the configuration)."));
+  parts.push(el("div", {class: "small muted"}, "Configuration: ", el("code", {}, s.config)));
   box.replaceChildren(...parts);
 }
 // ---- server configuration --------------------------------------------------------------------------
 let serverConfig = null;
-const LEVELS = {normal: "normal", difficile: "difficile", expert: "expert (visée parfaite)"};
-const CHEAT_LABELS = {separes: "séparés (entre eux)", autorises: "autorisés avec tout le monde", refuses: "refusés"};
+const LEVELS = {normal: "normal", hard: "hard", expert: "expert (perfect aim)"};
+const CHEAT_LABELS = {separate: "separate (among themselves)", allowed: "allowed with everybody", refused: "refused"};
 function formatLabel(f) {
   const [a, b] = f.split("v").map(Number);
-  const mine = a === 1 ? "vous seul" : `vous et ${a - 1} bot${a > 2 ? "s" : ""}`;
-  return `${f} — ${mine} contre ${b} bot${b > 1 ? "s" : ""}`;
+  const mine = a === 1 ? "you alone" : `you and ${a - 1} bot${a > 2 ? "s" : ""}`;
+  return `${f} — ${mine} against ${b} bot${b > 1 ? "s" : ""}`;
 }
 function optionInput(o, value, onChange, maps) {
   let input;
@@ -1162,7 +1166,7 @@ function optionInput(o, value, onChange, maps) {
   } else if (o.kind === "choice") {
     const label = c => o.key === "bots_format" ? formatLabel(c) : o.key === "bots_level" ? (LEVELS[c] || c)
       : o.key === "cheats" ? (CHEAT_LABELS[c] || c)
-      : o.key === "bots_map" ? (c === "aleatoire" ? "aléatoire" : `${c}${maps[c] ? " — " + maps[c] : ""}`) : c;
+      : o.key === "bots_map" ? (c === "random" ? "random" : `${c}${maps[c] ? " — " + maps[c] : ""}`) : c;
     input = el("select", {}, ...o.choices.map(c => el("option", {value: c}, label(c))));
     input.value = String(value);
     input.addEventListener("change", () => onChange(input.value));
@@ -1190,14 +1194,14 @@ function renderServerConfig() {
     const main = c.schema.realm.filter(o => !o.key.startsWith("bots"));
     const bots = c.schema.realm.filter(o => o.key.startsWith("bots"));
     return el("div", {style: "margin-top:14px"},
-      el("h3", {}, `Royaume « ${r.name} »`, r.name === "emulateur" ? el("span", {class: "muted small"}, " (joueurs sur émulateur)")
-        : r.name === "pc" ? el("span", {class: "muted small"}, " (portage PC)") : ""),
+      el("h3", {}, `Realm "${r.name}"`, r.name === "emulator" ? el("span", {class: "muted small"}, " (players on emulators)")
+        : r.name === "pc" ? el("span", {class: "muted small"}, " (PC port)") : ""),
       el("div", {class: "fields"}, ...main.map(o => optionField(o, r[o.key], v => set(o.key, v), c.maps))),
       el("h3", {}, "Bots"),
       el("div", {class: "fields"}, ...bots.map(o => optionField(o, r[o.key], v => set(o.key, v), c.maps))));
   });
-  box.replaceChildren(el("h3", {}, "Général"), general, ...realms,
-    el("p", {class: "small muted", style: "margin-top:10px"}, "Fichier : ", el("code", {}, c.file)));
+  box.replaceChildren(el("h3", {}, "General"), general, ...realms,
+    el("p", {class: "small muted", style: "margin-top:10px"}, "File: ", el("code", {}, c.file)));
 }
 $("#btn-srv-config-reload").addEventListener("click", loadServerConfig);
 $("#btn-srv-config-save").addEventListener("click", () => guarded(async () => {
@@ -1205,11 +1209,11 @@ $("#btn-srv-config-save").addEventListener("click", () => guarded(async () => {
   const body = {server: c.changes.server, realm: Object.entries(c.changes.realm).map(([name, v]) => Object.assign({name}, v))};
   serverConfig = await api("server/config", {body});
   renderServerConfig();
-  if (serverConfig.restart && confirm("Configuration enregistrée. Relancer le serveur maintenant pour l'appliquer ?")) {
+  if (serverConfig.restart && confirm("Configuration saved. Restart the server now to apply it?")) {
     await api("server/start", {body: {}});
     loadServer();
   } else {
-    toast("Configuration enregistrée.");
+    toast("Configuration saved.");
   }
 }));
 
@@ -1224,31 +1228,31 @@ $("#btn-srv-config").addEventListener("click", () => guarded(async () => {
   const s = await api("server"); await api("open", {body: {path: s.config.replace(/[\\/][^\\/]*$/, "")}}); }));
 $("#btn-srv-test").addEventListener("click", () => guarded(async () => {
   const out = $("#srv-test-result");
-  out.replaceChildren(el("span", {class: "spin"}), " Test en cours…");
+  out.replaceChildren(el("span", {class: "spin"}), " Testing…");
   try {
     const r = await api("server/test", {body: {address: $("#srv-test-address").value}});
     const line = (ok, text) => el("div", {}, el("b", {style: "color:var(--" + (ok ? "ok" : "bad") + ")"}, ok ? "✓ " : "✗ "), text);
-    if (r.error) { out.replaceChildren(line(false, `Adresse introuvable : ${r.host}`)); return; }
+    if (r.error) { out.replaceChildren(line(false, `Address not found: ${r.host}`)); return; }
     out.replaceChildren(
-      line(r.auth, `Connexion (UDP ${r.port})`),
-      line(r.secure, `Serveur sécurisé (UDP ${r.port + 1})`),
-      line(r.natcheck, "Détection de NAT (UDP 10025)" + (r.seen_as ? ` : le serveur vous voit en ${r.seen_as}` : "")),
+      line(r.auth, `Connection (UDP ${r.port})`),
+      line(r.secure, `Secure server (UDP ${r.port + 1})`),
+      line(r.natcheck, "NAT detection (UDP 10025)" + (r.seen_as ? `: the server sees you as ${r.seen_as}` : "")),
       el("div", {class: "muted", style: "margin-top:4px"}, r.auth && r.natcheck
-        ? "Le serveur répond : installez le mod Jeu en ligne avec cette adresse."
-        : "Pas de réponse : le serveur est-il lancé ? Ses ports UDP sont-ils ouverts sur sa box ? "
-          + "(Depuis l'ordinateur du serveur, tester son adresse publique passe par la box et peut échouer même quand tout va bien.)"));
+        ? "The server answers: install the Online play mod with this address."
+        : "No answer: is the server running? Are its UDP ports open on its router? "
+          + "(From the server's own computer, testing its public address goes through the router and may fail even when all is well.)"));
   } catch (e) { out.replaceChildren(); throw e; }
 }));
 $("#btn-srv-use").addEventListener("click", () => {
   const text = $("#srv-test-address").value.trim();
-  if (!text) { toast("Entrez d'abord l'adresse du serveur.", true); return; }
+  if (!text) { toast("Enter the server's address first.", true); return; }
   const [host, port] = text.split(":");
-  if (host.length > 31) { toast("Adresse trop longue : 31 caractères au plus.", true); return; }
-  setModParam("en-ligne", "server", host);
-  setModParam("en-ligne", "port", port || "61000");
-  toast(`Mod Jeu en ligne réglé sur ${host}${port ? ":" + port : ""} : cliquez sur « Installer dans l'émulateur ».`);
+  if (host.length > 31) { toast("Address too long: 31 characters at most.", true); return; }
+  setModParam("online", "server", host);
+  setModParam("online", "port", port || "61000");
+  toast(`Online play mod set to ${host}${port ? ":" + port : ""}: click "Install into the emulator".`);
   showTab("mods");
-  const card = $("#mod-en-ligne");
+  const card = $("#mod-online");
   if (card) card.scrollIntoView({behavior: "smooth", block: "center"});
 });
 

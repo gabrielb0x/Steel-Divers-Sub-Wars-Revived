@@ -7,12 +7,12 @@
   subs.py reset [sub]                puts the game's values back in your file
   subs.py check                      checks your file
 
-<sub> is a number (1 to 23, 39 with the update) or a name ("Type VII"). Your file is sous-marins.toml in this
-project's settings folder, sous-marins-v5200.toml for the update (its values differ: --file to use another): edit
+<sub> is a number (1 to 23, 39 with the update) or a name ("Type VII"). Your file is submarines.toml in this
+project's settings folder, submarines-v5200.toml for the update (its values differ: --file to use another): edit
 it with any text editor, then build the "specs" mod:
   tools/mod.py build specs --install            (or with other mods: tools/mod.py build premium specs ...)
 Only the values that differ from the game's are written. Online, the server is told that the build changes
-the characteristics (flag "specs"): it treats it like the cheat mod (server/serveur.toml, cheats).
+the characteristics (flag "specs"): it treats it like the cheat mod (server/server.toml, cheats).
 
 How the game uses them (scripts pscope_player and periscope_move): the five ratings (turn, speeds, armour,
 dive) go from 1 to 10 and select a value in bxml/table_* (table_maxturn: 0.01 to 0.09 rad...), after adding
@@ -47,35 +47,35 @@ class Field:
 
 
 FIELDS = [
-    Field("maxTurn", int, 1, 10, "virage, note de 1 à 10 (bxml/table_maxturn)"),
-    Field("aboveAccel", int, 1, 10, "vitesse en surface, note de 1 à 10"),
-    Field("belowAccel", int, 1, 10, "vitesse en plongée, note de 1 à 10"),
-    Field("damageRate", int, 1, 10, "résistance, note de 1 à 10 (dégâts reçus × 1,8 à la note 1, × 0,7 à la note 10)"),
-    Field("diveRate", int, 1, 10, "vitesse de plongée et de remontée, note de 1 à 10"),
-    Field("torpedoMax", int, 1, 99, "nombre de torpilles"),
-    Field("torpedoReplenishTime", int, 1, 30, "secondes pour récupérer une torpille (le jeu plafonne à 30)"),
-    Field("torpedoFireInterval", int, 1, 600, "images entre deux tirs (30 images = 1 seconde)"),
-    Field("torpedoLevel", int, 1, 3, "modèle de torpille, de 1 à 3 (surface_torpedo_lv01 à lv03)"),
-    Field("crewCount", int, 1, 5, "places d'équipage, de 1 à 5"),
-    Field("maskerUseAir", float, 0, 100, "air consommé par le masqueur (0 : gratuit)"),
-    Field("torpedoAccel", float, 0, 10, "accélération des torpilles", True),
-    Field("torpedoFireBrakeTime", int, 0, 600, "images de freinage après un tir", True),
-    Field("torpedoFireBrakeRate", float, 0, 1, "freinage après un tir (vitesse multipliée par ce facteur)", True),
-    Field("diveMax", float, 0, 10, "vitesse de plongée maximale", True),
-    Field("diveDrag", float, 0, 1, "frottement vertical", True),
-    Field("linDrag", float, 0, 1, "frottement vers l'avant", True),
-    Field("latDrag", float, 0, 1, "frottement latéral", True),
-    Field("waterline", float, -1000, 1000, "hauteur de la ligne de flottaison", True),
-    Field("depthTest", float, -10000, 0, "profondeur d'essai (sous-marins historiques)", True),
-    Field("depthMaxOp", float, -10000, 0, "profondeur maximale d'utilisation (historiques)", True),
-    Field("depthDesign", float, -10000, 0, "profondeur de conception (historiques)", True),
-    Field("depthCrush", float, -10000, 0, "profondeur d'écrasement (historiques)", True),
-    Field("depthLevelsEnabled", int, 0, 1, "limites de profondeur actives (historiques, 0 ou 1)", True),
+    Field("maxTurn", int, 1, 10, "turning, rated 1 to 10 (bxml/table_maxturn)"),
+    Field("aboveAccel", int, 1, 10, "surface speed, rated 1 to 10"),
+    Field("belowAccel", int, 1, 10, "underwater speed, rated 1 to 10"),
+    Field("damageRate", int, 1, 10, "armour, rated 1 to 10 (damage taken × 1.8 at 1, × 0.7 at 10)"),
+    Field("diveRate", int, 1, 10, "dive and climb speed, rated 1 to 10"),
+    Field("torpedoMax", int, 1, 99, "number of torpedoes"),
+    Field("torpedoReplenishTime", int, 1, 30, "seconds to get the torpedoes back (the game caps it at 30)"),
+    Field("torpedoFireInterval", int, 1, 600, "frames between two shots (30 frames = 1 second)"),
+    Field("torpedoLevel", int, 1, 3, "torpedo model, 1 to 3 (surface_torpedo_lv01 to lv03)"),
+    Field("crewCount", int, 1, 5, "crew places, 1 to 5"),
+    Field("maskerUseAir", float, 0, 100, "air used by the masker (0: free)"),
+    Field("torpedoAccel", float, 0, 10, "torpedo acceleration", True),
+    Field("torpedoFireBrakeTime", int, 0, 600, "frames of braking after a shot", True),
+    Field("torpedoFireBrakeRate", float, 0, 1, "braking after a shot (speed multiplied by this factor)", True),
+    Field("diveMax", float, 0, 10, "top dive speed", True),
+    Field("diveDrag", float, 0, 1, "vertical drag", True),
+    Field("linDrag", float, 0, 1, "forward drag", True),
+    Field("latDrag", float, 0, 1, "lateral drag", True),
+    Field("waterline", float, -1000, 1000, "height of the waterline", True),
+    Field("depthTest", float, -10000, 0, "test depth (historical submarines)", True),
+    Field("depthMaxOp", float, -10000, 0, "maximum operating depth (historical)", True),
+    Field("depthDesign", float, -10000, 0, "design depth (historical)", True),
+    Field("depthCrush", float, -10000, 0, "crush depth (historical)", True),
+    Field("depthLevelsEnabled", int, 0, 1, "depth limits on (historical, 0 or 1)", True),
 ]
 BY_KEY = {f.key: f for f in FIELDS}
-SHORT = {"maxTurn": "virage", "aboveAccel": "surface", "belowAccel": "plongée", "damageRate": "résist.",
-         "diveRate": "plong./rem.", "torpedoMax": "torp.", "torpedoReplenishTime": "recharge",
-         "torpedoFireInterval": "cadence", "torpedoLevel": "type", "crewCount": "équip.", "maskerUseAir": "masqueur"}
+SHORT = {"maxTurn": "turn", "aboveAccel": "surface", "belowAccel": "under", "damageRate": "armour",
+         "diveRate": "dive", "torpedoMax": "torp.", "torpedoReplenishTime": "reload",
+         "torpedoFireInterval": "rate", "torpedoLevel": "type", "crewCount": "crew", "maskerUseAir": "masker"}
 
 
 class SubsError(Exception):
@@ -116,7 +116,9 @@ def names(version: str = versions.BASE) -> dict[int, str]:
 
 def default_file(version: str = versions.BASE) -> Path:
     """The player's file: one per version of the game, whose values differ (the update rebalanced subs)."""
-    return azahar.config_dir() / ("sous-marins.toml" if version == versions.BASE else f"sous-marins-{version}.toml")
+    if version == versions.BASE:
+        return azahar.settings_file("submarines.toml", "sous-marins.toml")
+    return azahar.settings_file(f"submarines-{version}.toml", f"sous-marins-{version}.toml")
 
 
 def resolve(path: str | Path | None, version: str = versions.BASE) -> Path:
@@ -130,7 +132,7 @@ def which(text: str, known: dict[int, str]) -> int:
     found = [n for n, name in known.items() if name.lower() == wanted] or \
             [n for n, name in known.items() if wanted in name.lower()]
     if len(found) != 1:
-        raise SubsError(f"{text!r} : sous-marin inconnu ou ambigu (numéro de 1 à {len(known)}, ou son nom)")
+        raise SubsError(f"{text!r}: unknown or ambiguous submarine (a number from 1 to {len(known)}, or its name)")
     return found[0]
 
 
@@ -145,21 +147,21 @@ def format_value(value: int | float) -> str:
 
 def write_file(path: Path, values: dict[int, dict[str, int | float]], known: dict[int, str]) -> None:
     lines = [
-        "# Caractéristiques des sous-marins de Steel Diver: Sub Wars (tools/subs.py).",
-        "# Modifiez les valeurs, puis construisez le mod :  tools/mod.py build specs --install",
-        "# (avec d'autres mods :  tools/mod.py build premium specs --install). Seules les valeurs différentes",
-        "# de celles du jeu sont appliquées ; en ligne, le serveur traite ce mod comme de la triche.",
+        "# Characteristics of the submarines of Steel Diver: Sub Wars (tools/subs.py).",
+        "# Change the values, then build the mod:  tools/mod.py build specs --install",
+        "# (with other mods:  tools/mod.py build premium specs --install). Only the values that differ from",
+        "# the game's are applied; online, the server treats this mod as cheating.",
         "#",
     ]
     for f in FIELDS:
         if not f.advanced:
             lines.append(f"#   {f.key:22s} {f.help}")
-    lines.append("#   (les suivantes sont des réglages fins de la physique, à changer avec prudence)")
+    lines.append("#   (the next ones fine-tune the physics: change them with care)")
     for f in FIELDS:
         if f.advanced:
             lines.append(f"#   {f.key:22s} {f.help}")
     for n in sorted(values):
-        lines += ["", f"[{n:02d}]  # {known.get(n, f'sous-marin {n}')}"]
+        lines += ["", f"[{n:02d}]  # {known.get(n, f'submarine {n}')}"]
         for f in FIELDS:
             if f.key in values[n]:
                 lines.append(f"{f.key} = {format_value(values[n][f.key])}")
@@ -169,15 +171,15 @@ def write_file(path: Path, values: dict[int, dict[str, int | float]], known: dic
 
 def read_file(path: Path, subs: int = SUBS) -> dict[int, dict[str, int | float]]:
     if not path.exists():
-        raise SubsError(f"{path} n'existe pas : créez-le avec « tools/subs.py export »")
+        raise SubsError(f"{path} does not exist: create it with \"tools/subs.py export\"")
     try:
         data = tomllib.loads(path.read_text(encoding="utf-8"))
     except tomllib.TOMLDecodeError as e:
-        raise SubsError(f"{path} : {e}") from e
+        raise SubsError(f"{path}: {e}") from e
     out: dict[int, dict[str, int | float]] = {}
     for section, values in data.items():
         if not (re.fullmatch(r"\d{1,2}", section) and 1 <= int(section) <= subs) or not isinstance(values, dict):
-            raise SubsError(f"{path} : [{section}] n'est pas un sous-marin (de [01] à [{subs}])")
+            raise SubsError(f"{path}: [{section}] is not a submarine ([01] to [{subs}])")
         n = int(section)
         out[n] = {}
         for key, value in values.items():
@@ -188,18 +190,18 @@ def read_file(path: Path, subs: int = SUBS) -> dict[int, dict[str, int | float]]
 def check_value(key: str, value, where: str) -> int | float:
     field = BY_KEY.get(key)
     if field is None:
-        raise SubsError(f"{where} : caractéristique inconnue (voir « tools/subs.py show »)")
+        raise SubsError(f"{where}: unknown characteristic (see \"tools/subs.py show\")")
     if isinstance(value, bool) or not isinstance(value, (int, float)):
-        raise SubsError(f"{where} = {value!r} : il faut un nombre")
+        raise SubsError(f"{where} = {value!r}: a number is needed")
     if field.kind is int:
         if float(value) != int(value):
-            raise SubsError(f"{where} = {value} : il faut un nombre entier")
+            raise SubsError(f"{where} = {value}: a whole number is needed")
         value = int(value)
     else:
         value = float(value)
     if not field.low <= value <= field.high:
-        raise SubsError(f"{where} = {value} : hors limites ({format_value(field.kind(field.low))} "
-                        f"à {format_value(field.kind(field.high))})")
+        raise SubsError(f"{where} = {value}: out of bounds ({format_value(field.kind(field.low))} "
+                        f"to {format_value(field.kind(field.high))})")
     return value
 
 
@@ -226,10 +228,10 @@ def show(values: dict[int, dict[str, int | float]], known: dict[int, str], only:
             if f.key in values[only]:
                 mark = ""
                 if base and base[only].get(f.key) != values[only][f.key]:
-                    mark = f"   (jeu : {format_value(base[only][f.key])})"
+                    mark = f"   (game: {format_value(base[only][f.key])})"
                 print(f"  {f.key:22s} {format_value(values[only][f.key]):>8s}  {f.help}{mark}")
         return
-    print(f"{'n°':>3s} {'nom':14s} " + " ".join(f"{SHORT[f.key]:>8s}" for f in main))
+    print(f"{'n°':>3s} {'name':14s} " + " ".join(f"{SHORT[f.key]:>8s}" for f in main))
     for n in sorted(values):
         cells = []
         for f in main:
@@ -240,12 +242,12 @@ def show(values: dict[int, dict[str, int | float]], known: dict[int, str], only:
             cells.append(f"{text:>8s}")
         print(f"{n:3d} {known[n][:14]:14s} " + " ".join(cells))
     if base:
-        print("(* : différent du jeu)")
+        print("(*: differs from the game)")
 
 
 def main() -> None:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("--file", help=f"your file (default: {default_file()}, sous-marins-<version>.toml for the update)")
+    ap.add_argument("--file", help=f"your file (default: {default_file()}, submarines-<version>.toml for the update)")
     ap.add_argument("--version", help="the version of the game: v0, v5200 (default: the one of the emulator)")
     sub = ap.add_subparsers(dest="command", required=True)
     p = sub.add_parser("show", help="the characteristics: of the game, or of your file with --file / --mine")
@@ -276,9 +278,9 @@ def main() -> None:
                 show(game, known, only)
         elif args.command == "export":
             if path.exists() and not args.force:
-                raise SubsError(f"{path} existe déjà (--force pour le remplacer)")
+                raise SubsError(f"{path} already exists (--force to replace it)")
             write_file(path, game, known)
-            print(f"[+] {path}\n    modifiez-le, puis : tools/mod.py build specs --install")
+            print(f"[+] {path}\n    change it, then: tools/mod.py build specs --install")
         elif args.command in ("set", "reset"):
             current = {n: {**game[n], **v} for n, v in read_file(path, len(game)).items()} if path.exists() else {}
             values = {n: dict(current.get(n, game[n])) for n in game}
@@ -287,23 +289,23 @@ def main() -> None:
                 for item in args.values:
                     key, sep, text = item.partition("=")
                     if not sep:
-                        raise SubsError(f"{item!r} : il faut clé=valeur (par exemple torpedoMax=10)")
+                        raise SubsError(f"{item!r}: key=value is needed (torpedoMax=10, for example)")
                     try:
                         number = float(text) if "." in text else int(text)
                     except ValueError:
-                        raise SubsError(f"{item!r} : {text!r} n'est pas un nombre") from None
+                        raise SubsError(f"{item!r}: {text!r} is not a number") from None
                     values[n][key.strip()] = check_value(key.strip(), number, f"[{n:02d}] {key.strip()}")
-                print(f"[+] n° {n} {known[n]} : " + ", ".join(args.values))
+                print(f"[+] n° {n} {known[n]}: " + ", ".join(args.values))
             else:
                 for n in ([which(args.sub, known)] if args.sub else game):
                     values[n] = dict(game[n])
-                print("[+] valeurs du jeu remises" + (f" pour {args.sub}" if args.sub else ""))
+                print("[+] the game's values put back" + (f" for {args.sub}" if args.sub else ""))
             write_file(path, values, known)
-            print(f"    {path} ; ensuite : tools/mod.py build specs --install")
+            print(f"    {path}; then: tools/mod.py build specs --install")
         elif args.command == "check":
             edits = changes(path, version)
             if not edits:
-                print(f"[=] {path} : aucune différence avec le jeu")
+                print(f"[=] {path}: no difference with the game")
             for file, diff in edits.items():
                 n = int(file[-13:-11])
                 print(f"  n° {n:2d} {known[n]:14s} " + ", ".join(f"{k}={v}" for k, v in diff.items()))

@@ -4,8 +4,8 @@ Dans les batailles contre les bots du serveur (un joueur resté seul, `server.bo
 par l'ordinateur ne sont plus les bots du jeu. Dans une bataille entre joueurs, ceux que le jeu ajoute pour
 compléter les équipes restent les siens, tels que les joueurs les connaissent : le pilote déséquilibrerait la
 partie (`botInit` ne le prend que si `server.bots` vaut 1). Le mod
-[`en-ligne`](../mods/en-ligne/mod.toml) leur donne un pilote écrit en Pawn
-([`mods/en-ligne/src/bots_ia.p`](../mods/en-ligne/src/bots_ia.p)), compilé par `tools/pawn2pasm.py` et essayé dans
+[`online`](../mods/online/mod.toml) leur donne un pilote écrit en Pawn
+([`mods/online/src/bots_pilot.p`](../mods/online/src/bots_pilot.p)), compilé par `tools/pawn2pasm.py` et essayé dans
 un bac à sable (`tools/botsim.py`). Hors ligne (missions), le jeu garde ses propres bots.
 
 ## Ce qui n'allait pas avec les bots du jeu
@@ -103,7 +103,7 @@ vitesse de pointe, axe de chaque tir.
   son masqueur (`masker`, `masker_on` : 300 images pour 33,3 d'air) et s'enfuit en profondeur. Comme un joueur,
   il ne retrouve de l'air qu'en surface : trois masqueurs par vie au plus, et jamais plus de trois.
 - **Ses torpilles** sont celles des joueurs (`surface_torpedo_lv0N`, 20 à 30 points de dégâts). Elles touchent
-  comme celles d'un joueur ([`bots_tir.inc`](../mods/en-ligne/src/bots_tir.inc)) : la console de la cible prend
+  comme celles d'un joueur ([`bots_shot.inc`](../mods/online/src/bots_shot.inc)) : la console de la cible prend
   le coup (`@eventMessageWeaponHitTorp` pour un joueur, `@torpedoHitOnNpcToOwner` pour un bot). Elles traversent
   leurs coéquipiers et leur tireur. Le tireur est signalé comme bot : le joueur de la console ne compte pas ses
   victimes.
@@ -111,7 +111,7 @@ vitesse de pointe, axe de chaque tir.
   ne le fait pas pour un bot coulé par une explosion (`@explosionHitOnNpc`), et retrouve l'équipe du bot par son
   numéro de synchronisation. La bataille pouvait donc ne jamais finir. C'est maintenant le pilote du bot qui
   annonce sa mort, une fois, avec son équipe : toutes les consoles l'entendent (`@botDown`,
-  [`bots_partie.p`](../mods/en-ligne/src/bots_partie.p)) et retirent le bot du compteur de son équipe.
+  [`bots_game_state.p`](../mods/online/src/bots_game_state.p)) et retirent le bot du compteur de son équipe.
 - **Le replay de la victoire** : le jeu montre en fin de bataille la course de la torpille qui a coulé le
   dernier sous-marin de l'équipe perdante. Il l'apprend de la mort d'un joueur
   (`@scheduleCheckGameOver(nœud, heure, nœud et numéro de la torpille)`) et trouve l'équipe du mort par
@@ -125,7 +125,7 @@ vitesse de pointe, axe de chaque tir.
   synchronisé 215 images après sa mort, comme une torpille après son explosion.
 - **Un joueur pour le jeu** : le jeu reconnaît les joueurs à leur nœud réseau (`player.<nœud>.name`, `.team`).
   Chaque bot k en a un à lui, `0x7b070000` + k, avec son nom et son équipe
-  ([`bots_partie.p`](../mods/en-ligne/src/bots_partie.p)). Il a donc ce qu'a un joueur :
+  ([`bots_game_state.p`](../mods/online/src/bots_game_state.p)). Il a donc ce qu'a un joueur :
   - « Vous avez touché <bot> ! » (`@pushTargetHitMessage`) et le marqueur de touche pour qui le touche ;
   - « <bot> vous attaque ! » (`@pushHitByShooterMessage`) pour le joueur qu'il touche ;
   - « <bot> a été coulé ! » pour tous, au lieu de « L'ennemi a été coulé ! » des sous-marins de l'ordinateur ;
@@ -137,7 +137,7 @@ vitesse de pointe, axe de chaque tir.
   - 100 points de vie, multipliés par la taille de l'équipe adverse sur la sienne quand la sienne est plus petite
     (`pscope_player.p func_14f60`) ;
   - le jeu ne comptait que les joueurs humains ; maintenant les bots sont comptés, pour les joueurs aussi
-    ([`bots_joueur.pasm`](../mods/en-ligne/bots_joueur.pasm)) : seul contre 4 bots, un joueur a 400 points de vie,
+    ([`bots_player.pasm`](../mods/online/bots_player.pasm)) : seul contre 4 bots, un joueur a 400 points de vie,
     comme seul contre 4 joueurs ;
   - les dégâts d'un joueur (`@eventDamageTorp`, `@eventMessageExplosionHit`), où le jeu en donnait d'autres à ses
     sous-marins de l'ordinateur :
@@ -172,7 +172,7 @@ vitesse de pointe, axe de chaque tir.
   (`func_10120`), éparpillés sur la carte, coéquipiers compris. Désormais chaque bot prend, à sa première
   image, l'emplacement qui suit ceux des joueurs, comme le ferait un joueur de plus. Les points viennent des
   fichiers de la carte, recopiés à la construction du mod en `bxml/sdsw_spawn_<carte>[_p<n>]` (recette
-  `[[bxml]] extract`, `mods/en-ligne/mod.toml`).
+  `[[bxml]] extract`, `mods/online/mod.toml`).
 - **Les murs, avec toute la coque.** Un sous-marin de joueur est une capsule de 550 unités de long : son nez est
   à 300 unités de son centre. Le pilote sondait depuis le centre et ne ralentissait qu'à 300 unités d'un mur,
   c'est-à-dire nez contre la paroi. Pire : ce frein et la remontée devant une pente n'étaient appliqués qu'une
@@ -243,7 +243,7 @@ expert, 4 ou 5 membres qui n'ont que des bonus (`bots_crew = false` : pas d'équ
   joueur de sa propre console.
 
 Le niveau du serveur (`bots_level`, `server.bots.level`) règle les réflexes et la précision, jamais ce que le
-sous-marin peut faire. Toutes les valeurs sont dans `bots_ia.p` :
+sous-marin peut faire. Toutes les valeurs sont dans `bots_pilot.p` :
 
 | Niveau | Regarde autour | Pause après rechargement | Tir passant au plus à | Voit venir les torpilles | Virages prévus | Manœuvres | Apprend vos esquives |
 |---|---|---|---|---|---|---|---|
@@ -257,10 +257,10 @@ sous-marin peut faire. Toutes les valeurs sont dans `bots_ia.p` :
 au temps ; la victoire par élimination de tous les bots reste à voir dans l'émulateur.*
 
 Le code des bots est le même, traduit pour les scripts recompilés de la mise à jour
-([mise-a-jour.md](mise-a-jour.md#des-scripts-dune-version-à-lautre)). Essayé dans Azahar, il cassait à
+([update-v5200.md](update-v5200.md#des-scripts-dune-version-à-lautre)). Essayé dans Azahar, il cassait à
 plusieurs endroits, tous corrigés :
 
-- **La partie ne finissait pas quand le dernier bot coulait.** `@botDown` (`bots_partie.p`) s'arrêtait en route,
+- **La partie ne finissait pas quand le dernier bot coulait.** `@botDown` (`bots_game_state.p`) s'arrêtait en route,
   après avoir baissé le compteur de l'équipe : ni « … a été coulé ! », ni kill, ni vérification de la fin de
   partie, ni replay. Deux causes : la v5200 n'a plus le texte `sub_sunk` (remplacé par `sub_sunk_01`, « %s a
   coulé %s ! », et `sub_sunk_02`), et ses scripts n'ont que 8 Ko de tas et de pile, contre 16 Ko dans le jeu.
@@ -289,13 +289,13 @@ test (`bots_format = "1v1"` : le bot doit couler le joueur, la défaite et le re
 *Avancement estimé : 80 % — interprète AMX, monde simple ; pas la carte du jeu ni sa physique des collisions.*
 
 ```sh
-make pawncc bots                        # le compilateur Pawn 3.3, puis src/*.p -> mods/en-ligne/*.pasm
+make pawncc bots                        # le compilateur Pawn 3.3, puis src/*.p -> mods/online/*.pasm
 python3 tools/botsim.py                 # duel, close, walls, corner, canyon, cave, retreat, dodge, masker, habit,
                                         # melee, spawn, crew, aux trois niveaux
 python3 tools/botsim.py duel --level 3 --pitch-sign -1
 ```
 
-`tools/botsim.py` assemble `bots_ia.pasm` dans le vrai `surface_sub.amx` du dump. Il en exécute le code, comme
+`tools/botsim.py` assemble `bots_pilot.pasm` dans le vrai `surface_sub.amx` du dump. Il en exécute le code, comme
 amx.c de Pawn 3.3, dans un monde à lui : fond, blocs, sous-marins, et torpilles avec la physique du jeu. Les
 natives (`worldClipLine`, `worldFindActors`, propriétés…) y sont simulées. Il compte les tirs, les touches et les
 images passées contre la carte. Il signale tout mouvement qu'un joueur ne pourrait pas faire : vitesse de virage

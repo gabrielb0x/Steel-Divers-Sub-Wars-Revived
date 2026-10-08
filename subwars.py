@@ -1,13 +1,13 @@
 #!/usr/bin/env python3
-"""Sub Wars Open Sourced : le lanceur des joueurs.
+"""Sub Wars Open Sourced: the players' launcher.
 
-    python3 subwars.py                    ouvre le lanceur dans votre navigateur
-    python3 subwars.py --port 8765        sur un port fixe
-    python3 subwars.py --sans-navigateur  sans ouvrir le navigateur (l'adresse s'affiche)
+    python3 subwars.py                    opens the launcher in your web browser
+    python3 subwars.py --port 8765        on a fixed port
+    python3 subwars.py --no-browser       without opening the browser (the address is printed)
 
-Il fait, avec des boutons, ce que font les outils de tools/ : préparer votre jeu, installer les mods dans
-Azahar (premium, triche, caractéristiques, jeu en ligne), modifier la sauvegarde et les sous-marins, lancer
-un serveur en ligne. Il ne demande que Python 3.11 ou plus récent (python.org), sans rien installer d'autre.
+It does, with buttons, what the tools of tools/ do: prepare your game, install the mods into Azahar (premium,
+cheats, characteristics, online play, music), edit the save and the submarines, run an online server. It only
+needs Python 3.11 or newer (python.org), with nothing else to install.
 """
 
 import argparse
@@ -15,14 +15,15 @@ import sys
 from pathlib import Path
 
 if sys.version_info < (3, 11):
-    sys.exit("Il faut Python 3.11 ou plus récent : https://www.python.org/downloads/")
+    sys.exit("Python 3.11 or newer is needed: https://www.python.org/downloads/")
 
 sys.path.insert(0, str(Path(__file__).resolve().parent / "tools"))
 
 import webui  # noqa: E402
 
 ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-ap.add_argument("--port", type=int, default=0, help="port local (par défaut : un port libre)")
-ap.add_argument("--sans-navigateur", action="store_true", help="ne pas ouvrir le navigateur")
+ap.add_argument("--port", type=int, default=0, help="local port (default: a free one)")
+ap.add_argument("--no-browser", "--sans-navigateur", dest="no_browser", action="store_true",
+                help="do not open the browser")
 args = ap.parse_args()
-webui.serve(args.port, not args.sans_navigateur)
+webui.serve(args.port, not args.no_browser)

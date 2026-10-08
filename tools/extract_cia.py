@@ -40,7 +40,7 @@ from ncch import NCCH, NCCHError, decompress_code
 
 ROOT = Path(__file__).resolve().parent.parent
 GAME_SUFFIXES = (".cia", ".cxi", ".3ds", ".cci", ".app")
-TITLES = {GAME_TITLE_ID: "Steel Diver: Sub Wars", UPDATE_TITLE_ID: "la mise à jour de Steel Diver: Sub Wars"}
+TITLES = {GAME_TITLE_ID: "Steel Diver: Sub Wars", UPDATE_TITLE_ID: "the update of Steel Diver: Sub Wars"}
 
 
 class ExtractError(Exception):
@@ -61,9 +61,9 @@ def ncch_offset(fp, path: Path) -> tuple[int, CIA | None]:
         chunk, offset = next(cia.content_offsets())
         if chunk.encrypted:
             if cia.title_id == UPDATE_TITLE_ID:
-                raise ExtractError(f"{path.name} : la mise à jour est chiffrée dans ce CIA. Déchiffrez-la "
-                                   "d'abord (GodMode9 sur la console, ou un outil de déchiffrement de CIA), puis "
-                                   "mettez le CIA déchiffré dans cia/ ou installez-le dans Azahar.")
+                raise ExtractError(f"{path.name}: the update is encrypted in this CIA. Decrypt it "
+                                   "first (GodMode9 on the console, or a CIA decryption tool), then put the "
+                                   "decrypted CIA in cia/ or install it into Azahar.")
             raise ExtractError("the game is encrypted in this CIA (title key): use a decrypted dump")
         return offset, cia
     fp.seek(0x100)
@@ -137,8 +137,8 @@ def update_version(source: Path, cia: CIA | None) -> int:
             return tmd_title_version(tmd.read_bytes())
         except (OSError, struct.error, KeyError):
             continue
-    raise ExtractError(f"{source.name} : la version de cette mise à jour est inconnue (pas de TMD à côté) ; "
-                       "donnez plutôt son .cia")
+    raise ExtractError(f"{source.name}: the version of this update is unknown (no TMD next to it); "
+                       "give its .cia instead")
 
 
 def sha256_file(path: Path) -> str:

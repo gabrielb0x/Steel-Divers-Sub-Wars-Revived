@@ -1,0 +1,61 @@
+# Fixes of the game in Azahar, part of every mod (tools/mod.py build <mod> always adds them, unless
+# --no-fixes). On their own:
+#
+#   tools/mod.py build fixes --install
+#
+# -- The crash when a torpedo hits a submarine underwater ------------------------------------------
+# Symptom: in a mission, a torpedo hits a submarine underwater and a few moments later Azahar closes. It is
+# in fact killed by the system for lack of memory (kernel log: "Out of memory: Killed process (azahar)",
+# 5 GB of RAM and 4 GB of swap in use).
+#
+# What the game does: a hit submarine leaks oil (fxOilAdd in the submarines' scripts: a bubble every 9
+# frames, living 2 seconds). MetaBallSys (source/metaball.cpp) draws these bubbles underwater only, as
+# sprites: each point becomes a square through the geometry shader of program 2 of shaders/metaball.shbin.
+# For each visible point, this shader runs two nested loops ("loop i0" in main, and "loop i1" in the
+# subroutine draw_strip that the first one calls), of one iteration each: i0 = i1 = (0, 0, 1, 0).
+#
+# The bug is in Azahar (and Citra), not in the game: their x64 shader JIT keeps the loop counter in a host
+# register, which it only saves for a loop nested in the same block of code
+# (video_core/shader/shader_jit_x64_compiler.cpp, Compile_LOOP). Here the inner loop is in a subroutine: it
+# overwrites the outer loop's counter and leaves it at 0, which the outer loop decrements to -1 before
+# testing it for zero. It goes on for about four billion iterations, each emitting two triangles that
+# Azahar keeps in memory before drawing them. The game freezes, the memory fills up and the system kills the
+# emulator. Hence the symptoms: only underwater (the oil is only drawn there), only when a bubble is in front
+# of the camera, and nothing any more some twenty seconds after the last hit (the leak stops). Azahar's
+# shader engine without JIT ("Enable Shader JIT" unchecked) does not have the bug, but it is slower.
+#
+# The fix: both loops run once and do not use their counter (no register indexed by aL); the two LOOP
+# instructions become NOPs. The shader does exactly the same, without loops. tools/shbin.py --check finds
+# this pattern: no other shader of the game has it.
+#
+# No effect on online play: only how an effect is drawn changes, not the battle.
+
+name = "Fixes"
+description = "Fixes Azahar's crash when a torpedo hits a submarine underwater, and gives the scripts 2 MB more"
+versions = ["v0", "v5200"]
+always = true
+
+[[shader]]
+file = "shaders/metaball.shbin"
+instruction = 0x084                       # main of program 2: loop i0 -> 0x086 (calls draw_strip)
+expect = 0xA4021800
+value = 0x84000000                        # nop
+
+[[shader]]
+file = "shaders/metaball.shbin"
+instruction = 0x061                       # draw_strip: loop i1 -> 0x06f
+expect = 0xA441BC00
+value = 0x84000000                        # nop
+
+# -- Main memory: 26 MB instead of 24 ------------------------------------------------------------------
+# Each actor loads its own copy of its script (ScriptAMXLoader::load, MemBlock) into the main memory, 24 MB
+# taken at start-up (System::init, s_memoryBlock.Initialize(0x1800000)) from the heap of memory blocks: the
+# application's 64 MB, minus the code (about 5 MB) and the 32 MB of video memory, about 27 MB. A torpedo
+# costs about 70 KB in v5200 (scripts larger than the game's), and online, seven bots firing like players
+# keep dozens of torpedoes alive at once. The memory ran out: loading a torpedo wrote at address 0 and the
+# game stopped ("Exception Type: Break" in Azahar, amx_FindPublic on an invalid script). The fix takes 2 MB
+# more from the margin.
+[[code]]
+address = { v0 = 0x00103950, v5200 = 0x0010393C }
+expect = "0615a0e3"                       # mov r1, #0x1800000: 24 MB
+arm = "mov r1, #0x1A00000"

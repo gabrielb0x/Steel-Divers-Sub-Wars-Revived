@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Bot sandbox: runs the pilot of the online bots (mods/en-ligne/bots_ia.pasm, assembled into the game's
+"""Bot sandbox: runs the pilot of the online bots (mods/online/bots_pilot.pasm, assembled into the game's
 surface_sub.amx) in a small world of our own, to check it without the emulator.
 
     tools/botsim.py                      # every scenario, at every level
@@ -32,7 +32,7 @@ from amxasm import AmxImage  # noqa: E402
 
 ROMFS = ROOT / "extracted" / "romfs"
 BXML = ROOT / "extracted" / "xml" / "bxml"
-PASM = ROOT / "mods" / "en-ligne"
+PASM = ROOT / "mods" / "online"
 
 MASK = 0xFFFFFFFF
 VERSION = "v0"                                   # --version
@@ -429,7 +429,7 @@ WORLDS = ROOT / "extracted" / "xml" / "worlds"
 
 
 def spawn_props(stem: str) -> dict[str, str]:
-    """bxml/sdsw_spawn_<stem> as mods/en-ligne/mod.toml makes it from the map's own files: the spawn point of a
+    """bxml/sdsw_spawn_<stem> as mods/online/mod.toml makes it from the map's own files: the spawn point of a
     slot (spawnPosition, spawnBearing), the map's teamSpawnIndex."""
     path = WORLDS / f"{stem}.xml"
     if not path.exists():
@@ -722,7 +722,7 @@ class Sim:
             name = amx.string(p[1])
             args = [amx.rd(x) for x in p[2:]]
             w.net.append(("net", p[0], name, args))
-            if name == "@botTakesItem":                     # bots_partie.p: every console removes it
+            if name == "@botTakesItem":                     # bots_game_state.p: every console removes it
                 p = [c2f(x) for x in args[:3]]
                 for o in w.actors.values():
                     if o.kind == "item" and o.alive and math.dist(o.pos, p) < 400.0:
@@ -856,11 +856,11 @@ class Sim:
 # ---- scenarios ---------------------------------------------------------------------------------------
 
 def build_image(version: str = "v0") -> AmxImage:
-    """surface_sub with the pilot (bots_ia.pasm; v5200: the update's script and bots_ia-v5200.pasm)."""
+    """surface_sub with the pilot (bots_pilot.pasm; v5200: the update's script and bots_pilot-v5200.pasm)."""
     import versions
     img = AmxImage.parse(versions.game_files(version).path("amx/surface_sub.amx").read_bytes())
     suffix = "" if version == versions.BASE else f"-{version}"
-    img.assemble((PASM / f"bots_ia{suffix}.pasm").read_text(encoding="utf-8"))
+    img.assemble((PASM / f"bots_pilot{suffix}.pasm").read_text(encoding="utf-8"))
     if version != versions.BASE:                      # the script's globals at the update's addresses
         import amxport
         port = amxport.Port(amxport.load("surface_sub", versions.BASE), amxport.load("surface_sub", version))
@@ -896,7 +896,7 @@ class Bot:
         return self.amx.call(self.image.labels[label], *args)
 
     def debug(self) -> dict[str, float]:
-        """botDebug of bots_ia.p."""
+        """botDebug of bots_pilot.p."""
         m = self.amx
         buf = m.hea
         m.hea += 64

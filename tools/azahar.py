@@ -98,6 +98,22 @@ def config_dir() -> Path:
     return old
 
 
+def settings_file(name: str, *old_names: str) -> Path:
+    """A file (or folder) of the settings folder; one under an older name (the project's French names, before
+    it went English: identites.json, sous-marins.toml...) is renamed to it the first time."""
+    path = config_dir() / name
+    if not path.exists():
+        for old in old_names:
+            previous = config_dir() / old
+            if previous.exists():
+                try:
+                    previous.rename(path)
+                except OSError:
+                    return previous
+                break
+    return path
+
+
 def save_files(bases: list[Path] | None = None) -> list[Path]:
     """The game's save files ("save" of its save data archive) in the emulators' virtual SD cards:
     sdmc/Nintendo 3DS/<id0>/<id1>/title/00040000/000d7e00/data/00000001/save."""
@@ -173,13 +189,13 @@ def install_update(cia_path: Path, base: Path) -> Path:
             raise ValueError(f"{cia_path.name} is not the update ({UPDATE_TITLE_ID:016X})")
         chunk, offset = next(cia.content_offsets())
         if chunk.encrypted:
-            raise ValueError(f"{cia_path.name} : la mise à jour est chiffrée, déchiffrez-la d'abord")
+            raise ValueError(f"{cia_path.name}: the update is encrypted, decrypt it first")
         f.seek(offset + 0x100)
         if f.read(4) != b"NCCH":
             raise ValueError(f"{cia_path.name}: content 0 is not a NCCH")
         f.seek(offset + 0x18F)
         if not f.read(1)[0] & 0x04:
-            raise ValueError(f"{cia_path.name} : la mise à jour est chiffrée (NCCH), déchiffrez-la d'abord")
+            raise ValueError(f"{cia_path.name}: the update is encrypted (NCCH), decrypt it first")
         f.seek(cia.tmd_offset)
         tmd = one_content_tmd(bytearray(f.read(cia.tmd_size)), len(cia.contents))
         high, low = f"{UPDATE_TITLE_ID:016x}"[:8], f"{UPDATE_TITLE_ID:016x}"[8:]
@@ -282,8 +298,8 @@ def game_cxi(src: Path, dest: Path) -> None:
 
 MEDIA_UNIT = 0x200
 GAME_FILES = {
-    "SteelDiverSubWars_original.cia": "le jeu d'origine, sans le manuel chiffré : Azahar > Fichier > Installer un CIA",
-    "SteelDiverSubWars_original.cxi": "le même jeu, à ouvrir sans l'installer : Azahar > Fichier > Charger un fichier",
+    "SteelDiverSubWars_original.cia": "the original game, without the encrypted manual: Azahar > File > Install CIA",
+    "SteelDiverSubWars_original.cxi": "the same game, to open without installing it: Azahar > File > Load File",
 }
 UPDATE_FILE = "SteelDiverSubWars_update_{version}.cia"
 
@@ -359,24 +375,27 @@ def patched_cxi(src: Path, code: bytes, dest: Path) -> None:
 
 
 def write_readme(folder: Path) -> None:
-    """build/azahar/LISEZMOI.txt: what each file of the folder is."""
-    lines = ["Fichiers du jeu préparés pour Azahar, à partir de votre propre dump (cia/).",
-             "Ne les partagez pas : ce sont des copies du jeu.", ""]
+    """build/azahar/README.txt: what each file of the folder is."""
+    lines = ["Files of the game prepared for Azahar, from your own dump (cia/).",
+             "Do not share them: they are copies of the game.", ""]
     for path in sorted(folder.iterdir()):
         if path.suffix not in (".cia", ".cxi"):
             continue
         what = GAME_FILES.get(path.name)
         if what is None and path.stem.startswith("SteelDiverSubWars_update_"):
-            what = (f"la mise à jour {path.stem.rsplit('_', 1)[1]}, sans son manuel : Azahar > Fichier > Installer "
-                    "un CIA (le jeu installé ou ouvert prend alors cette version ; mods à reconstruire)")
+            what = (f"the update {path.stem.rsplit('_', 1)[1]}, without its manual: Azahar > File > Install CIA "
+                    "(the game installed or opened then runs as this version; mods to build again)")
         elif what is None and path.stem.startswith("SteelDiverSubWars_"):
             mod, _, server = path.stem.removeprefix("SteelDiverSubWars_").partition("_")
-            what = (f"le jeu avec le mod « {mod} » déjà appliqué" + (f" (serveur {server})" if server else "")
-                    + " : tools/mod.py build --cxi ; à ouvrir sans l'installer (Azahar > Fichier > Charger un fichier)")
+            what = (f"the game with the mod \"{mod}\" already applied" + (f" (server {server})" if server else "")
+                    + ": tools/mod.py build --cxi; to open without installing it (Azahar > File > Load File)")
         if what is None:
             continue
         lines.append(f"{path.name}\n    {what}")
-    (folder / "LISEZMOI.txt").write_text("\n".join(lines) + "\n", encoding="utf-8")
+    old = folder / "LISEZMOI.txt"
+    if old.exists():
+        old.unlink()
+    (folder / "README.txt").write_text("\n".join(lines) + "\n", encoding="utf-8")
 
 
 def prepare(src: Path, out: Path, update: Path | None = None) -> list[Path]:

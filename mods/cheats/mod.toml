@@ -1,0 +1,134 @@
+# Mod "cheats": the cheats the developers used for testing, on your submarine.
+#
+#   tools/mod.py build cheats --install                            # offline
+#   tools/mod.py build online cheats --set server=... --install    # online, with the online mod
+#
+# All are on by default; --set <option>=no removes one. Online, the mod's token tells the server that cheats
+# are installed: depending on its configuration (cheats in server/server.toml), you only play with other
+# cheaters, with everybody, or not at all.
+#
+# Where they come from:
+# * "player.muteki" (muteki: invincible) is the flag of the developers' test mode (mode_test): the
+#   submarine takes no more damage (pscope_player @eventDamageTorp, @eventMessageExplosionHit), loses no
+#   more torpedoes (periscope_move fireTorpedo) and keeps its air (func_16010). Nothing turns it on in normal
+#   play: the patch replaces, in the scripts concerned, the string read by sysGetGlobal("player.muteki")
+#   with "mode.ready", which is 1 during the whole battle.
+# * the characteristics of the 23 submarines (bxml/pscope_plyNN_stats.bxml): torpedo reload time, rate of
+#   fire, air used by the masker, accelerations and turning (ratings 1 to 9).
+# * "rapid_fire": no delay at all between two shots, a torpedo each time A (or ZR) is pressed. The shot
+#   leaves when the button is released (periscope_move func_11750) if the delay g_4ffc has run out and the
+#   touch screen's fire button has finished its animation; after a shot, g_4ffc = torpedo.interval + 15
+#   frames. The mod sets the rate of fire (torpedoFireInterval) to 1 frame, removes the 15 frames and no
+#   longer waits for the button's animation. With "torpedoes", the stock never goes down.
+#
+# Update v5200: the scripts are recompiled (other addresses) with the same logic; pscope_player also reads
+# player.muteki for the floating mine there (@p_MineExplosionHit), hence four strings instead of three. The
+# characteristics apply to its 39 submarines.
+
+name = "Cheats"
+description = "Invincible, infinite torpedoes and air, firing without delay, free masker, boosted engine"
+versions = ["v0", "v5200"]
+token_flags = ["cheats"]
+
+[params.invincible]
+help = "no damage (yes/no)"
+default = "yes"
+
+[params.torpedoes]
+help = "infinite torpedoes (yes/no)"
+default = "yes"
+
+[params.air]
+help = "infinite air (yes/no)"
+default = "yes"
+
+[params.reload]
+help = "fast reload and fire (yes/no)"
+default = "yes"
+
+[params.rapid_fire]
+help = "fire without any delay, as many torpedoes as you like (yes/no)"
+default = "yes"
+
+[params.masker]
+help = "the masker no longer uses air (yes/no)"
+default = "yes"
+
+[params.engine]
+help = "acceleration and turning at their maximum (yes/no)"
+default = "yes"
+
+# -- invincible -------------------------------------------------------------------------------------
+[[amx]]
+if = "${invincible}"
+file = "amx/pscope_player.amx"          # damage of torpedoes, explosions (and floating mines, v5200)
+string = "player.muteki"
+replace = "mode.ready"
+count = { v0 = 3, v5200 = 4 }
+
+[[amx]]
+if = "${invincible}"
+file = "amx/hud.amx"                    # the red flash of damage
+string = "player.muteki"
+replace = "mode.ready"
+count = 1
+
+[[amx]]
+if = "${invincible}"
+file = "amx/periscope_move.amx"         # @missile_hit: shake and damage of missiles
+at = { v0 = 0x864C, v5200 = 0xCE74 }
+string = "player.muteki"
+replace = "mode.ready"
+
+# -- infinite torpedoes ------------------------------------------------------------------------------
+[[amx]]
+if = "${torpedoes}"
+file = "amx/periscope_move.amx"         # fireTorpedo: no longer counts the torpedo fired
+at = { v0 = 0x5D4C, v5200 = 0xA3DC }
+string = "player.muteki"
+replace = "mode.ready"
+
+# -- infinite air -----------------------------------------------------------------------------------
+[[amx]]
+if = "${air}"
+file = "amx/periscope_move.amx"         # func_16010: air set back to 100
+at = { v0 = 0x8F84, v5200 = 0xD7F8 }
+string = "player.muteki"
+replace = "mode.ready"
+
+# -- characteristics of the player's submarines (pscope_ply01 to NN_stats) -------------------------------
+[[bxml]]
+if = "${reload}"
+files = "bxml/pscope_ply[0-9][0-9]_stats.bxml"
+set = { torpedoReplenishTime = "1", torpedoFireInterval = "30" }
+
+[[bxml]]
+if = "${rapid_fire}"                        # after "reload": this value is the one that stays
+files = "bxml/pscope_ply[0-9][0-9]_stats.bxml"
+set = { torpedoFireInterval = "1" }     # the minimum: at 0 the fire button never comes back
+
+[[amx]]
+if = "${rapid_fire}"
+file = "amx/periscope_move.amx"         # func_10e04: g_4ffc = torpedo.interval + 15 after a shot
+address = { v0 = 0x11248, v5200 = 0x15424 }   # add.c 15
+operand = 0
+expect = 0xF
+value = 0
+
+[[amx]]
+if = "${rapid_fire}"
+file = "amx/periscope_move.amx"         # func_11750: "if (!g_4ffc && func_4900(tpd_00))" (button ready)
+address = { v0 = 0x11780, v5200 = 0x159A0 }   # jzer L_11798
+operand = 0
+expect = 0x18
+value = 8                               # to the next instruction: the button is no longer waited for
+
+[[bxml]]
+if = "${masker}"
+files = "bxml/pscope_ply[0-9][0-9]_stats.bxml"
+set = { maskerUseAir = "0.0" }
+
+[[bxml]]
+if = "${engine}"
+files = "bxml/pscope_ply[0-9][0-9]_stats.bxml"
+set = { aboveAccel = "9", belowAccel = "9", maxTurn = "8" }

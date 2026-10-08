@@ -1,17 +1,17 @@
 #!/usr/bin/env python3
-"""Your own music in the game: replacements for its music streams, applied by the mod « musique ».
+"""Your own music in the game: replacements for its music streams, applied by the mod "music".
 
     tools/music.py list                         # the game's music, and what you replaced
-    tools/music.py set Title_lr ma-musique.wav  # replaces it (a WAV; the launcher also takes MP3, OGG, FLAC...)
+    tools/music.py set Title_lr my-music.wav    # replaces it (a WAV; the launcher also takes MP3, OGG, FLAC...)
     tools/music.py reset Title_lr               # the game's music again (or: reset --all)
     tools/music.py export Title_lr -o titre.wav # the game's music, to listen to it
-    tools/mod.py build musique --install        # then the mod (with your other mods: build premium musique ...)
+    tools/mod.py build music --install          # then the mod (with your other mods: build premium music ...)
 
 The music of the game is in romfs:/audiores/stream/*.bcstm (tools/bcstm.py); the sound archive
 (audiores/sound_data.xml, which the game ships) says which sounds play each file: Bgm_TITLE, Bgm_MultiPlay3_Battle...
 Your replacements are WAV files (16 bits, already at the rate and channels of the music they replace) in the
-folder « musique » of the settings folder (azahar.config_dir()), named after the stream they replace, with
-musique.json for the names of the files you gave and their loudness. On request (the default), the level of
+folder "music" of the settings folder (azahar.config_dir()), named after the stream they replace, with
+music.json for the names of the files you gave and their loudness. On request (the default), the level of
 yours is matched to the original's (loudness: gated mean power of 400 ms blocks, as EBU R 128 without its
 weighting; a soft limiter for the peaks). The mod turns each into a PCM16 stream that loops from its start. Removing a file brings the game's music back. Standard library only (a tool of the players).
 """
@@ -31,33 +31,35 @@ import bcstm
 import versions
 
 STREAMS = "audiores/stream"
-INDEX = "musique.json"
+INDEX = "music.json"
+OLD_INDEX = "musique.json"              # its name before the project went English
+LEVELS_FILE = "levels.json"
 MAX_SECONDS = 15 * 60
 TARGET_RMS = 6000.0                 # about the level of the game's music (rms of Title, Fleet: 6000 to 7400)
 
-# What plays each stream, in French: the sounds of the archive (sound_data.xml).
+# What plays each stream: the sounds of the archive (sound_data.xml).
 LABELS = {
-    "Bgm_TITLE": "Écran titre",
-    "Bgm_ENDING": "Générique de fin",
-    "Bgm_SELECT_BASE": "Menu : la base",
-    "Bgm_SELECT_ON_STAGE": "Menu : choix de la mission",
-    "Bgm_SELECT_ON_SUBMARINE": "Menu : à bord du sous-marin",
-    "Bgm_MAIN_MENU": "Menu principal (silence dans le jeu)",
-    "Bgm_SUBMARINE_SELECT": "Choix du sous-marin (silence dans le jeu)",
-    "Bgm_LEAVE_PORT_FANFARE": "Départ du port (silence dans le jeu)",
+    "Bgm_TITLE": "Title screen",
+    "Bgm_ENDING": "Ending credits",
+    "Bgm_SELECT_BASE": "Menu: the base",
+    "Bgm_SELECT_ON_STAGE": "Menu: mission select",
+    "Bgm_SELECT_ON_SUBMARINE": "Menu: aboard the submarine",
+    "Bgm_MAIN_MENU": "Main menu (silent in the game)",
+    "Bgm_SUBMARINE_SELECT": "Submarine select (silent in the game)",
+    "Bgm_LEAVE_PORT_FANFARE": "Leaving port (silent in the game)",
     "Bgm_SELECT_OPTION": "Options",
-    "Bgm_Shop": "Boutique",
-    "Bgm_FANFARE_EXPERT_OPEN": "Fanfare : mode expert débloqué",
-    "Bgm_WinBattle": "Bataille gagnée",
-    "Bgm_LoseBattle": "Bataille perdue",
-    "Bgm_DrawBattle": "Match nul",
-    "Bgm_BattleKansen": "Spectateur",
-    "Bgm_SUCCESS_PERISCOPE": "Mission réussie",
-    "Bgm_SUCCESS_LAST": "Dernière mission réussie",
-    "Bgm_OVER": "Mission ratée",
-    "Bgm_RANKING": "Résultats",
-    "Bgm_SELECTSEABATTLEforTUTORIAL": "Tutoriel",
-    "Bgm_F2P": "Présentation de la version gratuite",
+    "Bgm_Shop": "Shop",
+    "Bgm_FANFARE_EXPERT_OPEN": "Fanfare: expert mode unlocked",
+    "Bgm_WinBattle": "Battle won",
+    "Bgm_LoseBattle": "Battle lost",
+    "Bgm_DrawBattle": "Draw",
+    "Bgm_BattleKansen": "Spectator",
+    "Bgm_SUCCESS_PERISCOPE": "Mission complete",
+    "Bgm_SUCCESS_LAST": "Last mission complete",
+    "Bgm_OVER": "Mission failed",
+    "Bgm_RANKING": "Results",
+    "Bgm_SELECTSEABATTLEforTUTORIAL": "Tutorial",
+    "Bgm_F2P": "Free version introduction",
 }
 
 
@@ -66,7 +68,11 @@ class MusicError(Exception):
 
 
 def default_dir() -> Path:
-    return azahar.config_dir() / "musique"
+    folder = azahar.settings_file("music", "musique")
+    old = folder / OLD_INDEX
+    if old.exists() and not (folder / INDEX).exists():
+        old.rename(folder / INDEX)
+    return folder
 
 
 def label_of(sound: str, maps: dict[str, str] | None = None) -> str:
@@ -74,12 +80,12 @@ def label_of(sound: str, maps: dict[str, str] | None = None) -> str:
         return LABELS[sound]
     m = re.fullmatch(r"Bgm_Mission(\d)_(\w+)", sound)
     if m:
-        part = {"GATE": "la porte", "BOSS": "le boss"}.get(m[2], f"partie {m[2]}")
+        part = {"GATE": "the gate", "BOSS": "the boss"}.get(m[2], f"part {m[2]}")
         return f"Mission {m[1]}, {part}"
     m = re.fullmatch(r"Bgm_MultiPlay(\d+)(_Battle)?", sound)
     if m:
-        name = (maps or {}).get(m[1]) or f"carte {m[1]}"
-        return f"En ligne : {name}" + (", combat" if m[2] else "")
+        name = (maps or {}).get(m[1]) or f"map {m[1]}"
+        return f"Online: {name}" + (", combat" if m[2] else "")
     return sound
 
 
@@ -87,7 +93,7 @@ def tracks(game: versions.GameFiles, maps: dict[str, str] | None = None) -> list
     """The music streams the game plays: file, sounds, label (several sounds may share a file)."""
     path = game.path("audiores/sound_data.xml")
     if not path.is_file():
-        raise MusicError("audiores/sound_data.xml introuvable : préparez les fichiers du jeu (make extract)")
+        raise MusicError("audiores/sound_data.xml not found: prepare the game's files (make extract)")
     text = path.read_text(encoding="utf-8", errors="replace")
     files = dict(re.findall(r'<InternalFile ID="([0-9A-F]+)" Name="stream/([^"]+\.bcstm)"', text))
     sounds: dict[str, list[str]] = {}
@@ -113,7 +119,7 @@ def find(game: versions.GameFiles, name: str) -> dict:
     found = [t for t in all_tracks if t["file"].lower().startswith(name.lower())]
     if len(found) == 1:
         return found[0]
-    raise MusicError(f"{name} : aucune musique de ce nom" + (" (plusieurs commencent ainsi)" if found else ""))
+    raise MusicError(f"{name}: no music of that name" + (" (several start like this)" if found else ""))
 
 
 def original(game: versions.GameFiles, track: dict) -> bcstm.Stream:
@@ -179,8 +185,8 @@ GAME_LEVEL = 20.0 * math.log10(TARGET_RMS / 32768.0)   # for a music of the game
 
 
 def original_loudness(folder: Path, game: versions.GameFiles, track: dict) -> float:
-    """The loudness of the game's music this one replaces (measured once, kept in niveaux.json)."""
-    cache_file = folder / "niveaux.json"
+    """The loudness of the game's music this one replaces (measured once, kept in levels.json)."""
+    cache_file = folder / LEVELS_FILE
     try:
         cache = json.loads(cache_file.read_text(encoding="utf-8"))
     except (OSError, ValueError):
@@ -231,9 +237,9 @@ def store(folder: Path, game: versions.GameFiles, track: dict, channels: list[ar
     """Your music for this track: fitted to the original's channels and rate, kept as a WAV as it is, with its
     loudness and the original's (the level is matched when the game's stream is made: normalize)."""
     if not channels or not channels[0]:
-        raise MusicError("fichier sans son")
+        raise MusicError("file without sound")
     if len(channels[0]) > rate * MAX_SECONDS:
-        raise MusicError(f"musique trop longue (plus de {MAX_SECONDS // 60} minutes)")
+        raise MusicError(f"music too long (over {MAX_SECONDS // 60} minutes)")
     like = original(game, track)
     channels = bcstm.fit(channels, rate, like)
     folder.mkdir(parents=True, exist_ok=True)
@@ -269,7 +275,7 @@ def store_pcm(folder: Path, game: versions.GameFiles, track: dict, pcm: bytes, r
               source: str, normalize: bool = True) -> dict:
     """Interleaved signed 16-bit little-endian samples (what the launcher's page decoded and resampled)."""
     if not 1 <= count <= 2 or not 8000 <= rate <= 48000:
-        raise MusicError("1 ou 2 canaux, 8 000 à 48 000 Hz")
+        raise MusicError("1 or 2 channels, 8,000 to 48,000 Hz")
     values = array.array("h", pcm[: len(pcm) // (2 * count) * 2 * count])
     if sys.byteorder == "big":
         values.byteswap()
@@ -297,7 +303,7 @@ def streams(folder: Path, game: versions.GameFiles) -> dict[str, bytes]:
     for wav in sorted(folder.glob("*.wav")) if folder.is_dir() else []:
         track = known.get(wav.stem)
         if track is None:
-            print(f"[!] {wav.name} : aucune musique du jeu de ce nom, laissé de côté")
+            print(f"[!] {wav.name}: no music of the game of that name, left out")
             continue
         channels, rate = leveled(folder, track)
         out[f"{STREAMS}/{track['file']}"] = bcstm.replacement(channels, rate,
@@ -311,19 +317,19 @@ def folder_of(value: str) -> Path:
 
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
-    parser.add_argument("--dir", default="auto", help="dossier de vos musiques (auto : « musique » du dossier "
-                                                       "de réglages)")
-    parser.add_argument("--version", default=versions.BASE, help="version du jeu : v0, v5200")
+    parser.add_argument("--dir", default="auto", help="folder of your music (auto: \"music\" in the settings "
+                                                       "folder)")
+    parser.add_argument("--version", default=versions.BASE, help="version of the game: v0, v5200")
     sub = parser.add_subparsers(dest="command", required=True)
-    sub.add_parser("list", help="les musiques du jeu et vos remplacements")
-    p = sub.add_parser("set", help="remplacer une musique par un WAV")
+    sub.add_parser("list", help="the game's music and your replacements")
+    p = sub.add_parser("set", help="replace a music with a WAV")
     p.add_argument("track")
     p.add_argument("wav", type=Path)
-    p.add_argument("--keep-volume", action="store_true", help="ne pas égaliser son volume sur celui de l'original")
-    p = sub.add_parser("reset", help="remettre la musique du jeu")
+    p.add_argument("--keep-volume", action="store_true", help="do not match its loudness to the original's")
+    p = sub.add_parser("reset", help="put the game's music back")
     p.add_argument("track", nargs="?")
     p.add_argument("--all", action="store_true")
-    p = sub.add_parser("export", help="la musique du jeu en WAV")
+    p = sub.add_parser("export", help="the game's music as a WAV")
     p.add_argument("track")
     p.add_argument("-o", "--out", type=Path)
     args = parser.parse_args()
@@ -335,20 +341,20 @@ def main() -> int:
             for t in tracks(game):
                 r = mine_.get(t["stem"])
                 print(f"{t['stem']:52} {t['label']}" + (f"  <- {r['source']}" if r else ""))
-            print(f"\nVos musiques : {folder}")
+            print(f"\nYour music: {folder}")
         elif args.command == "set":
             track = find(game, args.track)
             channels, rate = bcstm.read_wav(args.wav)
             done = store(folder, game, track, channels, rate, args.wav.name, not args.keep_volume)
             gain = "" if done["loudness"] is None or not done["match"] else \
-                f", volume {done['target'] - done['loudness']:+.1f} dB pour sonner comme l'original"
+                f", volume {done['target'] - done['loudness']:+.1f} dB to sound like the original"
             print(f"{track['label']} : {done['source']} ({done['seconds']} s{gain}). "
-                  "Puis : tools/mod.py build musique --install")
+                  "Then: tools/mod.py build music --install")
         elif args.command == "reset":
             if not args.all and not args.track:
-                raise MusicError("reset <musique>, ou reset --all")
+                raise MusicError("reset <music>, or reset --all")
             n = remove(folder, None if args.all else find(game, args.track))
-            print(f"{n} musique(s) du jeu remise(s)")
+            print(f"{n} music stream(s) of the game put back")
         else:
             track = find(game, args.track)
             s = original(game, track)

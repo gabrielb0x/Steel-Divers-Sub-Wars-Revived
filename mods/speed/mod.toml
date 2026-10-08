@@ -1,0 +1,35 @@
+# Mod "speed": your submarine goes 2, 3, 5, 10 or 15 times faster, at the surface and underwater.
+#
+#   tools/mod.py build speed --set factor=5 --install
+#   tools/mod.py build premium cheats speed --set factor=10 --install
+#
+# How the game moves your submarine (pscope_player, every frame): the throttle (-1 to 1) times the
+# acceleration is added to the speed along the submarine, then the drag takes linDrag (3.8 %) off: the top
+# speed is about 25 times the acceleration. This acceleration comes from each submarine's "surface speed" and
+# "underwater speed" ratings (1 to 10, crew bonuses included), turned into numbers by two tables:
+# bxml/table_above_accel (0.36 to 0.54) and bxml/table_below_accel (0.30 to 0.48), which only the player's
+# scripts read (loadSubmarineProps). The mod multiplies both tables: top speed and reverse are multiplied by
+# the factor, and reached in the same time as before. Turning and the dive rate do not change, nor do the
+# other submarines.
+#
+# The game has a safeguard: beyond 400 units per frame (20 squared) it brings the speed back to 20. Even at
+# 15 times, the top speed (205 at most) stays below it.
+#
+# Online: the token tells the server (flag "cheats").
+
+name = "Submarine speed"
+description = "Your submarine goes 2, 3, 5, 10 or 15 times faster; counted as cheating online"
+token_flags = ["cheats"]
+
+[params.factor]
+help = "submarine speed: 2, 3, 5, 10 or 15 times faster"
+default = "2"
+choices = ["2", "3", "5", "10", "15"]
+
+[[bxml]]
+file = "bxml/table_above_accel.bxml"     # at the surface: aboveAccel_1 to aboveAccel_10
+scale = "${factor}"
+
+[[bxml]]
+file = "bxml/table_below_accel.bxml"     # underwater: belowAccel_1 to belowAccel_10
+scale = "${factor}"

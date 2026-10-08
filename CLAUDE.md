@@ -9,7 +9,7 @@ replies in French, code and code comments in English.
 - Never commit game data or anything derived mechanically from it: `cia/`, `extracted/`, `decomp/raw/`,
   `ghidra/project/` stay gitignored. Tools must read the user's own dump at runtime. Mods are recipes
   (`mods/<name>/mod.toml`) applied to the dump at build time; built mods and modified game files are never committed.
-- Targets: the EUR v0 executable and its update v5200 (title 0004000E000D7E00, docs/mise-a-jour.md), mods for the
+- Targets: the EUR v0 executable and its update v5200 (title 0004000E000D7E00, docs/update-v5200.md), mods for the
   Azahar emulator, then the PC port. Not real 3DS. The RE pipeline (Ghidra, decomp/) works on v0.
 - The repo is MIT-licensed: never copy GPL/AGPL code (Pretendo, Azahar/Citra) into it; use it as reference only.
 - Ghidra must live in a path without non-ASCII characters (its log4j config fails on `Téléchargements`):
@@ -30,14 +30,14 @@ tools/mod.py build <name>... [--install] [--cxi] [--version v5200]   mods/<name>
                     -> Azahar load/mods/00040000000D7E00/ (for the version each emulator runs; sdsw.json marker)
 tools/azahar.py install-update | uninstall-update | where    the update on the emulators' SD card
 tools/save.py, tools/subs.py                        save editor (Azahar save), submarine characteristics (mod "specs")
-tools/music.py, tools/bcstm.py                      your music in place of the game's BCSTM streams (mod "musique")
+tools/music.py, tools/bcstm.py                      your music in place of the game's BCSTM streams (mod "music")
 tools/shbin.py <file.shbin> [--check]               PICA200 shader disassembler; --check: loops Azahar's JIT runs wrong
 make pawncc bots     build/pawncc (Pawn 3.3, built with -D_I32_MAX/_I32_MIN: else cellmin = 0 on 64 bits), then
-                     tools/pawn2pasm.py mods/en-ligne/src/*.p -> mods/en-ligne/*.pasm (Pawn source of the bots' AI)
+                     tools/pawn2pasm.py mods/online/src/*.p -> mods/online/*.pasm (Pawn source of the bots' AI)
 tools/botsim.py                                     bot sandbox: AMX interpreter + small world (docs/bots.md)
 python3 subwars.py                                  players' launcher: local web UI (tools/webui.py + webui.html)
 python3 -m unittest discover -s tools/tests         tests of the players' tools (no game file needed)
-cd server && python3 -m sdsw_server        online server (realms "emulateur" and "pc", serveur.toml); tests: python3 -m unittest discover -s tests -t .
+cd server && python3 -m sdsw_server        online server (realms "emulateur" and "pc", server.toml); tests: python3 -m unittest discover -s tests -t .
 ```
 
 Players' tools (subwars.py, mod.py, save.py, subs.py, music.py, bcstm.py, extract_cia.py) must run with Python 3.11 alone on
@@ -71,7 +71,7 @@ Ghidra scripts are Java (`ghidra/scripts/`), compiled by Ghidra 12.1.4; check th
 - Save: "data:/save" = CRC-32 + script globals named save* (version 27); docs/formats.md#sauvegarde.
 - Online: NEX 3.7 (auth, matchmaking, NAT traversal) + Pia P2P, fully documented in `docs/online.md` and checked
   with the real game: PRUDP v1, RC4 "CD&ML" before the Kerberos session key, aggregate ACKs (MULTI_ACK, substream 1).
-  Azahar's frd:u lacks game authentication, hence the `en-ligne` mod. Pretendo's server (Go, AGPL-3.0) is cloned for
+  Azahar's frd:u lacks game authentication, hence the `online` mod. Pretendo's server (Go, AGPL-3.0) is cloned for
   reference in `build/ref/pretendo-sdsw`; Azahar sources (GPL, reference only) in `build/ref/azahar` (sparse).
 - Remote play: to join, Pia uses the host's private URL when the host's public IP equals its own, else the public
   one (pia::inet::NexConnectStationJob::StartupImpl). The server (`internet.py`) shows consoles on its own network
@@ -82,23 +82,23 @@ Ghidra scripts are Java (`ghidra/scripts/`), compiled by Ghidra 12.1.4; check th
   matches the shell running the command.
 - Online bots (docs/bots.md): our pilot replaces surface_sub's (which sets its position without reading its
   collisions, and whose "enemy" torpedoes skip every computer sub and only damage the local player). Pawn source
-  in mods/en-ligne/src (`// @game g_X`, `// @call 0xADDR f()`, hooks in `/* asm */`); the generated .pasm are
+  in mods/online/src (`// @game g_X`, `// @call 0xADDR f()`, hooks in `/* asm */`); the generated .pasm are
   committed. worldClipLine(from, dir, length, typeMask) returns the distance to the first hit;
   worldFindActors(found, center, radius, typeMask, max) only finds visible actors. @eventCollide(other, point,
   normal...): normal points away from the other actor.
 - Azahar crash "torpedo hits a sub underwater" = OOM kill, not a game bug: Azahar's x64 shader JIT clobbers the
   outer LOOP counter when a subroutine CALLed from a loop has its own LOOP (geometry shader of the oil metaballs,
-  shaders/metaball.shbin) -> ~4e9 iterations emitting triangles. mods/correctifs (always = true, in every build)
+  shaders/metaball.shbin) -> ~4e9 iterations emitting triangles. mods/fixes (always = true, in every build)
   NOPs the two loops. `journalctl -k` shows such OOM kills; Azahar's own log only flushes on errors.
 - Testing in Azahar: portable profiles in `~/.var/app/org.azahar_emu.Azahar/sdsw-test/<p>/user/`
   (`flatpak run --cwd=<p>`), shown in Xephyr. The machine has 7 GB of RAM: OpenGL under Xephyr can reach 5 GB per
   instance (two got OOM-killed) and the software renderer runs at 3 %: one instance at a time.
 
-- Update v5200 (docs/mise-a-jour.md): new executable (all addresses move, no romfs:/map: names come from matching
+- Update v5200 (docs/update-v5200.md): new executable (all addresses move, no romfs:/map: names come from matching
   v0 functions), 16 more subs, 3 maps, recompiled scripts. Its RomFS only holds changed/added files: the game
   opens "rom2:/" (update RomFS, SelfNCCH path type 5) then "rom:/" (v5200 0x00257ACC); tools/versions.py layers
   extracted/v5200/romfs over extracted/romfs. Azahar applies load/mods/00040000000D7E00/ to the update too, so a
   mod is built per version: recipes declare `versions = [...]` and give version tables `{ v0 = ..., v5200 = ... }`
   (+ `[symbols]`); tools/tests checks every recipe that patches by address declares its versions.
 
-See `docs/analyse-initiale.md` and `docs/roadmap.md`.
+See `docs/initial-analysis.md` and `docs/roadmap.md`.

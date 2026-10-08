@@ -21,7 +21,7 @@ Chaque fonction est précédée de son adresse et de sa taille dans le map.
 *Avancement estimé : 100 % — les 123 scripts décompilés ; leur lisibilité dépend des noms de `pawn/`.*
 
 `make scripts` désassemble (`scripts/asm/*.asm`) et décompile (`scripts/*.p`) les 123 scripts `romfs:/amx/*.amx`.
-Voir [../docs/scripts-pawn.md](../docs/scripts-pawn.md).
+Voir [../docs/pawn-scripts.md](../docs/pawn-scripts.md).
 
 ## `pawn/` — connaissances sur les scripts (versionné)
 

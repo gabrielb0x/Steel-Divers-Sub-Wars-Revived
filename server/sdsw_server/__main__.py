@@ -1,10 +1,10 @@
 """Steel Diver: Sub Wars online server.
 
-    cd server && python3 -m sdsw_server [-c serveur.toml] [--realm emulateur] [-v]
+    cd server && python3 -m sdsw_server [-c server.toml] [--realm emulator] [-v]
 
 Starts the realms of the configuration (authentication + secure server each) and the NAT check service,
 finds the public address and asks the router to forward the ports (UPnP). While it runs, a state file
-(data/serveur.json next to the configuration) tells the launcher its process, ports and public address.
+(data/server.json next to the configuration) tells the launcher its process, ports and public address.
 Python 3.11+, standard library only.
 """
 
@@ -25,6 +25,7 @@ from pathlib import Path
 
 from . import stun
 from .internet import Internet
+from .config import canonical
 from .matchmaking import BotSettings
 from .natcheck import PORTS as NAT_CHECK_PORTS, NatCheckService
 from .realm import Realm, RealmConfig
@@ -46,11 +47,14 @@ def load_config(path: Path, only: list[str] | None) -> tuple[dict, list[RealmCon
         data_dir = Path(entry.get("data_dir", f"data/{entry['name']}"))
         if not data_dir.is_absolute():
             data_dir = path.parent / data_dir
+        old = data_dir.with_name("emulateur")          # the emulators' realm before the project went English
+        if data_dir.name == "emulator" and not data_dir.exists() and old.is_dir():
+            old.rename(data_dir)
         realms.append(RealmConfig(name=entry["name"], listen=listen,
                                   public_address=entry.get("public_address", public),
                                   auth_port=int(entry["auth_port"]), secure_port=int(entry["secure_port"]),
                                   data_dir=data_dir, max_players=int(entry.get("max_players", 8)),
-                                  cheats=str(entry.get("cheats", "separes")),
+                                  cheats=str(canonical(entry.get("cheats", "separate"))),
                                   anticheat_ban=int(entry.get("anticheat_ban", 30)),
                                   duration=int(entry.get("duration", 10)),
                                   bots=BotSettings.from_config(entry, entry["name"])))
@@ -58,7 +62,7 @@ def load_config(path: Path, only: list[str] | None) -> tuple[dict, list[RealmCon
 
 
 class StateFile:
-    """data/serveur.json while the server runs: what the launcher shows (and the process it may stop)."""
+    """data/server.json while the server runs: what the launcher shows (and the process it may stop)."""
 
     def __init__(self, path: Path | None, config: Path, realms: list[RealmConfig], internet: Internet,
                  status_port: int) -> None:
@@ -145,10 +149,13 @@ async def run(server: dict, realms: list[RealmConfig], config: Path, state_path:
 
 def main() -> None:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("-c", "--config", type=Path, default=HERE / "serveur.toml")
+    default = HERE / "server.toml"
+    if not default.exists() and (HERE / "serveur.toml").exists():       # its name before the project went English
+        default = HERE / "serveur.toml"
+    ap.add_argument("-c", "--config", type=Path, default=default)
     ap.add_argument("--realm", action="append", help="only start this realm (repeatable)")
     ap.add_argument("-v", "--verbose", action="count", default=0, help="-v: packets, -vv: more")
-    ap.add_argument("--state-file", type=Path, help="state file (default: data/serveur.json next to the config)")
+    ap.add_argument("--state-file", type=Path, help="state file (default: data/server.json next to the config)")
     ap.add_argument("--exit-with-stdin", action="store_true",
                     help="stop when standard input closes (the program that started the server is gone)")
     args = ap.parse_args()
@@ -162,7 +169,7 @@ def main() -> None:
         sys.exit(f"bad configuration {args.config}: {e}")
     if not realms:
         sys.exit("no realm to start")
-    state = args.state_file or args.config.parent / "data" / "serveur.json"
+    state = args.state_file or args.config.parent / "data" / "server.json"
     try:
         asyncio.run(run(server, realms, args.config, state, args.exit_with_stdin))
     except KeyboardInterrupt:

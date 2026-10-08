@@ -59,9 +59,9 @@ script, et la mémoire du script grandit d'autant (le chargeur alloue `stp` + la
   `[[bxml]]`. Formats dans [formats.md](formats.md), dont celui des niveaux.
 - **Code C++** : recettes `[[code]]` (octets ou assembleur ARM), en connaissant les fonctions grâce à la table des
   symboles du jeu et à la décompilation.
-- **Scripts** : la logique du jeu (modes, sous-marins, interface) est en Pawn ([scripts-pawn.md](scripts-pawn.md)).
+- **Scripts** : la logique du jeu (modes, sous-marins, interface) est en Pawn ([pawn-scripts.md](pawn-scripts.md)).
   `tools/amxasm.py` y ajoute du code (assembleur Pawn, crochets sur les instructions existantes) : c'est ainsi
-  que sont faits les bots du serveur (`mods/en-ligne/bots_*.pasm`). Prochaine étape : du pseudo-Pawn
+  que sont faits les bots du serveur (`mods/online/bots_*.pasm`). Prochaine étape : du pseudo-Pawn
   recompilable avec le compilateur Pawn 3.3.
 
 ## Jeu en ligne sur notre serveur
@@ -77,7 +77,7 @@ Comment le jeu trouve son serveur (`source/net/connectionInternet.cpp`, `JobCTRL
    `RendezVous::Login` (serveur d'authentification NEX), puis la connexion sécurisée.
 3. Le reste (matchmaking, NAT traversal, parties en P2P avec Pia) passe par ce serveur (voir [online.md](online.md)).
 
-**Fait** : mod [`en-ligne`](../mods/en-ligne/mod.toml) et serveur [`server/`](../server/README.md), vérifiés avec
+**Fait** : mod [`online`](../mods/online/mod.toml) et serveur [`server/`](../server/README.md), vérifiés avec
 deux instances d'Azahar qui jouent ensemble. Ce qui suit explique le choix.
 
 Deux façons de rediriger le jeu :
@@ -97,7 +97,7 @@ attribut 3) : un mod qui change le gameplay doit changer cette valeur pour ne pa
 
 *Avancement estimé : 100 % — le plantage connu est corrigé, aucun autre n'est connu.*
 
-Le mod [`correctifs`](../mods/correctifs/mod.toml) fait partie de toutes les constructions (`always = true`).
+Le mod [`correctifs`](../mods/fixes/mod.toml) fait partie de toutes les constructions (`always = true`).
 
 **Plantage quand une torpille touche un sous-marin sous l'eau.** Dans Azahar, en mission solo, quelques
 instants après qu'une torpille a touché un sous-marin sous l'eau, le jeu se fige et Azahar se ferme. Ce n'est
@@ -186,7 +186,7 @@ font les mêmes 30 pas de simulation par seconde : c'est la simulation qui doit 
 *Avancement estimé : 5 % — ce qu'il en reste est analysé ; sa logique et son affichage sont à réécrire.*
 
 Les scripts des modes contiennent encore la console de debug des développeurs (`consoleSystemMenu` dans
-`mode_title`, voir [scripts-pawn.md](scripts-pawn.md)) : invincibilité, `godmode`, `killThemAll`, désactivation des
+`mode_title`, voir [pawn-scripts.md](pawn-scripts.md)) : invincibilité, `godmode`, `killThemAll`, désactivation des
 effets, réglages du brouillard et de la 3D, simulation de latence et de pertes de paquets, accès au mode de test des
 développeurs (`mode_test` : choix du mode, du sous-marin, des missions). Mais ce n'est pas un mod rapide :
 

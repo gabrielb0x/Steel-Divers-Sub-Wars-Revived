@@ -1,6 +1,6 @@
 """How players far away reach the server, and how they see the players of the server's own network.
 
-* Public address: given in serveur.toml (public_address = "1.2.3.4" or a name), or "auto": the address the
+* Public address: given in server.toml (public_address = "1.2.3.4" or a name), or "auto": the address the
   router reports (UPnP), else the one a STUN server sees.
 * Router forwards: with upnp = true the server asks the router to forward its UDP ports to it (UPnP IGD),
   renews them while it runs and removes them when it stops. Without UPnP they are forwarded by hand.
@@ -112,7 +112,7 @@ class Internet:
                      "" if is_global(self.public_ip) else ": not an internet address, players far away cannot join")
         else:
             log.warning("public address unknown: only players on this network can join "
-                        "(public_address in serveur.toml)")
+                        "(public_address in server.toml)")
 
     def _find_router(self) -> None:
         self.gateway = upnp.discover()

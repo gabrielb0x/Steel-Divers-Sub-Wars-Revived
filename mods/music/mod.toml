@@ -1,0 +1,22 @@
+# Mod "music": your music in place of the game's.
+#
+#   tools/music.py list                          # the game's music (title, missions, online maps...)
+#   tools/music.py set Title_lr my-music.wav     # or the launcher's Music tab, which also takes MP3, OGG, FLAC...
+#   tools/mod.py build music --install           # then the mod (with your other mods: build premium music ...)
+#
+# Your music is in the "music" folder of the settings folder, one WAV per music replaced, named after the
+# stream it replaces; removing them (tools/music.py reset --all, or "Restore the original music" in the
+# launcher) brings the game's back. The mod writes each one as a PCM16 stream (audiores/stream/*.bcstm,
+# tools/bcstm.py), with the channels and rate of the original, looping from the start, at the loudness of the
+# original if you asked for it. Nothing changes in the battles or online.
+
+name = "Music"
+description = "Your music in place of the game's (Music tab, or tools/music.py)"
+versions = ["v0", "v5200"]
+
+[params.folder]
+help = "folder of your music (\"auto\": music in the settings folder)"
+default = "auto"
+
+[[music]]
+dir = "${folder}"

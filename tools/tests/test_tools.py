@@ -510,7 +510,7 @@ class Versions(unittest.TestCase):
             mods = base / "load" / "mods" / azahar.TITLE_ID
             mods.mkdir(parents=True)
             self.assertEqual(azahar.installed_mods(base), {})              # installed before the markers
-            (mods / azahar.MARKER).write_text('{"version": "v5200", "mods": ["correctifs"]}')
+            (mods / azahar.MARKER).write_text('{"version": "v5200", "mods": ["fixes"]}')
             self.assertEqual(azahar.installed_mods(base)["version"], "v5200")
 
 
@@ -612,13 +612,13 @@ class Recipes(unittest.TestCase):
                                  ["fix", "any"])
 
     def test_fixes_always_included(self):
-        self.assertEqual(mod.fixes(), ["correctifs", "pseudo", "version"])
-        recipe = tomllib.loads((TOOLS.parent / "mods" / "correctifs" / "mod.toml").read_text(encoding="utf-8"))
+        self.assertEqual(mod.fixes(), ["fixes", "nickname", "version"])
+        recipe = tomllib.loads((TOOLS.parent / "mods" / "fixes" / "mod.toml").read_text(encoding="utf-8"))
         self.assertEqual({e["instruction"] for e in recipe["shader"]}, {0x061, 0x084})
 
 
 class Music(unittest.TestCase):
-    """BCSTM streams (tools/bcstm.py), your music in their place (tools/music.py, mods/musique)."""
+    """BCSTM streams (tools/bcstm.py), your music in their place (tools/music.py, mods/music)."""
 
     def test_pcm_round_trip(self):
         left = array.array("h", (i * 7 % 65536 - 32768 for i in range(10000)))
@@ -673,10 +673,10 @@ class Music(unittest.TestCase):
             (streams / "Fleet.bcstm").write_bytes(bcstm.write([silence], 22050))
             with mock.patch.object(versions, "EXTRACTED", game):
                 files = versions.game_files("v0")
-                tracks = music.tracks(files, {"3": "Récif"})
+                tracks = music.tracks(files, {"3": "Reef"})
                 self.assertEqual([(t["file"], t["label"]) for t in tracks],
-                                 [("Title.bcstm", "Écran titre"), ("Fleet.bcstm", "En ligne : Récif, combat")])
-                mine = root / "musique"
+                                 [("Title.bcstm", "Title screen"), ("Fleet.bcstm", "Online: Reef, combat")])
+                mine = root / "music"
                 tone = array.array("h", (int(8000 * ((i // 20) % 2 * 2 - 1)) for i in range(44100)))
                 pcm = array.array("h", (v for pair in zip(tone, tone) for v in pair)).tobytes()
                 music.store_pcm(mine, files, tracks[1], pcm, 44100, 2, "essai.mp3")
@@ -709,7 +709,7 @@ class Music(unittest.TestCase):
             with mock.patch.object(versions, "EXTRACTED", game):
                 files = versions.game_files("v0")
                 track = music.tracks(files)[0]
-                mine = root / "musique"
+                mine = root / "music"
                 done = music.store(mine, files, track, [quiet, quiet], 32728, "doux.wav")
                 self.assertAlmostEqual(done["target"] - done["loudness"], 18.06, places=1)    # 20 log10(8)
                 stream = bcstm.read(music.streams(mine, files)["audiores/stream/Title.bcstm"])
@@ -766,7 +766,7 @@ def free_udp_ports(count: int) -> list[int]:
 
 
 class Launcher(unittest.TestCase):
-    """« Lancer le serveur » stops a server started elsewhere that holds its ports, never another program."""
+    """"Start the server" stops a server started elsewhere that holds its ports, never another program."""
 
     def hold(self, ports: list[int], marker: str) -> subprocess.Popen:
         process = subprocess.Popen([sys.executable, "-c", HOLD_PORTS, ",".join(map(str, ports)), marker],

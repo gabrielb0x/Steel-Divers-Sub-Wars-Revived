@@ -3,7 +3,7 @@
 
     tools/bcstm.py info Title_lr.n.327.dspadpcm.bcstm
     tools/bcstm.py decode Title_lr.n.327.dspadpcm.bcstm -o titre.wav
-    tools/bcstm.py encode ma-musique.wav -o Title_lr.n.327.dspadpcm.bcstm --like <original>
+    tools/bcstm.py encode my-music.wav -o Title_lr.n.327.dspadpcm.bcstm --like <original>
 
 The game's streams are DSP-ADPCM (codec 2), 32728 Hz (22050 for two of them), mostly stereo, and loop. The music
 of a mod is written as PCM16 (codec 1): no encoder to get right, nothing lost, and the stream player of the game
@@ -74,14 +74,14 @@ class Stream:
 
 def read(raw: bytes) -> Stream:
     if raw[:4] != b"CSTM" or struct.unpack_from("<H", raw, 4)[0] != 0xFEFF:
-        raise BcstmError("pas un fichier BCSTM (CSTM, petit-boutiste)")
+        raise BcstmError("not a BCSTM file (CSTM, little-endian)")
     count = struct.unpack_from("<H", raw, 0x10)[0]
     sections = {}
     for i in range(count):
         kind, _, offset, size = struct.unpack_from("<HHiI", raw, 0x14 + 12 * i)
         sections[kind] = (offset, size)
     if 0x4000 not in sections or 0x4002 not in sections:
-        raise BcstmError("BCSTM sans INFO ou sans DATA")
+        raise BcstmError("BCSTM without INFO or DATA")
     info = sections[0x4000][0]
     base = info + 8
     refs = [struct.unpack_from("<HHi", raw, base + 8 * i) for i in range(3)]
@@ -99,7 +99,7 @@ def read(raw: bytes) -> Stream:
             values = struct.unpack_from("<16hHhh", raw, entry + offset)
             stream.adpcm.append({"coefs": list(values[:16]), "ps": values[16], "yn1": values[17], "yn2": values[18]})
     if codec not in (PCM8, PCM16, DSP_ADPCM):
-        raise BcstmError(f"codage {codec} non pris en charge")
+        raise BcstmError(f"codec {codec} not supported")
     data = sections[0x4002][0]
     stream.data = raw[data + 0x20: data + sections[0x4002][1]]
     return stream
@@ -157,11 +157,11 @@ def write(channels: list[array.array], rate: int, loop: bool = True, loop_start:
           block_size: int = BLOCK_SIZE) -> bytes:
     """A PCM16 (or PCM8) stream of these channels."""
     if codec not in (PCM8, PCM16):
-        raise BcstmError("seuls PCM8 et PCM16 s'écrivent")
+        raise BcstmError("only PCM8 and PCM16 can be written")
     count = len(channels)
     samples = len(channels[0]) if channels else 0
     if not 1 <= count <= 2 or any(len(c) != samples for c in channels) or not samples:
-        raise BcstmError("1 ou 2 canaux de même longueur, non vides")
+        raise BcstmError("1 or 2 channels of the same length, not empty")
     width = 2 if codec == PCM16 else 1
     block_samples = block_size // width
     blocks = (samples + block_samples - 1) // block_samples
@@ -219,7 +219,7 @@ def read_wav(path: Path) -> tuple[list[array.array], int]:
             count, width, rate, frames = w.getnchannels(), w.getsampwidth(), w.getframerate(), w.getnframes()
             raw = w.readframes(frames)
     except (wave.Error, EOFError) as e:
-        raise BcstmError(f"{path.name} : WAV illisible ({e}) ; seuls les WAV PCM se lisent ici") from e
+        raise BcstmError(f"{path.name}: unreadable WAV ({e}); only PCM WAV files are read here") from e
     if width == 2:
         values = array.array("h", raw[: len(raw) // 2 * 2])
         if sys.byteorder == "big":
@@ -230,7 +230,7 @@ def read_wav(path: Path) -> tuple[list[array.array], int]:
         values = array.array("h", (int.from_bytes(raw[i + width - 2: i + width], "little", signed=True)
                                    for i in range(0, len(raw) - width + 1, width)))
     else:
-        raise BcstmError(f"{path.name} : échantillons de {width} octets non pris en charge")
+        raise BcstmError(f"{path.name}: samples of {width} bytes not supported")
     return [values[c::count] for c in range(count)], rate
 
 
@@ -290,22 +290,22 @@ def replacement(music: list[array.array], rate: int, original: bytes) -> bytes:
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
     sub = parser.add_subparsers(dest="command", required=True)
-    p = sub.add_parser("info", help="ce que contient un flux")
+    p = sub.add_parser("info", help="what a stream holds")
     p.add_argument("files", nargs="+", type=Path)
-    p = sub.add_parser("decode", help="un flux -> WAV")
+    p = sub.add_parser("decode", help="a stream -> WAV")
     p.add_argument("file", type=Path)
     p.add_argument("-o", "--out", type=Path)
-    p = sub.add_parser("encode", help="WAV -> flux PCM16 (mêmes canaux et fréquence que l'original)")
+    p = sub.add_parser("encode", help="WAV -> PCM16 stream (same channels and rate as the original)")
     p.add_argument("file", type=Path)
-    p.add_argument("--like", type=Path, required=True, help="le flux du jeu qu'il remplace")
+    p.add_argument("--like", type=Path, required=True, help="the game's stream it replaces")
     p.add_argument("-o", "--out", type=Path, required=True)
     args = parser.parse_args()
     try:
         if args.command == "info":
             for path in args.files:
                 s = read(path.read_bytes())
-                print(f"{path.name}: {['PCM8', 'PCM16', 'DSP-ADPCM'][s.codec]}, {s.channels} canal(aux), {s.rate} Hz, "
-                      f"{s.seconds:.1f} s" + (f", boucle depuis {s.loop_start / s.rate:.1f} s" if s.loop else ""))
+                print(f"{path.name}: {['PCM8', 'PCM16', 'DSP-ADPCM'][s.codec]}, {s.channels} channel(s), {s.rate} Hz, "
+                      f"{s.seconds:.1f} s" + (f", loops from {s.loop_start / s.rate:.1f} s" if s.loop else ""))
         elif args.command == "decode":
             s = read(args.file.read_bytes())
             out = args.out or args.file.with_suffix(".wav")

@@ -1,0 +1,556 @@
+# Mod "online": the game connects to our server (server/) instead of Nintendo's servers.
+#
+#   tools/mod.py build online --set server=192.0.2.10 --install
+#
+# Why a patch: on a 3DS, the "friends" system module connects to Nintendo's servers and gives back the
+# address of the game's server (NASC authentication). Azahar does not emulate it: RequestGameAuthentication
+# and GetGameAuthenticationData of frd:u are empty functions there, and the game waits forever (see Azahar's
+# log). The patch replaces the three functions the game's connection uses
+# (nn::nex::JobCTRLogin, libJugemLoginClient):
+#   GetMyPrincipalId           -> the player's id
+#   GetMyPassword              -> their password
+#   GetGameAuthenticationData  -> result 1, HTTP 200, address and port of our server, token
+# and points Pia's NAT detection servers (nncs1/nncs2.app.nintendowifi.net) at the server.
+#
+# Each player gets a random id and password when the mod is built, kept in
+# ~/.config/sub-wars-open-sourced/identities.json (one per server): the server registers it at the first
+# connection (the token holds the Kerberos key derived from the password). Details: docs/online.md.
+
+name = "Online play"
+description = "Play online on a Sub Wars Open Sourced server (server/), in Azahar"
+versions = ["v0", "v5200"]
+
+[params.server]
+help = "IP address or name of the server (31 characters at most)"
+default = "127.0.0.1"
+max_length = 31
+
+[params.port]
+help = "UDP port of the authentication server (realm \"emulator\": 61000)"
+default = "61000"
+
+[identity]
+scope = "${server}:${port}"
+
+# Addresses of the code, per version of the game (the update v5200: the same frd and NEX functions, elsewhere).
+[symbols]
+host_text = { v0 = 0x002AF4F8, v5200 = 0x002C9734 }      # the server's address (in GetServiceLocatorData)
+token_text = { v0 = 0x002AF56C, v5200 = 0x002C97A8 }     # token (in RequestServiceLocator)
+host_utf16 = { v0 = 0x002AF690, v5200 = 0x002C9874 }     # the server's address in UTF-16 (RequestGameAuthentication)
+wcslen = { v0 = 0x0023C598, v5200 = 0x00252010 }
+convertUTF16toUTF8 = { v0 = 0x0023B380, v5200 = 0x00250D2C }
+amxSysSetGlobal = { v0 = 0x002539C4, v5200 = 0x00269F64 }
+amxSysSetGlobalArray = { v0 = 0x001DA344, v5200 = 0x001E9E78 }
+session_globals = { v0 = 0x0038E660, v5200 = 0x003B5668 } # what MyNotificationEventHandler keeps
+owner_field = { v0 = 0x18, v5200 = 0x1C }                 # new owner, in session_globals
+# In the scripts: joinSession, right after inetSetAttribute(3, version checksum)
+join_hook_internet = { v0 = 0xB8F0, v5200 = 0xA564 }      # mode_internet_menu
+join_hook_result = { v0 = 0xCD88, v5200 = 0x12100 }       # mode_peri_result
+
+# -- nn::friends::CTR::detail::GetMyPrincipalId (108 octets) --------------------------------------
+[[code]]
+address = { v0 = 0x0021BD34, v5200 = 0x00222740 }
+expect = "30402de914d04de2"
+max_size = 108
+arm = """
+    ldr r0, pid
+    bx lr
+pid:
+    .word ${pid}
+"""
+
+# -- nn::friends::CTR::detail::GetMyPassword(char buffer[32]) (120 octets) -------------------------
+[[code]]
+address = { v0 = 0x002AF2C0, v5200 = 0x002C9224 }
+expect = "70402de90050a0e1"
+max_size = 120
+arm = """
+    adr r1, password
+copy:
+    ldrb r2, [r1], #1
+    strb r2, [r0], #1
+    cmp r2, #0
+    bne copy
+    mov r0, #0
+    bx lr
+password:
+    .asciz "${password}"
+"""
+
+# -- nn::friends::CTR::detail::GetGameAuthenticationData(GameAuthenticationData*) (116 bytes) -------
+# A structure of 0x138 bytes (size of the IPC buffer 0x4E0002): +0 result, +4 HTTP code, +8 address
+# (32 bytes), +0x28 port, +0x30 token (256 bytes), +0x130 server time.
+[[code]]
+address = { v0 = 0x0020E3CC, v5200 = 0x002226CC }
+expect = "70402de90050a0e1"
+max_size = 116
+arm = """
+    push {r4, lr}
+    mov r4, r0
+    mov r1, #0
+    mov r2, #0x138
+clear:
+    subs r2, r2, #4
+    str r1, [r4, r2]
+    bne clear
+    mov r1, #1
+    str r1, [r4]
+    mov r1, #200
+    str r1, [r4, #4]
+    ldr r1, port
+    strh r1, [r4, #0x28]
+    add r0, r4, #8
+    ldr r1, host
+    bl strcopy
+    add r0, r4, #0x30
+    ldr r1, token
+    bl strcopy
+    mov r0, #0
+    pop {r4, pc}
+strcopy:
+    ldrb r2, [r1], #1
+    strb r2, [r0], #1
+    cmp r2, #0
+    bne strcopy
+    bx lr
+port:
+    .word ${port}
+host:
+    .word ${host_text}
+token:
+    .word ${token_text}
+"""
+
+# -- Data, in three functions the patch makes useless (0x002AF4F0-0x002AF798) ----------------------------
+# Each one starts with "return an error", in case the game would still call it (only the steps of
+# nn::nex::JobCTRLogin call them, and they no longer do once GetGameAuthenticationData succeeds).
+[[code]]
+address = { v0 = 0x002AF4F0, v5200 = 0x002C972C }   # GetServiceLocatorData
+expect = "70402de90050a0e1"
+arm = "mvn r0, #0\nbx lr"
+
+[[code]]
+address = "${host_text}"                  # the server's address
+ascii = "${server}"
+max_size = 108
+
+[[code]]
+address = { v0 = 0x002AF564, v5200 = 0x002C97A0 }   # RequestServiceLocator
+expect = { v0 = "ff4f2de90cd04de2", v5200 = "f04f2de90cd04de2" }
+arm = "mvn r0, #0\nbx lr"
+
+[[code]]
+address = "${token_text}"                 # authentication token
+ascii = "${token}"
+max_size = { v0 = 284, v5200 = 196 }
+
+[[code]]
+address = { v0 = 0x002AF688, v5200 = 0x002C986C }   # RequestGameAuthentication
+expect = "f84f2de90050a0e1"
+arm = "mvn r0, #0\nbx lr"
+
+[[code]]
+address = "${host_utf16}"                 # name of the NAT server, in UTF-16
+utf16 = "${server}"
+max_size = { v0 = 264, v5200 = 180 }
+
+# -- NAT detection servers: nncs1 and nncs2 -> our server ---------------------------------------------
+# Pointers read by Pia (NatTraverser::updateNatServerAddress) and NEX's table. The v5200's Pia reads names in
+# ASCII (its table, 0x003D8018): it gets the server's address in ASCII.
+[[code]]
+address = { v0 = 0x003B0940, v5200 = 0x003D8018 }   # Pia
+expect = { v0 = "8e343800c4343800", v5200 = "b1963a00cc963a00" }
+words = { v0 = ["${host_utf16}", "${host_utf16}"], v5200 = ["${host_text}", "${host_text}"] }
+
+[[code]]
+address = { v0 = 0x00399E90, v5200 = 0x003C13E4 }   # NEX
+expect = { v0 = "8e343800c4343800", v5200 = "d4a83a000aa93a00" }
+words = ["${host_utf16}", "${host_utf16}"]
+
+# -- The server's messages: MyNotificationEventHandler::ProcessNotificationEvent (568 bytes) -------------
+# The game only keeps three notifications (3001 a player joins, 4xxx new owner, 109xxx lobby deleted); the
+# rest of the function only wrote logs removed from the final build. Rewritten: the same three, plus ours,
+# which set script variables (the game's globals):
+#   999001  text = name, param1 = integer value        -> amxSysSetGlobal(name, value)
+#   999002  text = "name=value", a string (UTF-8)      -> amxSysSetGlobalArray(name, 96 cells)
+# The server sets the battles against bots that way (server.bots.*, the bots' names...); a game without this
+# mod ignores these types.
+[[code]]
+address = { v0 = 0x00185264, v5200 = 0x0018A7B8 }
+expect = "30402de987df4de2"
+max_size = 568
+arm = """
+    push {r4, r5, r6, lr}
+    sub sp, sp, #0x210
+    mov r4, r1                  @ NotificationEvent: +0xc type, +0x10 param1, +0x14 param2, +0x1c text
+    ldr r0, [r4, #0xc]
+    ldr r5, globals
+    ldr r1, joined
+    cmp r0, r1
+    moveq r2, #0
+    streq r2, [r5, #4]          @ 3001: a player joins
+    beq done
+    sub r1, r0, #4000
+    cmp r1, #1000
+    ldrlo r2, [r4, #0x14]
+    strlo r2, [r5, #${owner_field}]   @ 4xxx: new owner (param2)
+    blo done
+    ldr r1, unregistered
+    sub r1, r0, r1
+    cmp r1, #1000
+    ldrlo r2, [r4, #0x10]
+    strlo r2, [r5, #4]          @ 109xxx: lobby deleted (param1)
+    blo done
+    ldr r1, set_global
+    sub r1, r0, r1
+    cmp r1, #2
+    bhs done
+    ldr r6, [r4, #0x1c]         @ nn::nex::String: UTF-16 text
+    cmp r6, #0
+    beq done
+    mov r5, r1                  @ 0: integer, 1: string
+    mov r0, r6
+    bl ${wcslen}
+    add r1, r6, r0, lsl #1
+    add r1, r1, #2              @ end, after the final zero
+    str r6, [sp, #4]
+    add r0, sp, #0x10
+    str r0, [sp, #8]
+    add r3, r0, #0x7f           @ 127 bytes at most
+    mov r12, #1
+    str r12, [sp]
+    add r0, sp, #4
+    add r2, sp, #8
+    bl ${convertUTF16toUTF8}    @ (&text, end, &utf8, utf8 end, 1)
+    add r0, sp, #0x10           @ only the server's variables (server.*): neither the save nor the game
+    adr r1, prefix
+    mov r2, #7
+prefix_loop:
+    ldrb r3, [r0], #1
+    ldrb r12, [r1], #1
+    cmp r3, r12
+    bne done
+    subs r2, r2, #1
+    bne prefix_loop
+    cmp r5, #0
+    bne string_global
+    add r0, sp, #0x10
+    ldr r1, [r4, #0x10]
+    bl ${amxSysSetGlobal}       @ (name, value)
+    b done
+string_global:
+    add r0, sp, #0x10
+find_equal:
+    ldrb r1, [r0], #1
+    cmp r1, #0
+    beq done                    @ no "=": ignored
+    cmp r1, #0x3d
+    bne find_equal
+    mov r1, #0
+    strb r1, [r0, #-1]          @ end of the name; r0: the value
+    add r2, sp, #0x90
+    mov r3, #96
+    mov r12, #1
+cells:
+    mov r1, #0
+    cmp r12, #0
+    beq store
+    ldrb r1, [r0], #1
+    cmp r1, #0
+    moveq r12, #0
+store:
+    str r1, [r2], #4
+    subs r3, r3, #1
+    bne cells
+    mov r1, #0
+    str r1, [sp, #0x20c]        @ last cell: end of string
+    add r0, sp, #0x10
+    add r1, sp, #0x90
+    mov r2, #96
+    bl ${amxSysSetGlobalArray}  @ (name, cells, 96), as sysSetGlobalString
+done:
+    add sp, sp, #0x210
+    pop {r4, r5, r6, pc}
+globals:
+    .word ${session_globals}
+joined:
+    .word 3001
+unregistered:
+    .word 109000
+set_global:
+    .word 999001
+prefix:
+    .ascii "server."
+"""
+
+# -- The server in use: a dialog of the game on the "Internet" button of the online battle menu --------------
+# The multiplayer menu (mode_multi_menu) has an unused state "dialog open, OK -> mode_internet_menu" (probably
+# the warning of an earlier version): the Internet button now goes through it, after putting into the dialog a
+# text added to the game (sdsw_server, after the model of internet_mode_warning, mode_select's warning).
+[[text]]
+key = "sdsw_server"
+like = "internet_mode_warning"
+languages = ["EU_French", "US_French"]
+text = "Serveur en ligne utilisé :\n${server} (port ${port})\n\nSub Wars Open Sourced ${sdsw_version}"
+
+[[text]]
+key = "sdsw_server"
+like = "internet_mode_warning"
+languages = ["EU_English", "US_English", "EU_German", "EU_Italian", "EU_Spanish", "US_Spanish", "JP_Japanese"]
+text = "Online server in use:\n${server} (port ${port})\n\nSub Wars Open Sourced ${sdsw_version}"
+
+[[amx]]
+file = "amx/mode_multi_menu.amx"        # update<Top>, Internet button, after sysEulaConfirm()
+asm.v0 = """
+.hook 0x96a8
+    push.c "sdsw_server"
+    push.c 4
+    call 0x4aac                     ; dialogSetMessage
+    push.c 0
+    call 0x40a4                     ; dialogConfirmWindowIn
+    const.pri 3
+    stor.pri g_0000                 ; state 3: OK -> sysSetMode("mode_internet_menu")
+    jump 0x96cc
+"""
+# The v5200 no longer has this unused state (its states: 1 the full version's offer, 2 Dialog, 3 Top): the
+# dialog opens in the game's Dialog state, and when it closes (going to Top in update<Dialog>), the game goes
+# to the Internet menu as the button did.
+asm.v5200 = """
+.var $sdsw_internet
+.hook 0xa4b4
+    push.c "sdsw_server"
+    push.c 4
+    call 0x5530                     ; dialogSetMessage
+    push.c 0
+    call 0x4888                     ; dialogConfirmWindowIn
+    const.pri 2
+    stor.pri g_0000                 ; state Dialog
+    const.pri 1
+    stor.pri $sdsw_internet
+    jump 0xa4d8
+
+.hook 0x603c                        ; update<Dialog>, the window closed: const.pri 3 (then stor.pri g_0000: Top)
+    load.pri $sdsw_internet
+    jzer @sdsw_menu
+    zero $sdsw_internet
+    push.c "mode_internet_menu"
+    push.c 4
+    call 0x01a8                     ; sysSetMode
+    zero g_a92c                     ; leave the mode's loop, as the button does
+sdsw_menu:
+    .original                       ; PRI = 3 for the stor.pri g_0000 after the hook
+    .return
+"""
+
+# -- Battles against the server's bots (bots_*.pasm, Pawn assembly of tools/amxasm.py) ------------------
+# Alone in a match for bots_delay seconds (server/server.toml), the player gets server.bots.*: the bots join
+# the lobby one by one, like players (name, submarine, level), the countdown starts, the battle begins with
+# the teams asked for (format 4v4, 1v4..., map, duration), and it ends when a team has neither player nor bot
+# afloat, or when time is up. In battle the bots have the hull of a real submarine, colours, their name and
+# level (not "CPU"), and count in the team counters. Their submarines: those of the game's bots, with the
+# collision shape of the players' submarines (bxml/pscope_ply01).
+[[bxml]]
+file = "bxml/surface_sub_bot_blue.bxml"
+from = "bxml/surface_sub_npc_blue.bxml"
+select = "collshape"
+copy = { file = "bxml/pscope_ply01.bxml", select = "collshape" }
+
+[[bxml]]
+file = "bxml/surface_sub_bot_red.bxml"
+from = "bxml/surface_sub_npc_red.bxml"
+select = "collshape"
+copy = { file = "bxml/pscope_ply01.bxml", select = "collshape" }
+
+# The bots start where a player would: the spawn points of each map (worlds/scope00_online_stageNN_pN:
+# position and bearing; stageNN: teamSpawnIndex, the teams start from two sides), copied from your game into
+# properties files the pilot reads (bxml/sdsw_spawn_*, bots_pilot.p spawnPlace).
+[[bxml]]
+files = "worlds/scope00_online_stage*_p*.bxml"
+select = "actor"
+extract = "bxml/sdsw_spawn_{stem}.bxml"
+keep = ["position", "bearing"]
+rename = { position = "spawnPosition", bearing = "spawnBearing" }
+floats = true
+
+[[bxml]]
+files = "worlds/scope00_online_stage??.bxml"
+select = "actor[@name='mode_settings']"
+extract = "bxml/sdsw_spawn_{stem}.bxml"
+keep = ["teamSpawnIndex"]
+
+# v5200: a bot's crew also acts on the player of its console. The game only looks at the copies of the other
+# consoles' submarines (type 0x80000) for the team repair (teamRepair, pscope_player func_19744: a teammate who
+# has it, within 2000, repairs) and for the hidden sonar (hideSonar, sonar.p func_5d6c: an enemy under 40 of
+# hull does not show); these two tests also take the submarines this console flies (0x4).
+[[amx]]
+versions = ["v5200"]
+file = "amx/pscope_player.amx"
+address = 0x1981C                       # const.alt 0x80000
+operand = 0
+expect = 0x80000
+value = 0x80004
+
+[[amx]]
+versions = ["v5200"]
+file = "amx/sonar.amx"
+address = 0x6150                        # const.alt 0x80000 (after the test of targetHideSonar)
+operand = 0
+expect = 0x80000
+value = 0x80004
+
+[[amx]]
+file = "amx/hud.amx"
+asm_file = { v0 = "bots_hud.pasm", v5200 = "bots_hud-v5200.pasm" }
+[[amx]]
+file = "amx/mode_lobby.amx"
+asm_file = { v0 = "bots_lobby.pasm", v5200 = "bots_lobby-v5200.pasm" }
+
+[[amx]]
+file = "amx/mode_periscope.amx"
+asm_file = { v0 = "bots_battle.pasm", v5200 = "bots_battle-v5200.pasm" }
+
+[[amx]]
+file = "amx/game_state.amx"
+asm_file = { v0 = "bots_game_state.pasm", v5200 = "bots_game_state-v5200.pasm" }
+
+# The bots of the battles against the server's bots play like players (in a battle between players, the
+# submarines the game adds to fill the teams stay the game's): a player's submarine physics and
+# characteristics, collisions with the map and the other submarines, fighting any enemy (players and bots),
+# aiming where the target will be, homing torpedoes, dodging, the masker and retreat when the hull is low.
+# Written in Pawn (src/*.p), compiled to assembly by tools/pawn2pasm.py; the .pasm are generated.
+[[amx]]
+file = "amx/surface_sub.amx"
+asm_file = { v0 = "bots_pilot.pasm", v5200 = "bots_pilot-v5200.pasm" }
+
+[[amx]]
+file = "amx/surface_torpedo.amx"
+asm_file = { v0 = "bots_torpedo.pasm", v5200 = "bots_torpedo-v5200.pasm" }
+
+[[amx]]
+file = "amx/surface_torpedo_p_homing.amx"
+asm_file = { v0 = "bots_homing.pasm", v5200 = "bots_homing-v5200.pasm" }
+
+[[amx]]
+file = "amx/pscope_player.amx"
+asm_file = { v0 = "bots_player.pasm", v5200 = "bots_player-v5200.pasm" }
+
+# v5200, reportDeath (game_state): "<shooter> sank <player>!"; a computer sub's shot gave "CPU" there
+# (name_npc). Against the server's bots, it is the name of the bot that hit them last (bots_game_state.p).
+[[amx]]
+versions = ["v5200"]
+file = "amx/game_state.amx"
+asm = """
+.hook 0x48e8                        ; reportDeath(victim, shooter, isShooterNpc): if (isShooterNpc) ...
+    load.s.pri 0x14
+    jzer @sdsw_rd_done
+    push.s 0xc
+    push.c 4
+    call @pw_botShooterOf
+    jzer @sdsw_rd_done
+    stor.s.pri 0x10                 ; the bot's node: its name
+    zero.s 0x14
+sdsw_rd_done:
+    .original
+    .return
+"""
+
+# The v5200 adds "friendly fire" to @eventDamageTorp (pscope_player): no damage if the team of the shooter's node
+# is the player's. The node of a computer sub's shot is that of its console (the game finds the torpedo there
+# for the replay): alone against bots, it is the player's console, who therefore took no damage. A bot's
+# torpedo that reaches the player is always an enemy's (bots_shot.inc lets the teammates' pass through): for it
+# (isShooterNpc), no friendly fire. Only against the server's bots: in a battle between players, the computer
+# subs stay the game's.
+[[amx]]
+versions = ["v5200"]
+file = "amx/pscope_player.amx"
+asm = """
+.hook 0x1094c                       ; @eventDamageTorp: if (!friendlyFire && (!window || arg7))
+    load.s.pri 0x2c                 ; isShooterNpc
+    jzer @sdsw_ff_keep
+    push.c "server.bots"            ; only against the server's bots: elsewhere the game's computer subs
+    sysreq.n sysGetGlobal, 1
+    jzer @sdsw_ff_keep
+    zero.s -0xc                     ; friendlyFire = 0
+sdsw_ff_keep:
+    .original
+    .return
+"""
+
+# -- Anti-cheat (anticheat_*.pasm), when the server does not allow cheats (server.anticheat) --------------
+# Each console watches its own submarine in battle: damage cancelled for no reason of the game, torpedoes that
+# do not go down, shots too close together, a speed no submarine has. At the first sign, it leaves the battle
+# (as the game's "quit" button does) and keeps this kick in the save (save.sdsw.cheat: what it saw,
+# save.sdsw.kick: its number); at every search for a match it tells the server (attribute 4 of the search),
+# which handles each kick once: with the cheaters, or kept out for anticheat_ban minutes (server.toml). A game
+# whose mod was removed escapes the watch: that is the limit of any anti-cheat in a P2P game.
+[[amx]]
+file = "amx/pscope_player.amx"
+asm_file = { v0 = "anticheat_player.pasm", v5200 = "anticheat_player-v5200.pasm" }
+
+[[amx]]
+file = "amx/periscope_move.amx"
+asm_file = { v0 = "anticheat_fire.pasm", v5200 = "anticheat_fire-v5200.pasm" }
+
+[[amx]]
+file = "amx/mode_internet_menu.amx"     # joinSession, after inetSetAttribute(3, version checksum)
+asm = """
+.hook ${join_hook_internet}
+    push.c 0
+    call @acReport
+    .original
+    .return
+
+; acReport(): attribute 4 of the search: 0x100 (this game watches itself) | what it caught at its last kick
+; (save.sdsw.cheat, bits 0-7) | the number of that kick (save.sdsw.kick, bits 16-30); see anticheat_fire.pasm.
+acReport:
+    proc
+    push.c "save.sdsw.kick"
+    sysreq.n sysGetGlobal, 1
+    shl.c.pri 16
+    push.pri
+    push.c "save.sdsw.cheat"
+    sysreq.n sysGetGlobal, 1
+    const.alt 0xff
+    and
+    pop.alt
+    or
+    const.alt 0x100
+    or
+    push.pri
+    push.c 4
+    sysreq.n inetSetAttribute, 2
+    zero.pri
+    retn
+"""
+
+[[amx]]
+file = "amx/mode_peri_result.amx"       # joinSession ("continue online"), at the same place
+asm = """
+.hook ${join_hook_result}
+    push.c 0
+    call @acReport
+    .original
+    .return
+
+; acReport(): attribute 4 of the search: 0x100 (this game watches itself) | what it caught at its last kick
+; (save.sdsw.cheat, bits 0-7) | the number of that kick (save.sdsw.kick, bits 16-30); see anticheat_fire.pasm.
+acReport:
+    proc
+    push.c "save.sdsw.kick"
+    sysreq.n sysGetGlobal, 1
+    shl.c.pri 16
+    push.pri
+    push.c "save.sdsw.cheat"
+    sysreq.n sysGetGlobal, 1
+    const.alt 0xff
+    and
+    pop.alt
+    or
+    const.alt 0x100
+    or
+    push.pri
+    push.c 4
+    sysreq.n inetSetAttribute, 2
+    zero.pri
+    retn
+"""

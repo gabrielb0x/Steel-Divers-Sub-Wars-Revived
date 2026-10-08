@@ -1,28 +1,28 @@
-# Mod « specs » : vos propres caractéristiques de sous-marins.
+# Mod "specs": your own characteristics of the submarines.
 #
-#   tools/subs.py export                              # crée votre fichier, avec les valeurs du jeu
-#   tools/subs.py set "Type VII" torpedoMax=10 maxTurn=9   # ou modifiez-le avec un éditeur de texte
-#   tools/mod.py build specs --install                # puis le mod (ou : build premium specs …)
+#   tools/subs.py export                              # creates your file, with the game's values
+#   tools/subs.py set "Type VII" torpedoMax=10 maxTurn=9   # or edit it with a text editor
+#   tools/mod.py build specs --install                # then the mod (or: build premium specs ...)
 #
-# Le fichier (sous-marins.toml dans le dossier de réglages, « tools/subs.py --help ») donne, pour chacun des
-# 23 sous-marins, les valeurs de bxml/pscope_plyNN_stats.bxml : notes de virage, de vitesse, de résistance et
-# de plongée (1 à 10), torpilles, rechargement, cadence de tir, équipage, masqueur… Seules les valeurs
-# différentes de celles du jeu sont écrites. Les valeurs hors des limites que le jeu supporte sont refusées.
+# The file (submarines.toml in the settings folder, "tools/subs.py --help") gives, for each of the 23
+# submarines, the values of bxml/pscope_plyNN_stats.bxml: turning, speed, armour and dive ratings (1 to 10),
+# torpedoes, reload, rate of fire, crew, masker... Only the values that differ from the game's are written.
+# Values outside the limits the game supports are refused.
 #
-# Avec la mise à jour v5200 (39 sous-marins, plusieurs rééquilibrés), le fichier est sous-marins-v5200.toml :
-# chaque version garde le sien, avec ses propres valeurs de départ.
+# With the update v5200 (39 submarines, several rebalanced), the file is submarines-v5200.toml: each version
+# keeps its own, with its own starting values.
 #
-# Prévu pour jouer hors ligne. En ligne, le jeton du mod le dit au serveur (drapeau « specs ») : il est traité
-# comme le mod triche (server/serveur.toml, option cheats : séparé des autres joueurs par défaut).
+# Meant for offline play. Online, the mod's token tells the server (flag "specs"): it is treated as the
+# cheats mod (server/server.toml, option cheats: kept apart from the other players by default).
 
-name = "Caractéristiques"
-description = "Vos propres caractéristiques de sous-marins (tools/subs.py) ; en ligne, comptées comme triche"
+name = "Characteristics"
+description = "Your own characteristics of the submarines (tools/subs.py); counted as cheating online"
 versions = ["v0", "v5200"]
 token_flags = ["specs"]
 
-[params.fichier]
-help = "votre fichier de caractéristiques (« auto » : sous-marins.toml du dossier de réglages)"
+[params.file]
+help = "your characteristics file (\"auto\": submarines.toml of the settings folder)"
 default = "auto"
 
 [[subs]]
-file = "${fichier}"
+file = "${file}"

@@ -5,7 +5,7 @@ the mod, and puts the derived Kerberos key in the authentication token ("sdsw1:<
 server cannot know the password otherwise: the console used to get it from Nintendo's account servers.
 A known id must always come back with the same key.
 
-The token may end with ":<flag>,<flag>": what the player's build changes in the game ("triche" for the
+The token may end with ":<flag>,<flag>": what the player's build changes in the game ("cheats" for the
 cheat mod), so that the server can refuse it or keep those players apart. The build declares it
 honestly; a modified game can always lie.
 """
