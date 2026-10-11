@@ -2,7 +2,7 @@
 
 ## Part 1 — Pseudo source code (`decomp/`)
 
-*Estimated progress: 25 % — everything is exported and the scripts are decompiled; 24 % of the game's code is
+*Estimated progress: 28 % — everything is exported and the scripts are decompiled; 28 % of the game's code is
 cleanly rewritten, the whole network layer (`decomp/src/net/`) included.*
 
 Goal: readable C++ code that shows how the game was written.

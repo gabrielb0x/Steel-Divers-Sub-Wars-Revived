@@ -88,6 +88,14 @@ not exist ([facesystem.cpp](../decomp/src/sys/facesystem.cpp)).
   "muteki", "stopTheTime", network latency and packet loss...): its logic was removed, see
   [mods.md](mods.md#debug-menu) and [pawn-scripts.md](pawn-scripts.md).
 - `ConnectionLocal::debug()`: makes the next update fail with error 018-0306, to test the error screens.
+- **Texts from the SD card**: `TextData::loadStrings` first looks for `text/<language>.bxml` in the save data and, if
+  it is there, reads that many bytes of `sdmc:/text/<language>.bxml` instead of the game's texts — a way for the
+  translators to try their texts without a new build. The retail save never has the file
+  ([textdata.cpp](../decomp/src/sys/textdata.cpp)).
 - `Network::getLengthSent`, `DataRouter::dbgTotalsClear`, `DataStreamer::dbgSentClear`: statistics for a debug
   display that is gone (the sent byte counts are never even counted).
+- **Why `romfs:/map` is in the game**: their crash handler named the functions of a backtrace with it (`"%x %d
+  %s %s"`: address, size, function, object; `" 0x%08x : %s() in %s"`). The retail build no longer loads the file
+  — the pointer to its text is never set — but the file stayed in the RomFS, which is how this project has the
+  real names of 9,431 functions ([exception.cpp](../decomp/src/sys/exception.cpp)).
 - Pia's traces are all switched on (`Connection::initPIA`), for a build of Pia whose traces were compiled out.

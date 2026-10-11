@@ -14,6 +14,9 @@
 0x00249edc __aeabi_memclr : void f(void * dst, u32 n)
 0x0023c598 wcslen : u32 f(u16 * s)
 0x00243554 strcpy : char * f(char * dst, char * src)
+0x00242bac strncat : char * f(char * dst, char * src, u32 n)
+0x00242d34 memcmp : s32 f(void * a, void * b, u32 n)
+0x0023bdcc strchr : char * f(char * s, s32 c)
 0x00243c68 strstr : char * f(char * haystack, char * needle)
 # sprintf: the formatter (0x00239548) with an output to the buffer, then the terminating NUL (0x00239524).
 0x00243bc4 sprintf : s32 f(char * buffer, char * format)
@@ -24,6 +27,9 @@
 # --- Game / SDK helpers absent from the map ---
 # Allocates through the global allocator: (*g_allocator)->Allocate(size, 4).
 0x00254000 operator_new : void * f(u32 size)
+# The global allocator's (0x0038EC00) AllocAligned(size, alignment); a negative alignment allocates from the
+# end of the heap.
+0x002497c4 allocAligned : void * f(u32 size, s32 alignment)
 # nn::nex::qResult: success when bit 31 of its value is clear (Network::handleError(const qResult &)).
 0x0021bd24 nn::nex::qResult::IsSuccess : bool f(void * result)
 # Copies 12 floats (3x4 matrix) when the pointers differ, returns dst.
