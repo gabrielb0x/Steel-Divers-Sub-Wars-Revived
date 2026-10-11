@@ -48,7 +48,8 @@ and original source file that use them (`--all` for Nintendo's libraries too); t
   `game_state.inc`, `lobby.inc`, `medal.inc`, `morse.inc`, `morse_lobby.inc`, `morsechat_disable.inc`,
   `multi_menu.inc`, `options.inc`, `overlay.inc`, `points.inc`, `rest.inc`, `save.inc`, `stageutil.inc`,
   `stats.inc`, `sub_customize.inc`, `surface_ship.inc`, `sync.inc`, `sync_legacy.inc`, `system.inc`,
-  `torpedo.inc`; a script state is called `stasis` (`[stasis::enterReplayActorOffset]`).
+  `torpedo.inc`. Their word for the replay is *stasis*: the native `actorSetReplayScript` calls
+  `Actor::setStasisScript`, and the scripts log `[stasis::enterReplayActorOffset]`.
 - The build: revision **31308** of their repository for the launch version, **33269** for the update v5200
   (`bxml/buildinfo.bxml`); the debug menu can hide it ("Hide Revision Number").
 

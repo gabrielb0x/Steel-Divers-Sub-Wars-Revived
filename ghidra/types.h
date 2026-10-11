@@ -211,17 +211,17 @@ struct Actor {
     u32 unknown20;
     u32 onMap;                      /* +0x24 shown on the map (World::getMapActors) */
     u32 unknown28;
-    u32 unknown2C;
+    u32 flags;                      /* +0x2C (actorSetFlags) */
     s32 renderer;                   /* +0x30 index of the first active renderer */
     s32 id;                         /* +0x34 */
     u32 groups;                     /* +0x38 visibility groups (World::showGroup) */
-    u8 unknown3C;
+    u8 onScreen;                    /* +0x3C (actorIsOnScreen) */
     u8 unknown3D;
     u8 matrixDirty;                 /* +0x3E set by setPosition/setRotation/scale changes */
     u8 unknown3F;
     u8 unknown40;
     u8 unknown41;
-    u8 unknown42;
+    u8 moving;                      /* +0x42 the velocity is not zero (actorSetVelocity) */
     u8 unknown43;
     s32 parent;                     /* +0x44 actor id, -1: none (actorSetParent, World::invalidateActor) */
     u8 unknown48;
@@ -240,7 +240,8 @@ struct Actor {
     void *collShapes[2];            /* +0xE8 CollShape* (World::update, World::clipLine) */
     int collShapeCount;             /* +0xF0 */
     u32 unknownF4;
-    u32 unknownF8[6];
+    f32 velocity[3];                /* +0xF8 (actorGetVelocity) */
+    f32 torque[3];                  /* +0x104 (actorSetTorque) */
     AMXLoader *script;              /* +0x110 (Actor::getScript); public functions below, -1: absent */
     int onCollide;                  /* +0x114 @eventCollide, or @eventCollideTag (Actor::setScript) */
     int onUpdate;                   /* +0x118 @update */
