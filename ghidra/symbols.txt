@@ -17,6 +17,10 @@
 0x00242bac strncat : char * f(char * dst, char * src, u32 n)
 0x00242d34 memcmp : s32 f(void * a, void * b, u32 n)
 0x0023bdcc strchr : char * f(char * s, s32 c)
+0x0023a7fc strncmp : s32 f(char * a, char * b, u32 n)
+0x0023b1c4 snprintf : s32 f(char * buffer, u32 size, char * format)
+# atoi: strtol(s, NULL, 10) keeping errno.
+0x0016e3d0 atoi : s32 f(char * s)
 0x00243c68 strstr : char * f(char * haystack, char * needle)
 # sprintf: the formatter (0x00239548) with an output to the buffer, then the terminating NUL (0x00239524).
 0x00243bc4 sprintf : s32 f(char * buffer, char * format)

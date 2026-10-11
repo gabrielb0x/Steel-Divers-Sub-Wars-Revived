@@ -63,6 +63,13 @@ A slip with an effect: `FaceSystem` meant to skip the Mii of some players accord
 name of the global `player.<node>.team` — and then reading the global literally named `player.%x.team`, which does
 not exist ([facesystem.cpp](../decomp/src/sys/facesystem.cpp)).
 
+The homing torpedoes' search (`surface_torpedo_p_homing`) suffers two slips at once: the native
+`worldFindActorsSorted` takes its last two arguments as (max, mask) where `worldFindActors` takes (mask, max) — the
+script passes them the `worldFindActors` way, so its target mask (the player, or the computer and remote subs)
+becomes the maximum and its maximum, 10, the mask (the player and the computer subs' torpedoes); and the "sorted"
+search stores the radius instead of each actor's distance as its key, so nothing is ever sorted
+([world.cpp](../decomp/src/game/world.cpp), [amxworld.cpp](../decomp/src/amx/amxworld.cpp)).
+
 ## Notes in the texts
 
 - `【フォントの初期設定に使用】` — "[used for the initial setting of the font]": the Japanese text of the entry

@@ -308,10 +308,10 @@ native worldNewActor();                                              // id of a 
 native worldFindActor(const name[]);                                 // 0 if not found
 native worldFindActorUID(UID:uid);
 native worldFindActors(found[], const Float:center[3], Float:radius, mask, max);    // visible actors, type & mask
-native worldFindActorsSorted(found[], const Float:center[3], Float:radius, mask, max);
+native worldFindActorsSorted(found[], const Float:center[3], Float:radius, max, mask);   // not sorted (World::findActorsSorted)
 native worldFindClosestActor(const Float:position[3], unused, filter);
 native Float:worldClipLine(const Float:from[3], const Float:direction[3], Float:length, mask);  // distance to the first hit (type & mask), else length
-native worldGetHeightAt(value, unused, Float:position[], mask);
+native Float:worldGetHeightAt(Float:x, Float:z, Float:normal[3], mask);   // highest ground of the actors & mask (-10000 if none)
 native worldLogExplosion(const type[], const Float:position[3], value);
 native worldIsPlayingReplay();
 native worldGetReplayFramesRemaining();
@@ -444,7 +444,7 @@ native Float:floatvecdot(const Float:a[3], const Float:b[3]);
 native floatveccross(Float:dest[3], const Float:a[3], const Float:b[3]);
 native Float:floatveclength(const Float:vector[3]);
 native floatvecnormalize(Float:dest[3], const Float:source[3]);
-native floatvecrotrad(Float:dest[3], const Float:a[3], const Float:b[3]);
+native floatvecrotrad(Float:dest[3], const Float:vector[3], const Float:axis[3], Float:radians);   // vector rotated about axis
 
 /* ---- float (float.inc of Pawn 3.3, plus the game's own additions) ---- */
 native Float:float(value);
@@ -502,4 +502,7 @@ native xmlNodeGetString(node, const attribute[], dest[]);
 native xmlNodeSetInt(node, const attribute[], value);
 
 /* ---- amxdynamics ---- */
-native dynamicsUpdateN(Float:a[], Float:b[], Float:c[], Float:d[], Float:e, Float:f, Float:g);
+native dynamicsUpdateN(Float:position[3], Float:velocity[3], Float:rotation[3], Float:spin[3],
+                       Float:damping, Float:spinDamping, Float:gravity);   // one step (not during a replay)
+native dynamicsAddForceN(Float:position[3], Float:velocity[3], Float:spin[3], const Float:inverseInertia[3],
+                         const Float:point[3], const Float:force[3], bool:toPosition);

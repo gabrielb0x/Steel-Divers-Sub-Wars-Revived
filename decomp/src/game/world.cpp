@@ -2,8 +2,8 @@
 //
 // Reconstructed by hand from decomp/raw/source/game/world.cpp and the disassembly; the layouts of
 // World, Actor and the replay records are in ghidra/types.h. Not compilable on its own.
-// Left out: World::setCachingMovement (0x002E5928, Ghidra fails on it), World::getHeightAt and
-// World::startReplay (parameters not identified yet), and the Actor constructor that armlink
+// Left out: World::setCachingMovement (0x002E5928, Ghidra fails on it) and World::startReplay (parameters
+// not identified yet), and the Actor constructor that armlink
 // placed in this object (see actor.cpp).
 //
 // nnMain creates one World per mode. It owns a fixed pool of 256 actors (id = index; id 0 is never
@@ -273,7 +273,55 @@ int World::findActors(int *found, const VEC3 &center, f32 radius, int max, u32 m
 }
 
 // 0x002E5650: same, sorted by distance (bubble sort).
-int World::findActorsSorted(int *found, const VEC3 &center, f32 radius, int max, u32 mask);
+// 0x002E5650: the same, meant to be sorted nearest first. Two slips: the key stored for each actor is the
+// radius squared (s1) instead of its distance squared (s0), so the bubble sort that follows never swaps
+// anything (the order is the pool's, as findActors); and its (max, mask) come in the other order than
+// findActors' in the native (amxworld.cpp), which the one script using it did not follow.
+int World::findActorsSorted(int *found, const VEC3 &center, f32 radius, int max, u32 mask)
+{
+	f32 *keys = (f32 *)System::getScratch();
+	int count = 0;
+	for (int i = 1; i < actorCount; i++) {
+		Actor *actor = actors[i];
+		if (!actor->active || !actor->visible || !(actor->type & mask))     // +0x04, +0x64, +0x0C
+			continue;
+		if (distanceSq(*actor->positionPtr, center) < radius * radius) {
+			keys[count] = radius * radius;                                  // sic
+			found[count++] = actor->id;
+			if (count >= max)
+				break;
+		}
+	}
+	for (int pass = 0; pass < count; pass++)
+		for (int j = 0; j < count - pass - 1; j++)
+			if (keys[j] > keys[j + 1]) {
+				swap(keys[j], keys[j + 1]);
+				swap(found[j], found[j + 1]);
+			}
+	return count;
+}
+
+// 0x002E5318: the highest ground under (x, z) among the collision shapes of the active actors whose type
+// matches `mask` (vtable +0x30 of a CollShape); `out` gets what that shape gave with it (3 floats).
+// Nothing under: -10000.
+f32 World::getHeightAt(f32 x, f32 z, VEC3 *out, u32 mask)
+{
+	f32 highest = -10000.0f;
+	for (int i = 1; i < actorCount; i++) {
+		Actor *actor = actors[i];
+		if (!actor->active || !(actor->type & mask))          // +0x04, +0x0C
+			continue;
+		for (int k = 0; k < actor->collShapeCount; k++) {      // +0xF0, shapes at +0xE8
+			VEC3 v;
+			f32 h = actor->collShapes[k]->getHeightAt(x, z, &v);
+			if (h > highest) {
+				highest = h;
+				*out = v;
+			}
+		}
+	}
+	return highest;
+}
 
 // 0x002E578C
 Actor *World::findClosestActor(const VEC3 &position, u32 mask)
