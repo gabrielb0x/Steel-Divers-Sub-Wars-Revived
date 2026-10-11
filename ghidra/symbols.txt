@@ -13,6 +13,10 @@
 0x00254044 strncpy : char * f(char * dst, char * src, u32 n)
 0x00249edc __aeabi_memclr : void f(void * dst, u32 n)
 0x0023c598 wcslen : u32 f(u16 * s)
+0x00243554 strcpy : char * f(char * dst, char * src)
+0x00243c68 strstr : char * f(char * haystack, char * needle)
+# sprintf: the formatter (0x00239548) with an output to the buffer, then the terminating NUL (0x00239524).
+0x00243bc4 sprintf : s32 f(char * buffer, char * format)
 # armcc C library random generator: additive generator of 55 words seeded by a congruential one.
 0x0024d79c srand : void f(u32 seed)
 0x0023f4fc rand : int f(void)
@@ -20,6 +24,8 @@
 # --- Game / SDK helpers absent from the map ---
 # Allocates through the global allocator: (*g_allocator)->Allocate(size, 4).
 0x00254000 operator_new : void * f(u32 size)
+# nn::nex::qResult: success when bit 31 of its value is clear (Network::handleError(const qResult &)).
+0x0021bd24 nn::nex::qResult::IsSuccess : bool f(void * result)
 # Copies 12 floats (3x4 matrix) when the pointers differ, returns dst.
 0x0024d2a4 nn::math::MTX34Copy : void * f(void * dst, void * src)
 

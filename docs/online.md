@@ -196,6 +196,28 @@ What the game decides itself (scripts `mode_lobby` and `mode_periscope`):
   the torpedo count and the loss of air (`periscope_move`). Damage is applied by the console that takes it: cheating
   works online too, hence the server's `cheats` option.
 
+### What the consoles send each other
+
+Rewritten in `decomp/src/net/`. Pia signs every packet with the key **`thehuntforredoctober`** (21 bytes,
+`Connection::startupSession`): only Sub Wars consoles understand each other. Each console sends one packet per frame
+(twice per frame in fact, `main.cpp`), made of chunks `{u8 channel, u32 addressee node (0xFFFF: all), u32 length,
+data}` (`datarouter.cpp`). Node ids are Pia station indices + `0xC00001` ("vitei" ids, `session.cpp`).
+
+| Channel | Who | Content |
+|---|---|---|
+| 0 | `DataRouter` | network pause: `"PAUS"` + bit mask of the stations still paused, reliable, every 30 frames |
+| 1, 2, 5 | `DataStreamer` | reliable messages cut in blocks of 1,308 bytes: the scripts' remote calls (1, `rpc.cpp`), the Miis (5) |
+| 3 | `SyncList` | the synced actors' properties, unreliable, two sequence counters (the second started at 0x8000) |
+| 4 | `SyncEvent` | `'*'`: this console reached a sync point (the battle waits for every console, 10 s at most) |
+
+A `DataStreamer` block is `{u32 seed, u32 crc, u8 index, u8 count, u16 length, u32 message, data}`: the data is XORed
+with `rand()` (the ARM C library's additive generator, `datastreamer.cpp`) seeded with `seed ^ 0x71946284`, and the
+CRC-32 (zlib's) covers everything after it. Blocks that found no room in this frame's two packets are dropped.
+Unreliable data goes round robin: two other consoles per frame (`Connection::sendUnreliableRoundRobin`).
+
+Local wireless play uses the same layers over UDS, with the passphrase **`BABBAGE_MATSURI`** and the version
+checksum % 255 as sub id (`connectionLocal.cpp`).
+
 ## 7. Distant players: public and private addresses
 
 *Estimated progress: 85 % — validated in simulation and on a local network, not yet between two real homes; no relay

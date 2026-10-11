@@ -26,6 +26,7 @@ $(STAMPS)/analyzed: extracted/nsub.elf $(wildcard ghidra/scripts/*.java) ghidra/
 $(STAMPS)/exported: $(STAMPS)/analyzed ghidra/export.sh ghidra/symbols.txt ghidra/types.h
 	$(MAKE) check-types
 	ghidra/export.sh
+	$(PY) tools/strings.py
 	@mkdir -p $(@D) && touch $@
 
 # Pawn scripts: native parameter types (from the C++ pseudo-code), disassembly, pseudo-Pawn.

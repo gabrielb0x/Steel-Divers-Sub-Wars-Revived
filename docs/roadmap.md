@@ -2,8 +2,8 @@
 
 ## Part 1 — Pseudo source code (`decomp/`)
 
-*Estimated progress: 20 % — everything is exported and the scripts are decompiled, but only 9 % of the game's code
-is cleanly rewritten.*
+*Estimated progress: 25 % — everything is exported and the scripts are decompiled; 22 % of the game's code is
+cleanly rewritten, the whole network layer (`decomp/src/net/`) included.*
 
 Goal: readable C++ code that shows how the game was written.
 
@@ -20,6 +20,11 @@ Done:
 - [x] `World` and `AMXLoader` classes (vtable) typed; Ghidra's false "no-return" fixed (378 → 41)
 - [x] Shop and add-on contents (`decomp/src/sys/dlc.cpp`, class `NsubShop` typed), save
       (`decomp/src/sys/savedata.cpp`, save globals and natives in `decomp/src/amx/amxsys.cpp`)
+- [x] The whole network layer (`decomp/src/net/`, 10 files): status and error codes, Pia session and transport,
+      Internet and local wireless connections, data router, DataStreamer (scrambled blocks), remote calls, synced
+      actors, sync points
+- [x] The game's strings by function and source file (`tools/strings.py` → `decomp/raw/strings.txt`) and the
+      developers' traces left in the game ([developer-traces.md](developer-traces.md))
 
 To do:
 1. **Types**: rebuild the game's classes (`Actor`, `World`, `Session`, `Connection`, `Model`...) in Ghidra from the

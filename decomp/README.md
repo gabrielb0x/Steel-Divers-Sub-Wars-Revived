@@ -12,6 +12,7 @@ raw/source/main.cpp, raw/source/net/session.cpp, ...   the game's code (original
 raw/lib/libnw_gfx/gfx_Model.cpp, ...                    NintendoWare, SDK, NEX, Pia, C runtime
 raw/unmapped/0x00330000.cpp, ...                        functions missing from the map, by 64 KiB slices
 raw/functions.csv                                       address, size (map / Ghidra), name, object, file
+raw/strings.txt                                         the strings each function uses (tools/strings.py)
 ```
 
 Each function is preceded by its address and its size in the map.
@@ -51,8 +52,8 @@ A known trap: `armlink` merges functions with identical code. A call can therefo
 
 ## `src/` — cleaned code (versioned)
 
-*Estimated progress: 9 % — 185 of the game's 2,126 functions rewritten (about 11 % of the game's code, Nintendo's
-libraries aside).*
+*Estimated progress: 18 % — 374 of the game's 2,126 functions rewritten (about 22 % of the game's code, Nintendo's
+libraries aside); the whole network layer (`net/`) is done.*
 
 C++ rewritten by hand from the pseudo-code, with the same tree as `raw/source/`:
 
@@ -63,7 +64,16 @@ C++ rewritten by hand from the pseudo-code, with the same tree as `raw/source/`:
 | `game/world.cpp` | the world: pool of 256 actors, loading the levels, 7-second replay buffer |
 | `game/actor.cpp` | an actor's life cycle: properties, script and its public functions, death |
 | `sys/system.cpp` | start-up, memory heap, time, HOME and power buttons |
+| `net/network.cpp` | the network status (its original names), the active connection, every error turned into a network error code and what the game does with it (a table taken by running the game's own function) |
+| `net/session.cpp` | Pia's session as the game sees it: node ids ("vitei" ids), Pia's events, failures, leaving with host migration |
+| `net/connection.cpp` | the base of both connections: Pia's layers, the signature key, reliable sends and the unreliable round robin, the waits behind the wait screen |
 | `net/connectionInternet.cpp` | online play: the console's network, connection to the server, match search (criteria, attributes, version checksum), session created or joined, block list, notifications |
+| `net/connectionLocal.cpp` | local wireless play: the UDS network (passphrase, sub id), scan, host and clients |
+| `net/datarouter.cpp` | several channels in one packet per frame, and the network pause ("PAUS") |
+| `net/datastreamer.cpp` | messages cut in blocks, scrambled (`rand()` seeded by the block) and checked by CRC-32, put back together |
+| `net/rpc.cpp` | the scripts' remote calls, their retries and `_err` callbacks |
+| `net/synclist.cpp` | the synced actors: properties copied every frame to the other consoles |
+| `net/syncevent.cpp` | a barrier between the consoles (sync points) |
 
 Conventions:
 

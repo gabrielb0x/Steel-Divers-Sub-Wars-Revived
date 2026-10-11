@@ -359,10 +359,10 @@ bool Session::init()
 }
 
 // 0x002F01DC: this console hosts.
-void Session::create()
+bool Session::create()
 {
 	SyncEvent::reset();
-	Network::handleError(nn::pia::session::Session::s_pInstance->CreateSession());
+	return Network::handleError(nn::pia::session::Session::s_pInstance->CreateSession());
 }
 
 // 0x002F0070: joins the session of another console (its station address), waiting with the wait screen.

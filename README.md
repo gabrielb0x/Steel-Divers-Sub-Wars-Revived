@@ -133,7 +133,7 @@ Tailscale works without opening anything: see [server/README.md](server/README.m
 | 🌐 Online server | `█████████░` 90 % | protocol complete, checked with the real game; a real battle between two homes remains |
 | 🛠️ Mods for Azahar | `████████░░` 80 % | all listed mods work with v0 and v5200; 60 fps waits for the PC port |
 | 🤖 Bots | `█████████░` 90 % | checked in a sandbox; remain to be seen in long battles in Azahar |
-| 🔍 Pseudo-source | `██░░░░░░░░` 20 % | everything exported and the scripts decompiled; 9 % of the game's code rewritten cleanly |
+| 🔍 Pseudo-source | `██▌░░░░░░░` 25 % | everything exported and the scripts decompiled; 22 % of the game's code rewritten cleanly (the whole network layer) |
 | 💻 PC port | `░░░░░░░░░░` 0 % | strategy chosen: static recompilation + HLE ([roadmap](docs/roadmap.md)) |
 
 ## How it works
@@ -160,6 +160,7 @@ Tailscale works without opening anything: see [server/README.md](server/README.m
 | [docs/update-v5200.md](docs/update-v5200.md) | the last update, and how mods follow both versions |
 | [docs/formats.md](docs/formats.md) | BXML, levels, collisions, the save, music streams |
 | [docs/pawn-scripts.md](docs/pawn-scripts.md) | the Pawn scripts and their decompiler |
+| [docs/developer-traces.md](docs/developer-traces.md) | what the developers left in the game: notes, names, cut screens, test levels |
 | [docs/ai.md](docs/ai.md) | how many matches a trained AI would need to match a player |
 | [docs/roadmap.md](docs/roadmap.md) | the plan, part by part |
 | [mods/README.md](mods/README.md) · [server/README.md](server/README.md) · [decomp/README.md](decomp/README.md) | mods and recipes · the server · the pseudo-source |
