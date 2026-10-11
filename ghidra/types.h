@@ -204,7 +204,7 @@ struct Actor {
     u8 unknown0A;
     u8 isStatic;                    /* +0x0B */
     u32 typeMask;                   /* +0x0C matched by the masks of World::findActors & co */
-    u32 unknown10;
+    u32 collisionMask;              /* +0x10 the types it collides with (Actor::setCollisionCheck) */
     u32 unknown14;
     f32 idleDistanceSq;             /* +0x18 (Actor::setIdleDistance) */
     f32 idleDistance;               /* +0x1C, 15000.0 by default */
@@ -239,7 +239,7 @@ struct Actor {
     f32 matrix[12];                 /* +0xB8 MTX34 */
     void *collShapes[2];            /* +0xE8 CollShape* (World::update, World::clipLine) */
     int collShapeCount;             /* +0xF0 */
-    u32 unknownF4;
+    int collResultCount;            /* +0xF4 collisions this frame, 8 at most (Actor::addCollResult) */
     f32 velocity[3];                /* +0xF8 (actorGetVelocity) */
     f32 torque[3];                  /* +0x104 (actorSetTorque) */
     AMXLoader *script;              /* +0x110 (Actor::getScript); public functions below, -1: absent */
