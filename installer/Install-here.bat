@@ -10,7 +10,7 @@ if exist "Sub-Wars-Open-Sourced\subwars.py" (
     goto launch
 )
 echo Downloading Sub Wars Open Sourced...
-powershell -NoProfile -ExecutionPolicy Bypass -Command "$ProgressPreference = 'SilentlyContinue'; [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; Invoke-WebRequest -UseBasicParsing -Uri 'https://github.com/gabrielb0x/Sub-Wars-Steel-Divers-Open-Sourced/releases/latest/download/Sub-Wars-Open-Sourced.zip' -OutFile '%ZIP%'"
+powershell -NoProfile -ExecutionPolicy Bypass -Command "$ProgressPreference = 'SilentlyContinue'; [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; Invoke-WebRequest -UseBasicParsing -Uri 'https://github.com/gabrielb0x/Steel-Divers-Sub-Wars-Revived/releases/latest/download/Sub-Wars-Open-Sourced.zip' -OutFile '%ZIP%'"
 if errorlevel 1 goto failed
 echo Unpacking...
 tar -xf "%ZIP%" 2>nul || powershell -NoProfile -ExecutionPolicy Bypass -Command "Expand-Archive -LiteralPath '%ZIP%' -DestinationPath '.' -Force"

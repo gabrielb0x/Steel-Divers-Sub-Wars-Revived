@@ -29,7 +29,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 OUT = ROOT / "build" / "release"
-REPO = "gabrielb0x/Sub-Wars-Steel-Divers-Open-Sourced"
+REPO = "gabrielb0x/Steel-Divers-Sub-Wars-Revived"
 FOLDER = "Sub-Wars-Open-Sourced"
 
 

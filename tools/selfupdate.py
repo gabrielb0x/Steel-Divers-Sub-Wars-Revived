@@ -38,7 +38,7 @@ from io import BytesIO
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
-REPO = "gabrielb0x/Sub-Wars-Steel-Divers-Open-Sourced"
+REPO = "gabrielb0x/Steel-Divers-Sub-Wars-Revived"
 API = f"https://api.github.com/repos/{REPO}"
 ASSET = "Sub-Wars-Open-Sourced.zip"
 FOLDER = "Sub-Wars-Open-Sourced"                   # the folder the zip unpacks to

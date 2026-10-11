@@ -6,7 +6,7 @@
 #           allow it: System Settings > Privacy & Security > Open Anyway)
 # Already installed: it opens the launcher, which updates itself.
 cd "$(dirname "$0")" || exit 1
-URL="https://github.com/gabrielb0x/Sub-Wars-Steel-Divers-Open-Sourced/releases/latest/download/Sub-Wars-Open-Sourced.zip"
+URL="https://github.com/gabrielb0x/Steel-Divers-Sub-Wars-Revived/releases/latest/download/Sub-Wars-Open-Sourced.zip"
 ZIP="Sub-Wars-Open-Sourced.zip"
 
 fail() {

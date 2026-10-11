@@ -42,7 +42,7 @@ its full version can no longer be bought since the eShop closed. This project re
 
 ## Install
 
-1. **Download the installer** of your system from the [latest release](https://github.com/gabrielb0x/Sub-Wars-Steel-Divers-Open-Sourced/releases/latest):
+1. **Download the installer** of your system from the [latest release](https://github.com/gabrielb0x/Steel-Divers-Sub-Wars-Revived/releases/latest):
    **Windows** `Install-here.bat` · **macOS** `Install-here-macOS.zip` (it unzips to `Install here.command`) ·
    **Linux** `install-here.sh`.
 2. **Put it where you want the game's folder** (Documents, Desktop...) and open it: double-click it (Linux:
@@ -57,7 +57,7 @@ its full version can no longer be bought since the eShop closed. This project re
    Azahar: done.
 
 On macOS and Linux, a terminal does the same in one line, in the folder it is in:
-`curl -fsSL https://github.com/gabrielb0x/Sub-Wars-Steel-Divers-Open-Sourced/releases/latest/download/install-here.sh | sh`
+`curl -fsSL https://github.com/gabrielb0x/Steel-Divers-Sub-Wars-Revived/releases/latest/download/install-here.sh | sh`
 
 You need **[Azahar](https://azahar-emu.org/)** (or another emulator of the Citra family: Lime3DS, Citra, Borked3DS),
 started at least once, and **your own copy** of the European version of the game (`00040000000D7E00`): its eShop
