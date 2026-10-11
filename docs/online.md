@@ -149,7 +149,7 @@ Attributes (script `connect.inc::joinSession`, native `inetSetAttribute`):
 
 | # | Meaning |
 |---|---|
-| 0 | continent (`network.continent`) |
+| 0 | continent (`network.continent`: `sysGetContinent`, the console's country as 1 Japan, 2, 3, 4 Europe, 5 North America, 6 Oceania, 7 South America; the table in `decomp/src/amx/amxsys.cpp`) |
 | 1 | lobby type (`network.lobbytype`, 1 = battles by level, 2 = Morse chat room) |
 | 2 | level: rank / 5 (only if the lobby type is 1), else 0 |
 | 3 | `sysGetVersionChecksum()` = CRC-32 of the build's revision (`"31308"` → `0xB95D7F2B` in v0) |

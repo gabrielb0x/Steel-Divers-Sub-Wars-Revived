@@ -52,7 +52,7 @@ A known trap: `armlink` merges functions with identical code. A call can therefo
 
 ## `src/` — cleaned code (versioned)
 
-*Estimated progress: 23 % — 576 of the game's 2,126 functions rewritten (about 29 % of the game's code, Nintendo's
+*Estimated progress: 25 % — 722 of the game's 2,126 functions rewritten (about 33 % of the game's code, Nintendo's
 libraries aside); the whole network layer (`net/`) is done.*
 
 C++ rewritten by hand from the pseudo-code, with the same tree as `raw/source/`:
@@ -64,6 +64,9 @@ C++ rewritten by hand from the pseudo-code, with the same tree as `raw/source/`:
 | `game/world.cpp` | the world: pool of 256 actors, loading the levels, 7-second replay buffer |
 | `game/actor.cpp` | an actor's life cycle: properties, script and its public functions, death |
 | `sys/system.cpp` | start-up, memory heap, time, HOME and power buttons |
+| `amx/amxsys.cpp` | the system natives: globals, save, shop, inputs, time, calls and messages between scripts, texts, profanity filter, regions |
+| `amx/amxworld.cpp`, `amx/amxvector.cpp`, `amx/amxutils.cpp` | world queries, vectors, the rigid-body step, the texts' "#N" placeholders, the profiler |
+| `controller.cpp` | buttons, sticks, touch, motion, the Circle Pad Pro and the developers' debug pad |
 | `amx/amxnet.cpp` | the scripts' network natives, and how the network talks back to the mode script (`@networkError`, `@onlineNotification`...) |
 | `sys/facesystem.cpp` | the Miis: selector applet, icons, the other players' Miis received, decoded in a thread and handed to `game_state` |
 | `sys/allocator.cpp`, `sys/resource.cpp` | the heaps and their groups; files read whole once and kept in the level or system "stock" |
