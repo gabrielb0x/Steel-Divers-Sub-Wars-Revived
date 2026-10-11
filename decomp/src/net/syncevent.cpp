@@ -76,9 +76,9 @@ static void dataRecieveCallback(const u8 *, u32, u8, u32 source)
 static void notifyCallback(int code, u32 node)
 {
 	u32 station = Session::convertIdViteiToPia(node);
-	if (code == 1)
+	if (code == NODE_JOIN)
 		s_points[station] = 0;
-	else if (code == 2)
+	else if (code == NODE_QUIT)
 		s_points[station] = -1;
 	checkComplete();
 }

@@ -265,9 +265,9 @@ static bool udsInitSession()
 
 // ---- scanning (the list of networks around, for the scripts) -------------------------------------------
 
-struct ScanResult {                     // 0xD8 bytes per network, in the scripts' array
+struct ScanResult {                     // 0xD8 bytes, 4 of them at 0x003B8B64 (amxnet.cpp)
 	u32 sessionId;                      // +0x00 (big-endian in the beacon)
-	u8 id[24];                          // +0x04 the beacon's identification, the host's address first
+	MacAddress host;                    // +0x04 the host's address: 6 bytes, then as text "xx:xx:xx:xx:xx:xx"
 	u8 applicationData[0xC8];           // +0x1C
 	u32 applicationDataSize;            // +0xD4 0: not listed
 };
@@ -291,8 +291,8 @@ static void connectionLocalScanThread(u32 max)
 }
 
 // 0x001734E8: the networks of the same version with application data and without flag 0x200 (a byte of
-// the beacon's attributes; full or closed), except an address kept at 0x0052E5B2; the scripts read
-// "local.scanstatus.*".
+// the beacon's attributes; full or closed), except an empty address (00:00:00:00:00:00, MacAddress's zero
+// constant at 0x0052E5B2); the scripts read "local.scanstatus.*".
 static void connectionLocalScan(u32 max)
 {
 	nn::pia::local::UdsNode *node = nn::pia::local::UdsNode::s_pInstance;
@@ -307,8 +307,8 @@ static void connectionLocalScan(u32 max)
 			if (!found[i].flag08 || (found[i].attributes & 0x200) || listed >= max)
 				continue;
 			ScanResult &r = s_scanResults[listed];
-			memcpy(r.id, found[i].id, 24);
-			if (memcmp(r.id, (u8 *)0x0052E5B2, 6) == 0)
+			r.host = MacAddress(found[i].bssid);                       // 0x0021BAEC: and its text
+			if (memcmp(r.host.bytes, MacAddress::zero, 6) == 0)
 				continue;
 			r.sessionId = found[i].flag08 ? byteswap(found[i].sessionId) : 0;
 			memset(r.applicationData, 0, 0xB8);

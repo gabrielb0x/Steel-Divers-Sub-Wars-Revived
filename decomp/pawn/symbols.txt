@@ -95,6 +95,7 @@ mode_periscope:0x11380 unlockSub(const reward[], bool:lock)                     
 mode_periscope:0x11510 unlockReward(const reward[], bool:lock)                  # a reward of bxml/reward_data (getReward)
 mode_periscope:0x11970 countGoldMedals()  [medal.inc]
 mode_periscope:0x16700 saveFoundCrew()                                          # "crew.get" of the mission -> save.sub.crew.unlock
+mode_periscope:0x1edc waitForEveryone()                                         # sync point; false after 10 s without every console
 
 # ---- small helpers found in most scripts ----
 camera_internet:0x0ce4 actorNeverIdle(actor)                                   # idle distance 0: always updated

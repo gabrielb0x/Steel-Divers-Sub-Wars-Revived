@@ -52,7 +52,7 @@ A known trap: `armlink` merges functions with identical code. A call can therefo
 
 ## `src/` — cleaned code (versioned)
 
-*Estimated progress: 18 % — 374 of the game's 2,126 functions rewritten (about 22 % of the game's code, Nintendo's
+*Estimated progress: 20 % — 456 of the game's 2,126 functions rewritten (about 24 % of the game's code, Nintendo's
 libraries aside); the whole network layer (`net/`) is done.*
 
 C++ rewritten by hand from the pseudo-code, with the same tree as `raw/source/`:
@@ -64,6 +64,8 @@ C++ rewritten by hand from the pseudo-code, with the same tree as `raw/source/`:
 | `game/world.cpp` | the world: pool of 256 actors, loading the levels, 7-second replay buffer |
 | `game/actor.cpp` | an actor's life cycle: properties, script and its public functions, death |
 | `sys/system.cpp` | start-up, memory heap, time, HOME and power buttons |
+| `amx/amxnet.cpp` | the scripts' network natives, and how the network talks back to the mode script (`@networkError`, `@onlineNotification`...) |
+| `sys/facesystem.cpp` | the Miis: selector applet, icons, the other players' Miis received, decoded in a thread and handed to `game_state` |
 | `net/network.cpp` | the network status (its original names), the active connection, every error turned into a network error code and what the game does with it (a table taken by running the game's own function) |
 | `net/session.cpp` | Pia's session as the game sees it: node ids ("vitei" ids), Pia's events, failures, leaving with host migration |
 | `net/connection.cpp` | the base of both connections: Pia's layers, the signature key, reliable sends and the unreliable round robin, the waits behind the wait screen |

@@ -59,6 +59,10 @@ and original source file that use them (`--all` for Nintendo's libraries too); t
 `[Network::handleError] Unhandled case for status` in
 `Network::performShutdown` (a log copied from one function to the other).
 
+A slip with an effect: `FaceSystem` meant to skip the Mii of some players according to their team, formatting the
+name of the global `player.<node>.team` — and then reading the global literally named `player.%x.team`, which does
+not exist ([facesystem.cpp](../decomp/src/sys/facesystem.cpp)).
+
 ## Notes in the texts
 
 - `【フォントの初期設定に使用】` — "[used for the initial setting of the font]": the Japanese text of the entry

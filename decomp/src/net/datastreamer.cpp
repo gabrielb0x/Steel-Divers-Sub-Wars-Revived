@@ -314,10 +314,10 @@ static void clearIncomingBlock(int index)
 	s->slotsUsed -= gone.count;
 }
 
-// 0x00110D50 (Session notify, code 2: a node left): its messages, complete or not, are forgotten.
+// 0x00110D50 (Session notify, NODE_QUIT: a node left): its messages, complete or not, are forgotten.
 static void datastreamerSessionNotifyCB(int code, u32 node)
 {
-	if (code != 2)
+	if (code != NODE_QUIT)
 		return;
 	for (auto &d : s->done)
 		if (d.source == node)

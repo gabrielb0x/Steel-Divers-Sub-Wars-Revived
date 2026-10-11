@@ -35,13 +35,21 @@ static SessionNotifyCB s_notify[10];    // 0x0056F700 registerNotifyCB: amxnet, 
 // Pia's session events, queued by its callback (Pia's thread) and handled by update (the game's).
 struct SessionEventData {               // 0x001831B4: the constructor clears `pending`
 	bool pending;
-	u8 event;                           // Pia's: 0 a station joined, 1 one left, 2 the host changed, 3 ?
+	u8 event;                           // Pia's: 0 a station joined, 1 one left, 2 the host changed,
+	                                    // 3 the host migration failed
 	u8 station;
 };
 static SessionEventData s_events[80];   // 0x0056F728
 
-// What the notify callbacks receive (the "viteiEventCode"): 0 the node count changed (updateNodeCount),
-// 1 a node joined, 2 a node left, 3 the host changed, 4 Pia's event 3, 5 an unknown event.
+// What the notify callbacks receive (the "viteiEventCode"; names from amxnet.o's table at 0x00352D84):
+enum NotifyCode {
+	NODE_UPDATE = 0,                    // the node count changed (updateNodeCount; the node: the new count)
+	NODE_JOIN = 1,
+	NODE_QUIT = 2,
+	MASTER_CHANGED = 3,
+	MIGRATION_FAIL = 4,
+	NOTIFICATION_INVALID = 5,           // an event Pia should not send
+};
 
 // ---- Pia's callbacks -----------------------------------------------------------------------------------
 
@@ -83,18 +91,18 @@ static void handleDueEvents()
 		if (!e.pending)
 			continue;
 		u32 node = convertIdPiaToVitei(e.station);
-		int code = 5;
+		int code = NOTIFICATION_INVALID;
 		switch (e.event) {
 		case 0:
-			code = 1;
+			code = NODE_JOIN;
 			s_nodesChanged = true;
 			break;
 		case 1:
-			code = 2;
+			code = NODE_QUIT;
 			Session::removeLocalNodeId(node, true);
 			break;
 		case 2:                         // the host changed: the new host's mode script takes over
-			code = 3;
+			code = MASTER_CHANGED;
 			if (Session::isMaster()) {
 				AMXLoader *mode = AMXLoader::uidToAmx(UID_MODE);
 				int index = mode->findPublic("@updateMaster");
@@ -107,7 +115,7 @@ static void handleDueEvents()
 			}
 			break;
 		case 3:
-			code = 4;
+			code = MIGRATION_FAIL;
 			break;
 		default:
 			// "Received unknown session event %#x"
@@ -182,7 +190,7 @@ void Session::updateNodeCount(u32 previous, bool refresh)
 	if (count != previous) {
 		// (a log of every node: "  %x = %x")
 		for (u32 i = 0; i < s_notifyCount; i++)
-			s_notify[i](0, count);
+			s_notify[i](NODE_UPDATE, count);
 	}
 	if (count == 0) {
 		setCustomFailure(16, 5);
@@ -291,8 +299,10 @@ void Session::setDataRegistered(u32 value) { s_dataRegistered = value; }    // 0
 void Session::setSubRegistered(u32 value) { s_subRegistered = value; }      // 0x002EFF00
 void Session::setTeamRegistered(u32 value) { s_teamRegistered = value; }    // 0x002EFF20
 
-// 0x0023F28C: "[Session::setCustomFailure] failureCode = %d, caller = %d". The callers: 4
-// Network::handleError, 5 the session lost (update, updateNodeCount, abort). Inlined in those.
+// 0x0023F28C: "[Session::setCustomFailure] failureCode = %d, caller = %d" (`caller` only for the log): 0
+// MIGRATION_FAIL (amxnet), 1 netSetGenericFailure, 2 netSetCustomFailure, 3 netGetLastCustomFailure (reset),
+// 4 Network::handleError, 5 the session lost (update, updateNodeCount, abort: inlined there), 6
+// netClearCustomFailure.
 void Session::setCustomFailure(int code, int caller)
 {
 	s_customFailure = code;

@@ -345,6 +345,42 @@ native netSetParticipation(bool:open);
 native netSetTeamRegistered(team);
 native netGetLastCustomFailure();
 native inetSetAttribute(index, value);                               // NEX matchmaking attribute (see docs/online.md)
+native netLogin();                                                   // Internet: game server login (status LOGGED_IN)
+native netConnect(host);                                             // Internet: match search; local: join `host`,
+                                                                     // a netGetMasterID() value (0: none)
+native udsBroadcast();                                               // local: open a network and host it
+native udsStopBroadcast();                                           // local: does nothing (1)
+native netGetMasterID(index);                                        // local: the address of scanned network `index`
+native netGetBroadcastData(index, data[]);                           // local: its application data (a string)
+native netGetNodeIdx();                                              // this console's place in the node list
+native netGetNodeIdxFromId(node);
+native netGetSessionState();                                         // Pia's session state
+native netHandleError(code);                                         // Network::handleError with a network error code
+native netSetCustomFailure(code);
+native netClearCustomFailure();
+native netSetGenericFailure();                                       // custom failure 16
+native netSetDataRegistered(value);                                  // stored, read by nothing
+native netSetSubRegistered(value);                                   // stored, read by nothing
+native netPauseOutgoing();                                           // network pause: every station paused
+native netSetReadyToUnpause();
+native netAllUnitsReadyToUnpause();
+native netClearPausedStatus();
+native netSyncEventPoint();                                          // sync point (syncevent.cpp)
+native netSyncEventCheck();                                          // every console reached it
+native netSyncEventAcknowledgeSync();
+native netGetLengthSent(bool:reliable);                              // never counted: 0
+native netGetLengthReceived();
+native netResetLengthSentReceived();
+native netAddToBlacklist(pid);
+native netRemoveFromBlacklist(pid);
+native netRemoveFriendsFromBlacklist();
+native netSendChangesToBlacklist();
+native netDebug();                                                   // local: next update fails with 018-0306
+native netDbgSetVerbose(bool:verbose);                               // Pia's trace flags
+native netDbgFlushCache();                                           // empty
+native netDbgPrintMemory();                                          // empty
+native netRemoveResult();                                            // empty
+native netInitPIA();
 
 /* ---- amxgfx ---- */
 native gfxSelectRenderer(mask);                                      // renderers the next gfx* calls apply to
