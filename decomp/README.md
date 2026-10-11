@@ -52,7 +52,7 @@ A known trap: `armlink` merges functions with identical code. A call can therefo
 
 ## `src/` — cleaned code (versioned)
 
-*Estimated progress: 22 % — 551 of the game's 2,126 functions rewritten (about 28 % of the game's code, Nintendo's
+*Estimated progress: 23 % — 576 of the game's 2,126 functions rewritten (about 29 % of the game's code, Nintendo's
 libraries aside); the whole network layer (`net/`) is done.*
 
 C++ rewritten by hand from the pseudo-code, with the same tree as `raw/source/`:
@@ -69,6 +69,7 @@ C++ rewritten by hand from the pseudo-code, with the same tree as `raw/source/`:
 | `sys/allocator.cpp`, `sys/resource.cpp` | the heaps and their groups; files read whole once and kept in the level or system "stock" |
 | `sys/binxml.cpp`, `sys/textdata.cpp` | the BXML reader (relocation, search by name or CRC-32); the texts and their styles, with the developers' SD card override |
 | `sys/exception.cpp`, `sys/screenshot.cpp` | the crash handler that named its backtrace with `romfs:/map`; the 3D photos |
+| `fader.cpp`, `gfx/font.cpp` | screen fades, the saving and HOME icons with the loading tips; fonts, graphics memory counters |
 | `util.cpp`, `misc.cpp` | CRC-32, MAC addresses, UTF conversions; memory blocks, dynamic properties, wait screen, raw textures |
 | `net/network.cpp` | the network status (its original names), the active connection, every error turned into a network error code and what the game does with it (a table taken by running the game's own function) |
 | `net/session.cpp` | Pia's session as the game sees it: node ids ("vitei" ids), Pia's events, failures, leaving with host migration |
