@@ -55,7 +55,7 @@ and original source file that use them (`--all` for Nintendo's libraries too); t
 
 ## Typing slips
 
-`dataRecieveCallback` (`syncevent.cpp`), the debug menu's `network recieve latency min/max`,
+`dataRecieveCallback` (`syncevent.cpp`), the native `fxFishAvaliable`, the debug menu's `network recieve latency min/max`,
 `[amxorld::worldSetLevel]`, `Applet: sleep later - repyling`, `[mode_peiscope::@setNpc]`,
 `[Network::handleError] Unhandled case for status` in
 `Network::performShutdown` (a log copied from one function to the other).
