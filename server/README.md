@@ -27,7 +27,9 @@ give to your friends, and edits the options below.
 
 *Estimated progress: 90 % — the PC realm is ready on the server's side but waits for the PC port.*
 
-The file [`server.toml`](server.toml) describes two fully separate "realms" (accounts, lobbies):
+The file `server.toml` describes two fully separate "realms" (accounts, lobbies). It is each install's own (not
+versioned): the server or the launcher creates it at first start from [`server.example.toml`](server.example.toml),
+the versioned defaults.
 
 | Realm | Players | Authentication | Secure server |
 |---|---|---|---|

@@ -25,7 +25,7 @@ from pathlib import Path
 
 from . import stun
 from .internet import Internet
-from .config import canonical
+from .config import EXAMPLE, canonical, create as create_config
 from .matchmaking import BotSettings
 from .natcheck import PORTS as NAT_CHECK_PORTS, NatCheckService
 from .realm import Realm, RealmConfig
@@ -149,10 +149,8 @@ async def run(server: dict, realms: list[RealmConfig], config: Path, state_path:
 
 def main() -> None:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    default = HERE / "server.toml"
-    if not default.exists() and (HERE / "serveur.toml").exists():       # its name before the project went English
-        default = HERE / "serveur.toml"
-    ap.add_argument("-c", "--config", type=Path, default=default)
+    ap.add_argument("-c", "--config", type=Path, default=HERE / "server.toml",
+                    help="created from server.example.toml when missing")
     ap.add_argument("--realm", action="append", help="only start this realm (repeatable)")
     ap.add_argument("-v", "--verbose", action="count", default=0, help="-v: packets, -vv: more")
     ap.add_argument("--state-file", type=Path, help="state file (default: data/server.json next to the config)")
@@ -164,8 +162,10 @@ def main() -> None:
     if args.verbose < 2:
         logging.getLogger("prudp").setLevel(logging.INFO)
     try:
+        if create_config(args.config):
+            log.info("%s created from %s", args.config, EXAMPLE.name)
         server, realms = load_config(args.config, args.realm)
-    except (ValueError, KeyError, tomllib.TOMLDecodeError) as e:
+    except (OSError, ValueError, KeyError, tomllib.TOMLDecodeError) as e:
         sys.exit(f"bad configuration {args.config}: {e}")
     if not realms:
         sys.exit("no realm to start")

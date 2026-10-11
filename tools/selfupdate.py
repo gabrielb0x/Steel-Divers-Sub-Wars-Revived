@@ -9,8 +9,8 @@ a newer one, offers to update:
 - the zip is downloaded, checked by the SHA-256 GitHub gives for it, and read in memory;
 - every file that changed is replaced, VERSION last (an interrupted update is offered again); the files the new
   version removed or renamed (GitHub's comparison of both tags) are deleted;
-- server/server.toml stays as it is when the player changed it (the options it lacks take their default values);
-- the player's files are never touched: cia/, extracted/, build/, server/data/, a mod of their own;
+- the player's files are never touched: cia/, extracted/, build/, server/data/, their configuration
+  (server/server.toml, made from server/server.example.toml; local.env), a mod of their own;
 - the launcher then restarts.
 
 A git clone is not updated this way: git pull.
@@ -40,11 +40,10 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 REPO = "gabrielb0x/Sub-Wars-Steel-Divers-Open-Sourced"
 API = f"https://api.github.com/repos/{REPO}"
-RAW = f"https://raw.githubusercontent.com/{REPO}"
 ASSET = "Sub-Wars-Open-Sourced.zip"
 FOLDER = "Sub-Wars-Open-Sourced"                   # the folder the zip unpacks to
 PLAYER_DIRS = ("cia", "extracted", "build", "server/data", ".git")
-KEPT_WHEN_CHANGED = ("server/server.toml",)
+PLAYER_FILES = ("server/server.toml", "local.env")  # not versioned (server.toml was until 0.2.x: never deleted)
 CHECK_EVERY = 3600                                 # seconds between two questions to GitHub
 
 
@@ -146,7 +145,7 @@ def unpack(data: bytes) -> dict[str, tuple[bytes, int]]:
 
 def players(path: str) -> bool:
     """Whether a path of the project is the player's (their game, its files, the server's data)."""
-    return any(path == d or path.startswith(d + "/") for d in PLAYER_DIRS)
+    return path in PLAYER_FILES or any(path == d or path.startswith(d + "/") for d in PLAYER_DIRS)
 
 
 def removed_files(old: str, new: str) -> set[str]:
@@ -165,14 +164,6 @@ def removed_files(old: str, new: str) -> set[str]:
             return gone
         page += 1
     return gone
-
-
-def changed_by_player(path: str, version: str) -> bool:
-    """Whether a file differs from the one version shipped (unknown: considered changed, so that it is kept)."""
-    try:
-        return (ROOT / path).read_bytes() != fetch(f"{RAW}/v{version}/{path}")
-    except (OSError, UpdateError):
-        return True
 
 
 def apply(log=print) -> str:
@@ -198,9 +189,6 @@ def apply(log=print) -> str:
         content, mode = files[path]
         dest = ROOT / path
         if players(path) or (dest.is_file() and dest.read_bytes() == content):
-            continue
-        if path in KEPT_WHEN_CHANGED and dest.is_file() and changed_by_player(path, old):
-            log(f"Kept your {path} (the options it lacks take their default values).")
             continue
         dest.parent.mkdir(parents=True, exist_ok=True)
         part = dest.with_name(dest.name + ".update")

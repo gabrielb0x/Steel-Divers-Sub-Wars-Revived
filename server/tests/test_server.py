@@ -14,7 +14,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from sdsw_server import matchmaking, testclient
+from sdsw_server import config as server_config, matchmaking, testclient
 from sdsw_server.crypto import RC4, derive_user_key, kerberos_decrypt, kerberos_encrypt, KerberosError
 from sdsw_server.ddl import MatchmakeSession, SearchCriteria, criterion_matches
 from sdsw_server.matchmaking import BotSettings
@@ -463,6 +463,28 @@ class Options(unittest.TestCase):
             return secure.game_globals().get("server.duration")
         self.assertEqual(run_realm(test), 600)
         self.assertEqual(run_realm(test, duration=3), 180)
+
+
+class ConfigFile(unittest.TestCase):
+    """server.toml is the player's: made from the versioned server.example.toml when missing."""
+
+    def test_created_from_the_example(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "server.toml"
+            self.assertTrue(server_config.create(path))
+            self.assertEqual(path.read_text(encoding="utf-8"), server_config.EXAMPLE.read_text(encoding="utf-8"))
+            options = server_config.read(path)
+            self.assertEqual([r["name"] for r in options["realm"]], ["emulator", "pc"])
+            path.write_text("[server]\n", encoding="utf-8")
+            self.assertFalse(server_config.create(path))                    # never overwritten
+            self.assertEqual(path.read_text(encoding="utf-8"), "[server]\n")
+
+    def test_older_french_name(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            (Path(tmp) / "serveur.toml").write_text("[server]\nname = 'mine'\n", encoding="utf-8")
+            self.assertTrue(server_config.create(Path(tmp) / "server.toml"))
+            self.assertEqual(server_config.read(Path(tmp) / "server.toml")["server"]["name"], "mine")
+            self.assertFalse((Path(tmp) / "serveur.toml").exists())
 
 
 class Session(unittest.TestCase):

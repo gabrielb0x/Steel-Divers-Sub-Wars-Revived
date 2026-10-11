@@ -46,7 +46,8 @@ tools/release.py --notes "..."                      publish VERSION as release v
                                                     (git archive) + installer/ (Install-here.bat, install-here.sh,
                                                     Install-here-macOS.zip); needs gh logged in, the commit pushed
 python3 -m unittest discover -s tools/tests         tests of the players' tools (no game file needed)
-cd server && python3 -m sdsw_server        online server (realms "emulator" and "pc", server.toml); tests: python3 -m unittest discover -s tests -t .
+cd server && python3 -m sdsw_server        online server (realms "emulator" and "pc", server.toml: not versioned,
+                                           made from server.example.toml at first start); tests: python3 -m unittest discover -s tests -t .
 ```
 
 Every finished change is released: raise VERSION (0.2 -> 0.3), commit, push, then tools/release.py (the installers

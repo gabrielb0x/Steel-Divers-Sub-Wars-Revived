@@ -172,8 +172,9 @@ Tailscale works without opening anything: see [server/README.md](server/README.m
 After each finished change: raise `VERSION`, commit, push, then `python3 tools/release.py --notes "..."`. It makes the
 GitHub release `v<VERSION>`: `Sub-Wars-Open-Sourced.zip` (`git archive` of the commit: tracked files only) and the
 installers of `installer/`. The installers always download the latest release; the launcher updates a folder from it
-(`tools/selfupdate.py`: changed files replaced, removed ones deleted, the player's files and a `server.toml` they
-changed kept).
+(`tools/selfupdate.py`: changed files replaced, removed ones deleted, the player's files kept). Configuration files
+are not versioned: `server/server.toml` is made from `server/server.example.toml` at first start, `local.env` (RE
+pipeline) by `setup.sh` (see `local.env.example`).
 
 </details>
 

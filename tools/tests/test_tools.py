@@ -1139,9 +1139,9 @@ class LauncherUpdates(unittest.TestCase):
         selfupdate._checked.update(at=0.0, result=None)
         self.release = release_zip({"VERSION": b"0.3\n", "subwars.py": b"new launcher", "tools/same.py": b"same",
                                     "tools/new.py": b"new", "launch-linux.sh": b"#!/bin/sh\n",
-                                    "server/server.toml": b"realm = 'new default'", "build/stray": b"x"},
+                                    "server/server.example.toml": b"realm = 'new default'",
+                                    "build/stray": b"x"},
                                    executable=("launch-linux.sh",))
-        self.shipped_toml = b"realm = 'shipped in 0.2'"
 
     def fetch(self, url, timeout=20, accept=""):
         if url.endswith("/releases/latest"):
@@ -1155,9 +1155,9 @@ class LauncherUpdates(unittest.TestCase):
             return json.dumps({"files": [{"status": "removed", "filename": "tools/old.py"},
                                          {"status": "renamed", "filename": "tools/new.py",
                                           "previous_filename": "tools/renamed.py"},
+                                         {"status": "renamed", "filename": "server/server.example.toml",
+                                          "previous_filename": "server/server.toml"},
                                          {"status": "removed", "filename": "cia/game.cia"}]}).encode()
-        if url.endswith("/v0.2/server/server.toml"):
-            return self.shipped_toml
         raise selfupdate.UpdateError(f"{url}: HTTP 404")
 
     def test_check(self):
@@ -1176,7 +1176,8 @@ class LauncherUpdates(unittest.TestCase):
         self.assertEqual((read("VERSION"), read("subwars.py"), read("tools/new.py")), ("0.3\n", "new launcher", "new"))
         self.assertFalse((self.root / "tools/old.py").exists())                        # removed by 0.3
         self.assertFalse((self.root / "tools/renamed.py").exists())
-        self.assertEqual(read("server/server.toml"), "realm = 'mine'")                   # changed by the player
+        self.assertEqual(read("server/server.toml"), "realm = 'mine'")       # the player's, no longer versioned
+        self.assertEqual(read("server/server.example.toml"), "realm = 'new default'")
         for name, data in (("cia/game.cia", "my game"), ("mods/mine/mod.toml", "my own mod"),
                            ("server/data/accounts.sqlite3", "accounts")):
             self.assertEqual(read(name), data)                                           # the player's files
@@ -1184,12 +1185,6 @@ class LauncherUpdates(unittest.TestCase):
         if os.name != "nt":
             self.assertTrue(os.access(self.root / "launch-linux.sh", os.X_OK))
         self.assertEqual([p.name for p in self.root.rglob("*.update")], [])
-
-    def test_unchanged_config_follows_the_new_version(self):
-        self.shipped_toml = b"realm = 'mine'"
-        with mock.patch.object(selfupdate, "fetch", self.fetch):
-            selfupdate.apply(log=lambda *a: None)
-        self.assertEqual((self.root / "server/server.toml").read_text(), "realm = 'new default'")
 
     def test_refusals(self):
         good = self.release

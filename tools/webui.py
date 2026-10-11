@@ -1435,6 +1435,8 @@ def open_folder(path: Path) -> None:
 
 def serve(port: int = 0, open_browser: bool = True, setup: bool = False) -> int | None:
     """Runs the launcher until Ctrl+C; returns its port when it is to be started again (after an update)."""
+    with contextlib.suppress(OSError):
+        server_package().create(SERVER_DIR / "server.toml")         # the player's own, from server.example.toml
     server = LauncherServer(port)
     url = f"http://127.0.0.1:{server.port}/"
     print(f"Sub Wars Open Sourced {selfupdate.current()}: the launcher is open in your web browser.\n"

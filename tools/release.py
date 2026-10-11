@@ -59,7 +59,13 @@ def build_assets(out: Path) -> list[Path]:
     shutil.rmtree(out, ignore_errors=True)
     out.mkdir(parents=True)
     archive = out / f"{FOLDER}.zip"
-    run("git", "archive", "--format=zip", f"--prefix={FOLDER}/", "-o", str(archive), "HEAD")
+    # server/server.toml is not versioned (made from server.example.toml at first start), but launchers up to 0.2
+    # delete a file a new version no longer has: the zip still holds a copy of the example, which they replace only
+    # when the player kept the old default, and which newer launchers never touch (a player's file).
+    example = subprocess.run(["git", "show", "HEAD:server/server.example.toml"], cwd=ROOT, check=True,
+                             capture_output=True, text=True).stdout
+    run("git", "archive", "--format=zip", f"--prefix={FOLDER}/", f"--add-virtual-file={FOLDER}/server/server.toml:{example}",
+        "-o", str(archive), "HEAD")
     with zipfile.ZipFile(archive) as z:
         names = z.namelist()
         bat = z.read(f"{FOLDER}/installer/Install-here.bat")

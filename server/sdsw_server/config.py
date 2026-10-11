@@ -1,5 +1,8 @@
 """server.toml: the options of the server, read and written back with their comments.
 
+server.toml is the player's own file (not versioned): create() makes it from server.example.toml, the
+versioned defaults, the first time the server or the launcher starts.
+
 The launcher (tools/webui.py) shows these options and changes them with update(): each value is
 replaced on its own line, so the comments of the file stay; a missing option is added at the end of its
 section. Values are checked with the server's own rules (RealmConfig, BotSettings) before anything is
@@ -84,6 +87,23 @@ REALM_OPTIONS = (
 
 class ConfigError(ValueError):
     pass
+
+
+EXAMPLE = Path(__file__).resolve().parent.parent / "server.example.toml"
+
+
+def create(path: Path) -> bool:
+    """Creates the configuration path from server.example.toml when it does not exist yet (an older
+    serveur.toml next to it, its name before the project went English, is renamed instead); True if created."""
+    if path.exists():
+        return False
+    old = path.with_name("serveur.toml")
+    if path.name == "server.toml" and old.is_file():
+        old.rename(path)
+        return True
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(EXAMPLE.read_text(encoding="utf-8"), encoding="utf-8")
+    return True
 
 
 def read(path: Path) -> dict:
