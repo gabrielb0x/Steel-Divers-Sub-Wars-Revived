@@ -208,7 +208,7 @@ bool ConnectionInternet::matchmakerLogin()
 	}
 	if (!Inet_InitializePiaInet())
 		return false;
-	if (!startPia(&piaSettings))                           // vtable +0x50, settings 0x0037A3BC
+	if (!connection->initPIATransport(&piaSettings))      // vtable +0x50, settings 0x0037A3BC
 		return false;
 	Network::setStatus(3);
 	return true;
@@ -233,7 +233,7 @@ static void matchmakerLogout()
 	if (nn::nex::Core *core = nn::nex::Core::GetInstance())
 		core->SetTerminateImmediately(true);
 	if (connection != nullptr)
-		connection->stopPia();                             // vtable +0x54
+		connection->finalizePIATransport();                // vtable +0x54
 	nn::pia::session::Session::DestroyInstance();
 	ScopedHeap heap(System::getNetHeap());
 	if (ngs != nullptr)
@@ -413,7 +413,7 @@ bool ConnectionInternet::automatchOpen()
 		return false;
 	Session::setReady(true);
 	ownerPid = owner;
-	connection->onConnected();                             // vtable +0x28
+	connection->dispatch();                                // vtable +0x28: runs Pia once
 	return true;
 }
 
@@ -422,7 +422,7 @@ bool ConnectionInternet::connect()
 {
 	Network::setStatus(4);
 	if (!automatchOpen()) {
-		disconnect();                                      // vtable +0x30
+		leaveSession();                                    // vtable +0x30
 		return false;
 	}
 	Network::setStatus(6);
