@@ -101,6 +101,11 @@ search stores the radius instead of each actor's distance as its key, so nothing
 - **The debug menu** of the mode scripts (`consoleSystemMenu`: "goto mode_test", "Disable BGM", "killThemAll",
   "muteki", "stopTheTime", network latency and packet loss...): its logic was removed, see
   [mods.md](mods.md#debug-menu) and [pawn-scripts.md](pawn-scripts.md).
+- **The DS game's sound manager**: `DsSubAudioMgr` still holds the single-player missions' music logic of Steel
+  Diver (`Bgm_Mission1_1`... with variants and boss transitions), a "sound off" switch nothing sets, an empty
+  iceberg update, and a voice test on the id `0x0100003E`, which Sub Wars' renumbered archive gives to
+  `Bgm_MultiPlay9_Battle` ([DsSubAudioMgr.cpp](../decomp/src/DsSubAudioMgr.cpp)). The SoundMaker outputs ship in
+  the RomFS (`audiores/sound_data.csid`, the C header of the sound ids, and its HTML map).
 - `ConnectionLocal::debug()`: makes the next update fail with error 018-0306, to test the error screens.
 - **Texts from the SD card**: `TextData::loadStrings` first looks for `text/<language>.bxml` in the save data and, if
   it is there, reads that many bytes of `sdmc:/text/<language>.bxml` instead of the game's texts — a way for the
