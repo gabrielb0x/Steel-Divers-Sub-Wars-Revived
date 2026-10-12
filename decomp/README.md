@@ -52,8 +52,8 @@ A known trap: `armlink` merges functions with identical code. A call can therefo
 
 ## `src/` — cleaned code (versioned)
 
-*Estimated progress: 30 % — 1036 of the game's 2,126 functions rewritten (about 41 % of the game's code, Nintendo's
-libraries aside); the whole network layer (`net/`) is done.*
+*Estimated progress: 33 % — 1153 of the game's 2,126 functions rewritten (about 47 % of the game's code, Nintendo's
+libraries aside); the whole network layer (`net/`), the script natives and the collisions are done.*
 
 C++ rewritten by hand from the pseudo-code, with the same tree as `raw/source/`:
 

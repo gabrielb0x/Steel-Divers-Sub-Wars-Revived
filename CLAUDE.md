@@ -27,7 +27,8 @@ make elf        tools/code2elf.py     -> extracted/nsub.elf
 make analyze    ghidra/analyze.sh     -> ghidra/project/ (import + romfs map symbols + auto-analysis)
 make export     ghidra/export.sh      -> decomp/raw/ (pseudo-code per original object file + functions.csv),
                 tools/strings.py      -> decomp/raw/strings.txt (the game's strings by function and source file;
-                                         --grep REGEX, --all for the libraries too)
+                                         --grep REGEX, --all for the libraries too, --lines: the compiled-out
+                                         logs' __FILE__/__LINE__, i.e. the original line of 307 places)
 make scripts    tools/native_types.py, tools/amx.py, tools/amxdec.py (+ amxsym.py) -> decomp/scripts/ (Pawn asm + pseudo-Pawn)
 make data       tools/bxml.py -> extracted/xml/ (BXML: levels, stats, texts; name hash = zlib CRC-32)
 make azahar     tools/azahar.py prepare -> build/azahar/ (CIA without the encrypted manual, which Azahar rejects; CXI)

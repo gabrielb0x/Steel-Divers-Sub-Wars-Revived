@@ -52,6 +52,12 @@ and original source file that use them (`--all` for Nintendo's libraries too); t
   `Actor::setStasisScript`, and the scripts log `[stasis::enterReplayActorOffset]`.
 - The build: revision **31308** of their repository for the launch version, **33269** for the update v5200
   (`bxml/buildinfo.bxml`); the debug menu can hide it ("Hide Revision Number").
+- **The lines of their source files**: the retail build compiled the logs' call out but kept its arguments, so
+  307 logs still give `__FILE__`, `__LINE__` and their message (`tools/strings.py --lines`). The last line seen
+  is a lower bound of each file's length: `amxactor.cpp` 2,942 lines, `amxsys.cpp` 2,183, `collision.cpp` 1,938
+  (the quadtree's "Dropped tri %d at level %d"), `system.cpp` 1,878, `dlc.cpp` 1,451, `model.cpp` 1,446,
+  `connectionInternet.cpp` 1,405, `world.cpp` 1,288, `layout.cpp` 1,014, `scene.cpp` 1,012; the order of the
+  lines also gives the order of the functions in each file.
 
 ## Typing slips
 
