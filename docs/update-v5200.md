@@ -22,7 +22,7 @@ game, "v0": revision 31308, `bxml/buildinfo.bxml`). The project works with both 
   (`surface_torpedo_lv0N_charge`), a submarine customisation screen and a submarine shop.
 - **The shop changes**: the add-on content library gains natives (`sysDLCCheckOwned`,
   `sysDLCSetFilterModeSubmarine`, `...CrewExp`, `...Enlist`, `sysDLCIsNewArrival`...): submarines and crew
-  experience were sold separately.
+  expansions (item type `CREW_EXPANSION`) were sold separately.
 - **The 123 Pawn scripts are recompiled** (10 to 30 % more code for those of the modes and submarines); the texts of
   the 9 languages, 4 fonts, 27 layouts and the balance of several submarines (`pscope_plyNN_stats`) change.
 - **The save keeps its format** (version 27, `sysSaveDataLoad("save", 27)`).

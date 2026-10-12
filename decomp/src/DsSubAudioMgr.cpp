@@ -1,14 +1,15 @@
 // source/DsSubAudioMgr.cpp (DsSubAudioMgr.o): the game's sound manager, on Nintendo's eau / nw::snd. One
-// instance (0x005CE4B8); the scripts reach it through the sound natives (amx/amxsound.cpp). "DsSub": it comes
-// from Steel Diver on the DS, whose names it keeps: the single-player missions' music (Bgm_Mission1_1...
-// Bgm_Mission7_BOSS), the sea battle's ships, "Taisen" (対戦, versus) for the multiplayer battle music.
+// instance (0x005CE4B8); the scripts reach it through the sound natives (amx/amxsound.cpp). It comes from Steel
+// Diver (3DS, 2011), whose project began as the DS demo "Submarine" (E3 2004) — hence "DsSub" — and keeps its
+// names: the single-player missions' music (Bgm_Mission1_1... Bgm_Mission7_BOSS), the ships of its Steel
+// Commander mode ("SeaBattle", "BattleShip"), "Taisen" (対戦, versus) for the multiplayer battle music.
 //
 // Reconstructed by hand from decomp/raw/source/DsSubAudioMgr.cpp and the disassembly. Not compilable on its
 // own. The sound names are the developers' own, from the SoundMaker header shipped in the RomFS
 // (audiores/sound_data.csid): Bgm_* streams, SE_Trg_* one-shot effects, SE_Lev_* "level" effects that last
 // while they are asked every frame (LevelSe), Voice_A_* / Voice_B_* the crew's voices, PLAYER_* the players.
 //
-// Every entry point first checks `soundOff` (+0x809), which nothing ever sets: a switch of the DS game.
+// Every entry point first checks `soundOff` (+0x809), which nothing ever sets.
 // The BasicSound calls (volume, fade) take float arguments the decompiler lost; the volumes below are the
 // manager's own targets.
 
@@ -189,7 +190,7 @@ void DsSubAudioMgr::CalcDsSubAudioMgr()
 		stageTime++;
 }
 
-void DsSubAudioMgr::CalcDsSubAudioMgr_Iceberg() {}   // 0x0011B750: empty (the DS game's icebergs)
+void DsSubAudioMgr::CalcDsSubAudioMgr_Iceberg() {}   // 0x0011B750: empty (Steel Diver's icebergs)
 
 // 0x0011B7E0: the multiplayer battle music. A trigger (an incoming torpedo, Lev_Se_Private, once the stage
 // is 1050 frames old) starts the stage's Bgm_MultiPlay<N>_Battle; it plays on for 450 frames (7.5 s) after
@@ -527,7 +528,7 @@ void DsSubAudioMgr::Lev_Sonar(f32 distance);
 // one queued. Not while paused, muted or bgmOnly. Voice_B_010 becomes Voice_B_010_2 during an alarm;
 // Voice_B_001 at most every 70 frames. A leftover: the id 0x0100003E is still tested as a voice (it queues
 // Bgm_SUCCESS_PERISCOPE 120 frames later in modes 5 and 6), but in Sub Wars' archive it is
-// Bgm_MultiPlay9_Battle, which nothing passes to Trg_Voice: an id of the DS game, renumbered.
+// Bgm_MultiPlay9_Battle, which nothing passes to Trg_Voice: an id of Steel Diver's archive, renumbered.
 void DsSubAudioMgr::Trg_Voice(u32 id);
 
 // eau::AudioMgr's hooks, empty: 0x002DC8E0 preInitialize_, 0x002DC8E4 postInitialize_, 0x002DC8E8 preCalc_,

@@ -589,6 +589,9 @@ static cell n_sysLoadStrings(AMX *, const cell *p)
 // A text with 6 digits or more is refused (a phone number, a friend code: the system's rule); otherwise
 // kind 0 is refused when it contains a word of the console's list, kinds 1 and 2 when the filter masks
 // something; kind 3 is always accepted.
+// The update v5200 adds a list of its own for the Morse chat (kind 0), whose Latin letters the console's Japanese
+// list does not catch: a message containing KOROSU, KOLOSU (殺す, kill), SINE (死ね, die), BAKA, AHO (idiot) or
+// 37564 (mi-na-go-ro-shi, 皆殺し) is refused (v5200 0x00172BD4, through its new amxsys::strFind 0x00230FEC).
 static void sysFilterString(int kind, cell value, int extra);           // 0x00172254, thread 0x00174C74
 
 // ---- the console ---------------------------------------------------------------------------------------

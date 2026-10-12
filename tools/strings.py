@@ -8,12 +8,13 @@ passes place the strings nothing points at: in .text, armcc puts a function's li
 function before them); in .rodata/.data, the linker keeps each object file's data together ("?", "(by
 position)": the function of the string used before them, often one whose log was compiled out).
 
-    python3 tools/strings.py [--all] [--grep REGEX] [--lines]
+    python3 tools/strings.py [--all] [--grep REGEX] [--lines [--version v5200]]
 
 writes decomp/raw/strings.txt (generated from the game: never committed), the game's own files (source/), and
 the libraries' with --all; --grep prints the matching strings with their file and function instead. --lines
 prints the logs whose call was compiled out but whose arguments stayed: __FILE__, __LINE__ and the message, so
-the line of the original source each one was on (docs/developer-traces.md).
+the line of the original source each one was on (docs/developer-traces.md); with --version v5200, those of the
+update's executable (extracted/v5200/code.bin, no function names: the update has no symbol map).
 Needs extracted/code.bin and decomp/raw/functions.csv (make export).
 """
 
@@ -22,6 +23,7 @@ from __future__ import annotations
 import argparse
 import bisect
 import csv
+import json
 import re
 import struct
 from collections import defaultdict
@@ -105,11 +107,12 @@ def track_constant(code: bytes, regs: dict[int, int], word: int, address: int) -
         regs.pop(rd, None)
 
 
-def log_lines(code: bytes, starts: list[int], functions: list[tuple[int, int, str, str]]) -> None:
+def log_lines(code: bytes, starts: list[int], functions: list[tuple[int, int, str, str]],
+              text_end: int = TEXT_END) -> None:
     """The compiled-out logs: their call became a NOP (MOV r0, r0) after the arguments, or a branch to a NOP
     shared by several logs; __FILE__ in r0 (an ADR to "source/..."), __LINE__ in r1, the format in r3 or r2."""
     NOP, BRANCH = 0xE1A00000, 0xEA000000
-    words = struct.unpack_from(f"<{(TEXT_END - BASE) // 4}I", code)
+    words = struct.unpack_from(f"<{(text_end - BASE) // 4}I", code)
     logs: dict[str, list[tuple[int, str, str]]] = defaultdict(list)
     for i, word in enumerate(words):
         target = adr_target(word, BASE + 4 * i)
@@ -132,7 +135,7 @@ def log_lines(code: bytes, starts: list[int], functions: list[tuple[int, int, st
         if line is None or line > 100000:
             continue
         k = bisect.bisect_right(starts, BASE + 4 * i) - 1
-        logs[source].append((line, functions[k][2] if k >= 0 else "?", message))
+        logs[source].append((line, functions[k][2] if k >= 0 else f"0x{BASE + 4 * i:08X}", message))
     for source in sorted(logs):
         entries = sorted(logs[source])
         print(f"== {source}: {len(entries)} logs, the last at line {entries[-1][0]}")
@@ -145,7 +148,14 @@ def main() -> None:
     ap.add_argument("--all", action="store_true", help="the libraries' strings too")
     ap.add_argument("--grep", help="only print the lines matching this regular expression")
     ap.add_argument("--lines", action="store_true", help="the compiled-out logs with their source line")
+    ap.add_argument("--version", choices=("v0", "v5200"), default="v0", help="--lines: the executable to read")
     args = ap.parse_args()
+    if args.lines and args.version == "v5200":
+        folder = ROOT / "extracted" / "v5200"
+        manifest = json.loads((folder / "manifest.json").read_text())
+        rodata = int(manifest["exheader"]["segments"]["rodata"]["address"], 16)
+        log_lines((folder / "code.bin").read_bytes(), [], [], rodata)
+        return
     code = CODE.read_bytes()
     strings: dict[int, str] = {}
     starts, functions = load_functions()

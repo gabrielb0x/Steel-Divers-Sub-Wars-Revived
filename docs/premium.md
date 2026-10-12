@@ -135,7 +135,8 @@ The update ([update-v5200.md](update-v5200.md)) sells more:
   their prow in the add-on content like the historical ones' (`mount_dlc_arc`). The table matching them is in
   `mode_title` (submarines and contents, 15 cells each).
 - **A "refit" of each submarine** (`save.sub.typeN.expanded`), bought as content N + 30.
-- **Crew experience** and the full version (`sysDLCSetFilterModeCrewExp`, `...Enlist`).
+- **Crew expansion** (item type `CREW_EXPANSION`: a submarine refitted for more crew) and the full version
+  (`sysDLCSetFilterModeCrewExp`, `...Enlist`).
 
 `NsubShop::updateCondition` (`0x0013A9B0`) fills two bitmaps there: the contents bought (`+0x2DB0`, read by
 `checkCondition` and `checkPaidForFullVer`) and the contents owned (`+0x2DC0`, read by the new native

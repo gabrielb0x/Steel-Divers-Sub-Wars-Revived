@@ -1,6 +1,6 @@
 // source/amx/amxsound.cpp (amxsound.o): the sound natives of the scripts (natives_Sound, registered by
 // amx_SoundInit 0x00171960). Each calls the game's sound manager, DsSubAudioMgr (its one instance at
-// 0x005CE4B8; DsSubAudioMgr.cpp — "DsSub": the manager comes from the DS game, Steel Diver). Sounds are
+// 0x005CE4B8; DsSubAudioMgr.cpp — "DsSub": the manager comes from Steel Diver, a DS demo first). Sounds are
 // the ids of the sound archive (romfs:/audiores/sound_data.xml names them: Bgm_TITLE, SE_...).
 //
 // Reconstructed by hand from decomp/raw/source/amx/amxsound.cpp and the disassembly. Not compilable on its own.
@@ -47,7 +47,7 @@ static cell n_sndGroupChange(AMX *, const cell *p) { s_audio->player->dataManage
 static cell n_sndCalcCameraPan(AMX *, const cell *p);
 
 // Left empty: sndIcebergSE (0x00326884, its sound manager side CalcDsSubAudioMgr_Iceberg is empty too: the
-// icebergs of the DS game), sndBattleBGMInt (0x00326708), sndSubmarinePosition (0x00326AF8).
+// icebergs of Steel Diver), sndBattleBGMInt (0x00326708), sndSubmarinePosition (0x00326AF8).
 static cell n_sndIcebergSE(AMX *, const cell *) { return 0; }
 static cell n_sndBattleBGMInt(AMX *, const cell *) { return 0; }
 static cell n_sndSubmarinePosition(AMX *, const cell *) { return 0; }
