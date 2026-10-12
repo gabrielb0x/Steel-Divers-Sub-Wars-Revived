@@ -135,8 +135,118 @@ cell n_sysDLCCheckPaidForFullVer(AMX *amx, cell *params) { return getNsubShop()-
 cell n_sysDLCCheckCondition(AMX *amx, cell *params) { return getNsubShop()->checkCondition(params[1]); }
 // 0x00328488 sysDLCUpdateCondition: getNsubShop()->updateCondition(), returns 0.
 // The others (sysDLCPurchaseItem 0x002F15D4, sysDLCRedownloadItem 0x002F172C, sysDLCValidateSession
-// 0x002F1934, sysDLCAc* 0x00182E34..0x003280E0, sysDLCGetItem*...) call the NsubShop / NsubAcConnection
-// method of the same name, or read NsubShop::items[item].
+// 0x002F1934, sysDLCAcConnect 0x00182E34...) call the NsubShop / NsubAcConnection method of the same name:
+static cell n_sysDLCInit(AMX *, const cell *) { getNsubShop()->initializeEc(); return 0; }                        // 0x00328330
+static cell n_sysDLCCreateCatalog(AMX *, const cell *) { getNsubShop()->createCatalog(); return 0; }              // 0x003280F4
+static cell n_sysDLCDestroyCatalog(AMX *, const cell *) { getNsubShop()->destroyCatalog(); return 0; }            // 0x00328124
+static cell n_sysDLCFinalizeMetaDataReader(AMX *, const cell *) { getNsubShop()->finalizeMetaDataReader(); return 0; }   // 0x00328138
+static cell n_sysDLCGetBalanceAsync(AMX *, const cell *) { getNsubShop()->getBalanceAsync(); return 0; }          // 0x0032814C
+static cell n_sysDLCGetContentSetListAsync(AMX *, const cell *) { getNsubShop()->getContentSetListAsync(); return 0; }   // 0x003281EC
+static cell n_sysDLCGetServerTimeAsync(AMX *, const cell *) { getNsubShop()->getServerTimeAsync(); return 0; }    // 0x0032831C
+static cell n_sysDLCDeleteItemAsync(AMX *, const cell *p) { getNsubShop()->deleteItemAsync(p[1]); return 0; }     // 0x00328108
+static cell n_sysDLCInvalidateSession(AMX *, const cell *) { getNsubShop()->invalidateSession(); return 0; }       // 0x00328344
+static cell n_sysDLCAcDisconnect(AMX *, const cell *) { getNsubAcConnection()->disconnect(); return 0; }          // 0x003280CC
+// 0x00182F28: getNsubAcConnection(), then it runs into NsubAcConnection::isConnected (dlc.cpp).
+static cell n_sysDLCAcIsConnected(AMX *, const cell *) { return getNsubAcConnection()->isConnected(); }
+static cell n_sysDLCSetFilterModeEnlist(AMX *, const cell *) { getNsubShop()->filterMode = 1; return 0; }         // 0x00328454
+static cell n_sysDLCSetFilterModeSubmarine(AMX *, const cell *) { getNsubShop()->filterMode = 0; return 0; }      // 0x00328470
+
+// 0x002F0AE8: the eShop's "add funds" applet (EcApplet::RequestManageBalance); false if it failed.
+static cell n_sysDLCAddBalance(AMX *, const cell *)
+{
+	Result r = getNsubShop()->applet.RequestManageBalance();
+	return r.IsSuccess() ? 1 : ReportEcErrorVerbose(r);
+}
+
+// 0x002F1F94: the metadata reader of the catalog; false (and the error dialog) if it failed.
+static cell n_sysDLCInitializeMetaDataReader(AMX *, const cell *)
+{
+	NsubShop *shop = getNsubShop();
+	Result r = shop->metaData.Initialize(shop->dataTitle);
+	if (r.IsFailure())
+		ReportEcErrorVerbose(r);
+	return r.IsSuccess();
+}
+
+// 0x002F17DC: the last request's result; a failure shows its error dialogs.
+static cell n_sysDLCCheckLastResult(AMX *, const cell *)
+{
+	NsubShop *shop = getNsubShop();
+	if (shop->lastResult.IsFailure()) {
+		ReportNnError(shop->lastResult);
+		ReportEcErrorVerbose(shop->lastResult);
+	}
+	return shop->lastResult.IsSuccess();
+}
+
+// 0x003283C4: the player closed the eShop applet (result 0xC9213801); 0x003283EC: the request failed with
+// one of 0xC8A13817..0xC8A13819 (the eShop's own refusals, which the scripts explain themselves).
+static cell n_sysDLCIsLastAppletCancelled(AMX *, const cell *) { return getNsubShop()->lastResult == 0xC9213801; }
+static cell n_sysDLCIsLastResultFailed(AMX *, const cell *)
+{
+	u32 r = getNsubShop()->lastResult;
+	return r == 0xC8A13817 || r == 0xC8A13818 || r == 0xC8A13819;
+}
+
+// 0x0032849C: has the request's thread ended (a wait of 0)? Then it is joined and closed: 1; still running: 0.
+static cell n_sysDLCWaitThread(AMX *, const cell *)
+{
+	NsubShop *shop = getNsubShop();
+	if (shop->thread.IsValid() && !shop->thread.TryWait())
+		return 0;
+	if (shop->thread.IsValid()) {
+		shop->thread.Join();
+		shop->thread.Finalize();
+	}
+	return 1;
+}
+
+// The catalog's items (NsubShop::items[item], 0x300 bytes, filled by _setItemInfo): name +0x24, long
+// description +0x1A4, price text +0x2A4, release time +0x2E8 (u64, milliseconds), purchased +0x2F2, on the
+// SD card +0x2F3, purchasable +0x2F5, new +0x2F6, blocks needed +0x2F8.
+static cell itemString(const cell *p, int offset)
+{
+	AMXLoader *self = AMXLoader::getCurrentLoader();
+	char *out = getAmxScratchBuffer1();
+	strcpy(out, (const char *)getNsubShop()->items[p[1]].data + offset);
+	self->setString(out, p[2]);
+	return 0;
+}
+static cell n_sysDLCGetItemName(AMX *, const cell *p) { return itemString(p, 0x24); }            // 0x00328254
+static cell n_sysDLCGetItemDescLong(AMX *, const cell *p) { return itemString(p, 0x1A4); }       // 0x00328200
+static cell n_sysDLCGetItemPriceString(AMX *, const cell *p) { return itemString(p, 0x2A4); }    // 0x003282A8
+static cell n_sysDLCIsItemPurchased(AMX *, const cell *p) { return getNsubShop()->items[p[1]].data[0x2F2]; }    // 0x003283A0
+static cell n_sysDLCIsItemOnDevice(AMX *, const cell *p) { return getNsubShop()->items[p[1]].data[0x2F3]; }     // 0x00328358
+static cell n_sysDLCIsItemPurchasable(AMX *, const cell *p) { return getNsubShop()->items[p[1]].data[0x2F5]; }  // 0x0032837C
+static cell n_sysDLCIsNewArrival(AMX *, const cell *p) { return getNsubShop()->items[p[1]].data[0x2F6]; }       // 0x00328430
+static cell n_sysDLCGetItemRequiredBlock(AMX *, const cell *p) { return *(cell *)(getNsubShop()->items[p[1]].data + 0x2F8); }   // 0x003282FC
+
+// 0x001F27E0 / 0x001F2764 / 0x001F26E8 (each then runs into a helper, 0x001F2804 / 0x001F2788 / 0x001F270C):
+// the release date's year, month and day, from its milliseconds (days since 0001-01-01 for
+// nn::fnd::DateTime::DaysToDate).
+static cell releaseDate(const cell *p, int field)
+{
+	s64 ms = *(s64 *)(getNsubShop()->items[p[1]].data + 0x2E8);
+	int date[3];
+	nn::fnd::DateTime::DaysToDate(&date[0], &date[1], &date[2], (ms + 0x395F7CFC8400LL) / 86400000 - 730119);
+	return date[field];
+}
+static cell n_sysDLCGetItemReleaseYear(AMX *, const cell *p) { return releaseDate(p, 0); }
+static cell n_sysDLCGetItemReleaseMonth(AMX *, const cell *p) { return releaseDate(p, 1); }
+static cell n_sysDLCGetItemReleaseDay(AMX *, const cell *p) { return releaseDate(p, 2); }
+
+// 0x00328160: the account's balance as a text (three parts of the balance's price, "%s%s%s").
+static cell n_sysDLCGetBalanceString(AMX *, const cell *p)
+{
+	AMXLoader *self = AMXLoader::getCurrentLoader();
+	char *out = getAmxScratchBuffer1();
+	NsubShop *shop = getNsubShop();
+	char text[0x80];
+	snprintf(text, 0x7F, "%s%s%s", shop->balanceText[0], shop->balanceText[1], shop->balanceText[2]);
+	strcpy(out, text);
+	self->setString(out, p[1]);
+	return 0;
+}
 
 // ---- module state --------------------------------------------------------------------------------------
 static char *s_filterBuffer;            // 0x0038DDA8 16 KB: the string to filter, in UTF-16
@@ -499,13 +609,140 @@ static void sysFilterString(int kind, cell value, int extra);           // 0x001
 // month, day, hour, minute, second, each > 0) multiplied together, times nn::cfg's transferable id.
 // 0x0032880C: sysEulaConfirm(): the console agreed to the online services' terms, else the system's
 // screen asks (System::showEULAConfirm).
-// The rest are one call or one value: sysEnableHomeButton / sysEnableSleep (System), sysIsHomeButtonEnabled
-// / sysIsSleepEnabled / sysIsPaused (System's flags), sysIsCoppaSupported / sysGetCoppaRestriction /
-// sysAuthCoppaPIN / sysIsCoppaPINAuth / sysJumpToParentalControlCoppa (the US parental control, COPPA),
-// sysIsRestrictPhotoExchange (parental control), sysIsMiiDataFormatted (FaceSystem), sysGetStoreDataName
-// (FaceSystem::getStoreDataName), sysSaveIsEnabled (1), sysGetBuildType (0), sysJumpToSystemMenu,
-// sysDebug, sysDumpLog, sysDumpProfile, sysEnableLogging, sysPrintStats, sysGetAMXProfiles,
-// sysGetLayoutProfiles, sysGetTimerProfiles (0: emptied), sysDumpModels (Renderer::dumpModels of the four
-// renderers), sysPrintResourceList, sysBeginProfilePoint / sysEndProfilePoint (amxutils.cpp).
+static cell n_sysEnableHomeButton(AMX *, const cell *p) { System::enableHomeButton(p[1] != 0); return 0; }   // 0x0032878C
+static cell n_sysEnableSleep(AMX *, const cell *p) { System::enableSleep(p[1] != 0); return 0; }             // 0x003287B0
+static cell n_sysIsHomeButtonEnabled(AMX *, const cell *) { return System::s_homeButtonEnabled; }           // 0x002ECFEC
+static cell n_sysIsSleepEnabled(AMX *, const cell *) { return System::s_sleepEnabled; }                     // 0x002ECE50
+static cell n_sysIsPaused(AMX *, const cell *) { return System::s_paused; }                                 // 0x0024DE00
+static cell n_sysSetPaused(AMX *, const cell *p) { System::setPaused(p[1] != 0); return 0; }                // 0x0032A834
+static cell n_sysSetSaving(AMX *, const cell *p) { System::setSaving(p[1] != 0); return 0; }                // 0x0032A854
+// 0x0032A7B0: this script keeps running while the game is paused.
+static cell n_sysSetIgnorePause(AMX *, const cell *) { AMXLoader::getCurrentLoader()->ignorePause = true; return 0; }
+static cell n_sysSetFakePushPowerButton(AMX *, const cell *) { System::setFakePushPowerButton(); return 0; }  // 0x0032A6C0
+static cell n_sysShowErrEULA(AMX *, const cell *p) { System::showErrEULA(p[1]); return 0; }                 // 0x0032A88C
+static cell n_sysShowExtraPadCalibration(AMX *, const cell *) { System::showExtraPadCalibration(); return 0; }   // 0x0032A8A0
+static cell n_sysJumpToSystemMenu(AMX *, const cell *) { return 0; }                                        // 0x00329548
+static cell n_sysSaveIsEnabled(AMX *, const cell *) { return 1; }                                           // 0x002F3C68
+static cell n_sysGetBuildType(AMX *, const cell *) { return 0; }                                            // 0x003288B0: retail
+
+// The US parental control (COPPA). 0x00329534: the console's region supports it; 0x00328944: 0 not
+// supported (or the parental control is off), 1 restricted (its "COPPA" flag), 2 supported and free;
+// 0x002ECE3C / 0x002ED014: the flags System read at start (PIN given, photo exchange restricted).
+static cell n_sysIsCoppaSupported(AMX *, const cell *) { bool b; nn::cfg::IsCoppacsSupported(&b); return b; }
+static cell n_sysGetCoppaRestriction(AMX *, const cell *)
+{
+	nn::cfg::ParentalControlInfo info;          // config blocks 0xC0001 (0x14 bytes) and 0xC0000 (0xC0)
+	bool supported;
+	if (!info.enabled || (nn::cfg::IsCoppacsSupported(&supported), !supported))
+		return 0;
+	return (info.restrictions & 1) && info.coppacsRestricted ? 1 : 2;
+}
+static cell n_sysIsCoppaPINAuth(AMX *, const cell *) { return System::s_coppaPINAuthorized; }               // 0x0038EBA0
+static cell n_sysIsRestrictPhotoExchange(AMX *, const cell *) { return System::s_restrictPhotoExchange; }    // 0x0038EB9F
+static cell n_sysAuthCoppaPIN(AMX *, const cell *) { System::authCoppaPIN(); return 0; }                    // 0x00327C74
+static cell n_sysJumpToParentalControlCoppa(AMX *, const cell *) { System::jumpToParentalControlCoppa(); return 0; }   // 0x00329538
+
+// 0x002ED118 sysGetYear, 0x002ED144 sysGetMonth, 0x002ED0EC sysGetHour, 0x002ED1D8 sysGetMinute: 4-byte
+// thunks into nn::fnd::DateTime::GetNow() and the field's getter.
+
+// ---- the Mii (facesystem.cpp) ----------------------------------------------------------------------------
+
+// 0x00176D50, running into FaceSystem::isMiiDataFormatted: the database was just formatted (once).
+static cell n_sysIsMiiDataFormatted(AMX *, const cell *) { return FaceSystem::isMiiDataFormatted(); }
+static cell n_sysResetMii(AMX *, const cell *) { FaceSystem::reset(); return 0; }                           // 0x003298E4
+
+// 0x0032A934: sysUpdateMii(mii[], index, name[], ..., select): the player's Mii, from the Mii selector
+// applet when `select`; its name (UTF-8) into name[].
+static cell n_sysUpdateMii(AMX *, const cell *p)
+{
+	AMXLoader *self = AMXLoader::getCurrentLoader();
+	cell *mii = self->getAddr(p[1], 0);
+	char name[0x60] = {};
+	bool ok = p[6] ? FaceSystem::showMiiSelect(mii, p[2], name, sizeof(name))
+	               : FaceSystem::updateMii(mii, p[2], name, sizeof(name), p[4] != 0);
+	self->setString(name, p[3]);
+	return ok;
+}
+
+// 0x00329180: sysGetStoreDataName(mii[], name[], ...): the name in a Mii's data.
+static cell n_sysGetStoreDataName(AMX *, const cell *p)
+{
+	AMXLoader *self = AMXLoader::getCurrentLoader();
+	char name[0x60] = {};
+	bool ok = FaceSystem::getStoreDataName(self->getAddr(p[1], 0), name, sizeof(name), p[3] != 0, p[4] != 0);
+	self->setString(name, p[2]);
+	return ok;
+}
+
+// 0x0032A7C8: sysSetMiiStoreData(mii[], player, ...); 0x0032A64C sysSendMii(...): its arguments, as they
+// are, to FaceSystem::sendMii (the count from the params header).
+static cell n_sysSetMiiStoreData(AMX *, const cell *p) { FaceSystem::setStoreData(AMXLoader::getCurrentLoader()->getAddr(p[1], 0), p[2], p[3] != 0); return 0; }
+static cell n_sysSendMii(AMX *, const cell *p) { int n = p[0] / 4; FaceSystem::sendMii(&p[1], n - 1, p[n]); return 0; }
+
+// ---- debug natives left empty in the retail build ----------------------------------------------------
+
+// 0x00328578: sysDebug(n) logs "sysDebug(%d)" (line 1105, compiled out); 0x00328770 sysDumpProfile(on),
+// 0x00329878 sysQueueResources(name[]) and 0x003298C8 sysReadTimerProfileLast(profile, i) read their
+// arguments for a log that is gone. All return 0.
+static cell n_sysDebug(AMX *, const cell *) { return 0; }
+static cell n_sysDumpLog(AMX *, const cell *) { return 0; }                     // 0x00328738
+static cell n_sysEnableLogging(AMX *, const cell *) { return 0; }               // 0x003287A8
+static cell n_sysPrintStats(AMX *, const cell *) { return 0; }                  // 0x003297F8
+static cell n_sysCheckMessages(AMX *, const cell *) { return 0; }               // 0x003280C4
+static cell n_sysResetSystem(AMX *, const cell *) { return 0; }                 // 0x003298F4
+static cell n_sysResourcesBusy(AMX *, const cell *) { return 0; }               // 0x00329904
+static cell n_sysGetAMXProfiles(AMX *, const cell *) { return 0; }              // 0x00328850
+static cell n_sysGetLayoutProfiles(AMX *, const cell *) { return 0; }           // 0x00329038
+static cell n_sysGetTimerProfiles(AMX *, const cell *) { return 0; }            // 0x002F2180
+static cell n_sysGetFrameTime(AMX *, const cell *) { return 0; }                // 0x00328D30
+static cell n_sysStartTimer(AMX *, const cell *) { return 0; }                  // 0x0032A910
+static cell n_sysStopTimer(AMX *, const cell *) { return 0; }                   // 0x0032A918
+static cell n_sysReadTimer(AMX *, const cell *) { return 0; }                   // 0x003298C0
+static cell n_sysResetTimer(AMX *, const cell *) { return 0; }                  // 0x003298FC
+// 0x00328F58 sysGetGlobalIdx / 0x0032A7A8 sysSetGlobalIdx: 0; 0x00328F30 sysGetGlobalArrayIdx / 0x0032A780
+// sysSetGlobalArrayIdx: resolve their array argument and return 0 (indexed globals, never written).
+static cell n_sysGetGlobalIdx(AMX *, const cell *) { return 0; }
+static cell n_sysSetGlobalIdx(AMX *, const cell *) { return 0; }
+static cell n_sysDumpModels(AMX *, const cell *) { for (int i = 0; i < 4; i++) Renderer::getRenderer(i)->dumpModels(); return 0; }   // 0x00328740
+static cell n_sysPrintResourceList(AMX *, const cell *) { Resource::printResourceList(); return 0; }        // 0x003297E8
+// 0x00327C84 / 0x003287CC: AMXProfiler::beginProfile / endProfile of the named point (amxutils.cpp).
+static cell n_sysBeginProfilePoint(AMX *, const cell *p) { char n[384]; AMXLoader::getCurrentLoader()->getString(n, p[1]); AMXProfiler::beginProfile(n); return 0; }
+static cell n_sysEndProfilePoint(AMX *, const cell *p) { char n[384]; AMXLoader::getCurrentLoader()->getString(n, p[1]); AMXProfiler::endProfile(n); return 0; }
+
+// ---- the engine's side of the globals ----------------------------------------------------------------
+
+// 0x00249824: a global's value from C++ (main.cpp, the network...): 0 when it does not exist.
+cell amxSysGetGlobal(const char *name)
+{
+	for (Global *g = s_integers[hashName(name)]; g != nullptr; g = g->next)
+		if (strcmp(g->name, name) == 0)
+			return g->value;
+	return 0;
+}
+
+// ---- MemStream (the save's stream; vtable 0x00376C10) ------------------------------------------------
+// {vtable, size +4, position +8, data +0xC}.
+bool MemStream::eof() { return size <= position; }          // 0x002F6B90
+u32 MemStream::getLength() { return size; }                  // 0x002F6BE4
+// 0x002F6BA4: nothing is written past the end.
+void MemStream::write(const void *src, u32 n)
+{
+	if (position + n <= size) {
+		memcpy(data + position, src, n);
+		position += n;
+	}
+}
+// 0x001DA50C: past the end, the stream may refill (vtable +0x1C); if not, only what is left is read.
+u32 MemStream::read(void *dest, u32 n)
+{
+	if (position + n > size && !refill(n))
+		n = remaining();                    // vtable +0x24
+	memcpy(dest, data + position, n);
+	position += n;
+	return n;
+}
+
+// 0x0030D9D0 __sti___10_amxsys_cpp: the two hash tables emptied, the mode script "", and the module's other
+// statics.
 // 0x00328948: sysGetDirectoryListing(path[], &bxml, stripExtension): the files of "rom:/<path>" as a new
 // BXML document (<path><model name="..."/>...</path>), its address returned in the cell — a debug helper.

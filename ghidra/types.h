@@ -172,7 +172,7 @@ struct AMXLoader {
 typedef struct ActorData {
     void *attributes[64];           /* +0x000 BXML::DynamicAttribute*, count at +0x100 */
     u32 attributeCount;             /* +0x100 */
-    u32 unknown104;
+    u32 freeAttribute;              /* +0x104 index of the first free attribute (type 100); the others sorted by hash */
     char lastReadProperties[0x80];  /* +0x108 (Actor::getLastReadProperties) */
     char name[0x20];                /* +0x188 "Actor" after Actor::init */
     char stasisScript[0x180];       /* +0x1A8 script started when the current one ends (Actor::setStasisScript) */
@@ -183,7 +183,8 @@ typedef struct ActorData {
     u8 visibleSim;                  /* +0x11F8 */
     u8 pad11F9[3];
     u32 customSim;                  /* +0x11FC custom flags and values */
-    u8 unknown1200[0x60];
+    f32 inverseMatrixSim[12];       /* +0x1200 the replay's matrices (Actor::getMatrixSim) */
+    f32 matrixSim[12];              /* +0x1230 */
 } ActorData;
 
 typedef struct ActorVtbl {
@@ -196,7 +197,7 @@ typedef struct ActorVtbl {
 struct Actor {
     ActorVtbl *vtbl;
     u8 active;                      /* +0x04 slot in use (World::newActor takes the first free one) */
-    u8 unknown05;
+    u8 groupVisible;                /* +0x05 one of its groups is shown (Actor::changeVisOnGroup) */
     u8 recorded;                    /* +0x06 recorded in the replay buffer (World::postScriptUpdate) */
     u8 replayed;                    /* +0x07 moved by the replay (World::updateReplay) */
     u8 idle;                        /* +0x08 too far from the camera: not updated (Actor::calcIdle) */
@@ -205,7 +206,7 @@ struct Actor {
     u8 isStatic;                    /* +0x0B */
     u32 typeMask;                   /* +0x0C matched by the masks of World::findActors & co */
     u32 collisionMask;              /* +0x10 the types it collides with (Actor::setCollisionCheck) */
-    u32 unknown14;
+    u32 replayFramesLeft;           /* +0x14 frames it stays in the replay after `cacheable` is cleared (210) */
     f32 idleDistanceSq;             /* +0x18 (Actor::setIdleDistance) */
     f32 idleDistance;               /* +0x1C, 15000.0 by default */
     u32 unknown20;
@@ -216,15 +217,15 @@ struct Actor {
     s32 id;                         /* +0x34 */
     u32 groups;                     /* +0x38 visibility groups (World::showGroup) */
     u8 onScreen;                    /* +0x3C (actorIsOnScreen) */
-    u8 unknown3D;
+    u8 inFrustum;                   /* +0x3D the model is in the camera's frustum (Actor::calcVisible) */
     u8 matrixDirty;                 /* +0x3E set by setPosition/setRotation/scale changes */
-    u8 unknown3F;
-    u8 unknown40;
-    u8 unknown41;
+    u8 inverseDirty;                /* +0x3F the inverse matrix must be rebuilt (Actor::getInverseMatrix) */
+    u8 animAuto;                    /* +0x40 "anim_auto": the model's animations play from the start */
+    u8 loadEnvPending;              /* +0x41 "load_env" before the model or the level: done by setModel */
     u8 moving;                      /* +0x42 the velocity is not zero (actorSetVelocity) */
     u8 unknown43;
     s32 parent;                     /* +0x44 actor id, -1: none (actorSetParent, World::invalidateActor) */
-    u8 unknown48;
+    u8 inScene;                     /* +0x48 the model is in the renderer's scene */
     u8 pad49[3];
     f32 position[3];                /* +0x4C drawn state: position, rotation, visible, custom (0x20 bytes) */
     f32 rotation[3];                /* +0x58 */
@@ -235,7 +236,7 @@ struct Actor {
     f32 *positionPtr;               /* +0x6C simulated state: the drawn one or ActorData +0x11E0 (*Sim functions) */
     f32 previousRotation[3];        /* +0x70 */
     f32 scale[3];                   /* +0x7C */
-    u8 unknown88[0x30];
+    f32 inverseMatrix[12];          /* +0x88 MTX34, the inverse of matrix (Actor::getInverseMatrix) */
     f32 matrix[12];                 /* +0xB8 MTX34 */
     void *collShapes[2];            /* +0xE8 CollShape* (World::update, World::clipLine) */
     int collShapeCount;             /* +0xF0 */
